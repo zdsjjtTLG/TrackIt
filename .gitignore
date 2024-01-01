@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# data and doc fldr
+data/
+doc/
+
 # Distribution / packaging
 .Python
 build/
