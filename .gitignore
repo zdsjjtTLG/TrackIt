@@ -10,6 +10,9 @@ __pycache__/
 data/
 doc/
 
+# pycharm setting files
+.idea/
+
 # Distribution / packaging
 .Python
 build/
