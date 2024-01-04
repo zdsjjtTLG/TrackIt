@@ -12,6 +12,7 @@ import os.path
 import datetime
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from src.map.Net import Net
 from datetime import timedelta
 from shapely.ops import transform
@@ -62,21 +63,23 @@ class GpsDevice(object):
             logging.info(
                 rf'LOCATION - Car-{self.agent_id}, LocTime:{now_time.strftime(self._f)}, XY:{real_loc_x, real_loc_y}, Error: {round(xy_error[0], 2), round(xy_error[1], 2)}  - LOCATION')
 
-    def export_data(self, convert_loc: bool = True, from_crs: str = None, to_crs: str = None, out_fldr: str = None,
-                    file_name: str = None) -> None:
+    def export_data(self, convert_loc_sys: bool = True, from_crs: str = None, to_crs: str = None, out_fldr: str = None,
+                    file_name: str = None, file_type: str = 'geojson') -> gpd.GeoDataFrame:
         """
         行驶结束后, 存储gps数据
-        :param convert_loc: 是否需要进行坐标转换
+        :param convert_loc_sys: 是否需要进行坐标转换
         :param from_crs:
         :param to_crs:
         :param out_fldr:
         :param file_name:
+        :param file_type:
         :return:
         """
-        if convert_loc:
+        if convert_loc_sys:
             assert from_crs is not None
             assert to_crs is not None
-            loc_res = self.convert_loc(from_crs=from_crs, to_crs=to_crs)
+            loc_res = [(item[0], convert_loc(from_crs=from_crs, to_crs=to_crs, point_obj=item[1])) for item in
+                       self.final_loc_gps]
         else:
             loc_res = self.final_loc_gps
         gps_df = pd.DataFrame(loc_res, columns=[gps_field.TIME_FIELD, 'geometry'])
@@ -84,22 +87,16 @@ class GpsDevice(object):
         gps_df[gps_field.LAT_FIELD] = gps_df['geometry'].apply(lambda p: p.y)
         gps_df[gps_field.POINT_SEQ_FIELD] = [i + 1 for i in range(len(gps_df))]
         gps_df[gps_field.AGENT_ID_FIELD] = self.agent_id
-        gps_df[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD,
-                gps_field.POINT_SEQ_FIELD]].to_csv(os.path.join(out_fldr, file_name + '.csv'), encoding='utf_8_sig',
-                                                   index=False)
+        gps_gdf = gpd.GeoDataFrame(gps_df[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, 'geometry']],
+                                   geometry='geometry', crs='EPSG:4326')
+        if file_type == 'csv':
+            gps_df[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD,
+                    gps_field.POINT_SEQ_FIELD]].to_csv(os.path.join(out_fldr, file_name + '.csv'), encoding='utf_8_sig',
+                                                       index=False)
+        elif file_type == 'geojson':
+            gps_gdf.to_file(os.path.join(out_fldr, file_name + '.geojson'), encoding='gbk', driver='GeoJSON')
+        return gps_gdf
 
-    def convert_loc(self, from_crs: str = None, to_crs: str = None) -> list[tuple[datetime.datetime, Point]]:
-        """
-        地理坐标和平面坐标之间的转换
-        :param from_crs:
-        :param to_crs:
-        :return:
-        """
-        before = pyproj.CRS(from_crs)
-        after = pyproj.CRS(to_crs)
-        project = pyproj.Transformer.from_crs(before, after, always_xy=True).transform
-        loc_res = [(loc_item[0], transform(project, loc_item[1])) for loc_item in self.final_loc_gps]
-        return loc_res
     @property
     def tic_gap(self) -> float:
         return self.loc_frequency + np.random.normal(loc=self.tic_miu, scale=self.tic_sigma)
@@ -113,9 +110,11 @@ class GpsDevice(object):
 
 class Car(object):
     """车类"""
+
     def __init__(self, agent_id: int = None, speed_miu: float = 10.0, speed_sigma: float = 3,
                  net: Net = None, time_step: float = 0.2, start_time: datetime.datetime = None,
-                 loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15):
+                 loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
+                 save_gap: int = 5):
         """
 
         :param agent_id:
@@ -127,6 +126,7 @@ class Car(object):
         :param loc_frequency:
         :param loc_error_miu:
         :param loc_error_sigma:
+        :param save_gap: 每多少步存储一次车辆的真实轨迹
         """
         self.net = net
         self.time_step = time_step
@@ -136,6 +136,8 @@ class Car(object):
         self.speed_sigma = speed_sigma
         self.start_time = start_time
         self.__time_tic = 0
+        self.step_loc: list[tuple[datetime.datetime, Point]] = list() # 用于存储逐帧的轨迹
+        self.save_gap = save_gap
         self.ft_seq: list[tuple[int, int]] = []
 
         # 装备GPS设备
@@ -193,6 +195,11 @@ class Car(object):
                 # 位置传递给gps设备, 由设备决定是否记录数据
                 self.gps_device.receive_car_loc(now_time=now_time, loc=(now_loc_x, now_loc_y))
 
+                # 判断是否到达轨迹存储条件
+                if self.__time_tic % self.save_gap == 0:
+                    logging.info(rf'saving true trajectory ......')
+                    self.step_loc.append((now_time, Point(now_loc_x, now_loc_y)))
+
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
                 used_speed = speed + np.random.normal(loc=0, scale=speed * 0.08)
                 step_l = used_speed * self.time_step
@@ -209,6 +216,27 @@ class Car(object):
 
         self.__time_tic = 0
 
+    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, convert_loc_sys: bool = True,
+                        from_crs: str = None, to_crs: str = None, crs: str = None) -> gpd.GeoDataFrame:
+        """"""
+        if convert_loc_sys:
+            assert from_crs is not None
+            assert to_crs is not None
+            trajectory_res = [(item[0], convert_loc(from_crs=from_crs, to_crs=to_crs, point_obj=item[1])) for item in
+                              self.step_loc]
+        else:
+            trajectory_res = self.step_loc
+
+        trajectory_df = pd.DataFrame(trajectory_res,
+                                     columns=[gps_field.TIME_FIELD, 'geometry'])
+        if to_crs is not None:
+            used_crs = to_crs
+        else:
+            used_crs = crs
+        trajectory_gdf = gpd.GeoDataFrame(trajectory_df, geometry='geometry', crs=used_crs)
+        trajectory_gdf[gps_field.AGENT_ID_FIELD] = self.agent_id
+        trajectory_gdf.to_file(os.path.join(out_fldr, file_name + '.geojson'), encoding='gbk', driver='GeoJSON')
+        return trajectory_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, 'geometry']]
     @property
     def speed(self) -> float:
         """车辆速度, 服从正态分布"""
@@ -242,6 +270,19 @@ class Car(object):
                     cp = line.interpolate(distance)
                     return cp.x, cp.y, i - 1
 
+
+def convert_loc(from_crs: str = None, to_crs: str = None, point_obj: Point = None) -> Point:
+    """
+    地理坐标和平面坐标之间的转换
+    :param from_crs:
+    :param to_crs:
+    :param point_obj
+    :return:
+    """
+    before = pyproj.CRS(from_crs)
+    after = pyproj.CRS(to_crs)
+    project = pyproj.Transformer.from_crs(before, after, always_xy=True).transform
+    return transform(project, point_obj)
 
 if __name__ == '__main__':
     pass
