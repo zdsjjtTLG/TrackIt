@@ -25,7 +25,9 @@ class GpsField(object):
         self.TIME_FIELD = 'time'
         self.LNG_FIELD = 'lng'
         self.LAT_FIELD = 'lat'
+        self.HEADING_FIELD = 'heading'
         self.AGENT_ID_FIELD = 'agent_id'
+        self.TYPE_FIELD = 'type'
 
 
 class MarkovField(object):

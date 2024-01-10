@@ -6,7 +6,6 @@
 """模拟车辆在路径上行驶, 并生成GPS定位信息"""
 
 import sys
-import pyproj
 import logging
 import os.path
 import datetime
@@ -15,17 +14,60 @@ import pandas as pd
 import geopandas as gpd
 from src.map.Net import Net
 from datetime import timedelta
-from shapely.ops import transform
+from src.tools.coord_trans import prj_convert
 from shapely.geometry import LineString, Point
+from src.tools.coord_trans import LngLatTransfer
 
-from src.GlobalVal import GpsField
+from src.GlobalVal import GpsField, NetField
 
 gps_field = GpsField()
+net_field = NetField()
+
+
+class Route(object):
+    def __init__(self, net: Net = None, o_node: int = None, d_node: int = None):
+        self.net = net
+        self._o_node = o_node
+        self._d_node = d_node
+
+    @property
+    def o_node(self):
+        return self._o_node
+
+    @o_node.setter
+    def o_node(self, value: int = None):
+        if value not in self.net.get_node_data()[net_field.NODE_ID_FIELD]:
+            raise ValueError
+        self._o_node = value
+
+    @property
+    def d_node(self):
+        return self._d_node
+
+    @d_node.setter
+    def d_node(self, value: int = None):
+        if value not in self.net.get_node_data()[net_field.NODE_ID_FIELD]:
+            raise ValueError
+        self._d_node = value
+    @property
+    def random_route(self) -> list[tuple[int, int]]:
+        node_route = self.net.get_rnd_shortest_path()
+        ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
+        return ft_seq
+
+    @property
+    def od_route(self, o_node: int = None, d_node: int = None) -> list[tuple[int, int]]:
+        """通过指定起终点节点获取路径"""
+        node_route = self.net.get_shortest_path(o_node=o_node, d_node=d_node)
+        ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
+        return ft_seq
 
 class GpsDevice(object):
     """gps设备类"""
-    def __init__(self, time_step: float = 0.5, loc_frequency: float = 1.0, agent_id: int = None,
-                 loc_error_miu: float = 0.0, loc_error_sigma: float = 15):
+
+    def __init__(self, time_step: float = 0.5, loc_frequency: float = 1.0, agent_id: str = None,
+                 loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
+                 heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0, ):
         """
         假定gps的定位误差服从正态分布 ~ N(μ, σ2)
         落在区间(μ-σ, μ+σ)内的概率为0.68，横轴区间(μ-1.96σ, μ+1.96σ)内的概率为0.95，横轴区间(μ-2.58σ,μ+2.58σ)内的概率为0.997
@@ -44,77 +86,51 @@ class GpsDevice(object):
 
         self.loc_error_miu = loc_error_miu
         self.loc_error_sigma = loc_error_sigma
+        self.heading_error_sigma = heading_error_sigma
+        self.heading_error_miu = heading_error_miu
 
         # 用于记录定位数据的list
-        self.final_loc_gps: list[tuple[datetime.datetime, Point]] = []
+        self.__final_loc_gps: list[tuple[datetime.datetime, Point, float, str]] = []
         self._f = "%Y/%m/%d %H:%M:%S"
 
-    def receive_car_loc(self, now_time: datetime.datetime = None, loc: tuple[float, float] = None) -> None:
+    def receive_car_loc(self, now_time: datetime.datetime = None, loc: tuple[float, float, float] = None) -> None:
         """
         接收车辆的定位信息, 依据定位频率判断是否记录定位信息
         :param now_time:
         :param loc:
         :return:
         """
-        if not self.final_loc_gps or (now_time - self.final_loc_gps[-1][0]).seconds > self.tic_gap:
-            xy_error = self.loc_error
-            real_loc_x, real_loc_y = loc[0] + xy_error[0], loc[1] + xy_error[1]
-            self.final_loc_gps.append((now_time, Point(real_loc_x, real_loc_y)))
+        if not self.__final_loc_gps or (now_time - self.__final_loc_gps[-1][0]).seconds > self.tic_gap:
+            loc_error = self.loc_error
+            device_loc_x, device_loc_y, device_heading = \
+                loc[0] + loc_error[0], loc[1] + loc_error[1], loc[2] + loc_error[2]
+            self.__final_loc_gps.append((now_time, Point(device_loc_x, device_loc_y), device_heading, self.agent_id))
             logging.info(
-                rf'LOCATION - Car-{self.agent_id}, LocTime:{now_time.strftime(self._f)}, XY:{real_loc_x, real_loc_y}, Error: {round(xy_error[0], 2), round(xy_error[1], 2)}  - LOCATION')
-
-    def export_data(self, convert_loc_sys: bool = True, from_crs: str = None, to_crs: str = None, out_fldr: str = None,
-                    file_name: str = None, file_type: str = 'geojson') -> gpd.GeoDataFrame:
-        """
-        行驶结束后, 存储gps数据
-        :param convert_loc_sys: 是否需要进行坐标转换
-        :param from_crs:
-        :param to_crs:
-        :param out_fldr:
-        :param file_name:
-        :param file_type:
-        :return:
-        """
-        if convert_loc_sys:
-            assert from_crs is not None
-            assert to_crs is not None
-            loc_res = [(item[0], convert_loc(from_crs=from_crs, to_crs=to_crs, point_obj=item[1])) for item in
-                       self.final_loc_gps]
-        else:
-            loc_res = self.final_loc_gps
-        gps_df = pd.DataFrame(loc_res, columns=[gps_field.TIME_FIELD, 'geometry'])
-        gps_df[gps_field.LNG_FIELD] = gps_df['geometry'].apply(lambda p: p.x)
-        gps_df[gps_field.LAT_FIELD] = gps_df['geometry'].apply(lambda p: p.y)
-        gps_df[gps_field.POINT_SEQ_FIELD] = [i + 1 for i in range(len(gps_df))]
-        gps_df[gps_field.AGENT_ID_FIELD] = self.agent_id
-        gps_gdf = gpd.GeoDataFrame(gps_df[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, 'geometry']],
-                                   geometry='geometry', crs='EPSG:4326')
-        if file_type == 'csv':
-            gps_df[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD,
-                    gps_field.POINT_SEQ_FIELD]].to_csv(os.path.join(out_fldr, file_name + '.csv'), encoding='utf_8_sig',
-                                                       index=False)
-        elif file_type == 'geojson':
-            gps_gdf.to_file(os.path.join(out_fldr, file_name + '.geojson'), encoding='gbk', driver='GeoJSON')
-        return gps_gdf
+                rf'LOCATION - Car-{self.agent_id}, LocTime:{now_time.strftime(self._f)}, XY:{device_loc_x, device_loc_y, device_heading}, Error: {round(loc_error[0], 2), round(loc_error[1], 2), round(loc_error[2], 2)}  - LOCATION')
 
     @property
     def tic_gap(self) -> float:
         return self.loc_frequency + np.random.normal(loc=self.tic_miu, scale=self.tic_sigma)
 
     @property
-    def loc_error(self) -> (float, float):
-        """x,y方向的定位误差"""
+    def loc_error(self) -> (float, float, float):
+        """x, y, heading的定位误差"""
         return 0.707106 * np.random.normal(loc=self.loc_error_miu, scale=self.loc_error_sigma), \
-            0.707106 * np.random.normal(loc=self.loc_error_miu, scale=self.loc_error_sigma)
+               0.707106 * np.random.normal(loc=self.loc_error_miu, scale=self.loc_error_sigma), \
+            np.random.normal(loc=self.heading_error_miu, scale=self.heading_error_sigma)
+
+    def get_gps_loc_info(self) -> list[tuple[datetime.datetime, Point, float, str]]:
+        return self.__final_loc_gps
 
 
 class Car(object):
     """车类"""
 
-    def __init__(self, agent_id: int = None, speed_miu: float = 10.0, speed_sigma: float = 3,
+    def __init__(self, agent_id: str = None, speed_miu: float = 10.0, speed_sigma: float = 3,
                  net: Net = None, time_step: float = 0.2, start_time: datetime.datetime = None,
                  loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
-                 save_gap: int = 5):
+                 heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0,
+                 save_gap: int = 5, route: Route = None):
         """
 
         :param agent_id:
@@ -126,6 +142,8 @@ class Car(object):
         :param loc_frequency:
         :param loc_error_miu:
         :param loc_error_sigma:
+        :param heading_error_sigma:
+        :param heading_error_miu:
         :param save_gap: 每多少步存储一次车辆的真实轨迹
         """
         self.net = net
@@ -135,10 +153,12 @@ class Car(object):
         self.speed_miu = speed_miu
         self.speed_sigma = speed_sigma
         self.start_time = start_time
+        self.heading_error_sigma = heading_error_sigma
+        self.heading_error_miu = heading_error_miu
         self.__time_tic = 0
-        self.step_loc: list[tuple[datetime.datetime, Point]] = list() # 用于存储逐帧的轨迹
+        self.__step_loc: list[tuple[datetime.datetime, Point, float, str]] = list()  # 用于存储逐帧的轨迹
         self.save_gap = save_gap
-        self.ft_seq: list[tuple[int, int]] = []
+        self.route = route
 
         # 装备GPS设备
         self.gps_loc_frequency = loc_frequency
@@ -146,7 +166,9 @@ class Car(object):
         self.gps_loc_error_sigma = loc_error_sigma
         self.gps_device = GpsDevice(time_step=self.time_step,
                                     loc_frequency=self.gps_loc_frequency, agent_id=self.agent_id,
-                                    loc_error_miu=self.gps_loc_error_miu, loc_error_sigma=self.gps_loc_error_sigma)
+                                    loc_error_miu=self.gps_loc_error_miu, loc_error_sigma=self.gps_loc_error_sigma,
+                                    heading_error_miu=self.heading_error_miu,
+                                    heading_error_sigma=self.heading_error_sigma)
 
         # logging
         console_handler = logging.StreamHandler(sys.stdout)
@@ -163,15 +185,15 @@ class Car(object):
                             handlers=[file_handler, console_handler])
         logging.info(rf'Car {self.agent_id}_logging_info:.....')
 
-    def acquire_route_by_od(self, o_node: int = None, d_node: int = None) -> list[tuple[int, int]]:
-        """通过指定起终点节点获取路径"""
-        node_route = self.net.get_shortest_path(o_node=o_node, d_node=d_node)
-        self.ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
-        return self.ft_seq
-
+    def acquire_route(self):
+        if self.route.o_node is None or self.route.d_node is None:
+            return self.route.random_route
+        else:
+            return self.route.od_route
     def start_drive(self) -> None:
         """开始模拟行车"""
-        for ft in self.ft_seq:
+        ft_seq = self.acquire_route()
+        for ft in ft_seq:
             now_drive_link_geo = self.net.get_line_geo_by_ft(from_node=ft[0], to_node=ft[1])
             now_drive_link_name = self.net.get_link_attr_by_ft(attr_name='road_name', from_node=ft[0], to_node=ft[1])
             link_length = now_drive_link_geo.length
@@ -189,16 +211,16 @@ class Car(object):
             while True:
                 # 计算当前时间和车辆所处的位置
                 now_time = self.start_time + timedelta(seconds=self.__time_tic * self.time_step)
-                now_loc_x, now_loc_y, his_index = \
+                now_loc_x, now_loc_y, now_heading, his_index = \
                     self.location(line=now_drive_link_geo, distance=done_l, history_index=his_index)
 
                 # 位置传递给gps设备, 由设备决定是否记录数据
-                self.gps_device.receive_car_loc(now_time=now_time, loc=(now_loc_x, now_loc_y))
+                self.gps_device.receive_car_loc(now_time=now_time, loc=(now_loc_x, now_loc_y, now_heading))
 
                 # 判断是否到达轨迹存储条件
                 if self.__time_tic % self.save_gap == 0:
                     logging.info(rf'saving true trajectory ......')
-                    self.step_loc.append((now_time, Point(now_loc_x, now_loc_y)))
+                    self.__step_loc.append((now_time, Point(now_loc_x, now_loc_y), now_heading, self.agent_id))
 
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
                 used_speed = speed + np.random.normal(loc=0, scale=speed * 0.08)
@@ -216,27 +238,6 @@ class Car(object):
 
         self.__time_tic = 0
 
-    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, convert_loc_sys: bool = True,
-                        from_crs: str = None, to_crs: str = None, crs: str = None) -> gpd.GeoDataFrame:
-        """"""
-        if convert_loc_sys:
-            assert from_crs is not None
-            assert to_crs is not None
-            trajectory_res = [(item[0], convert_loc(from_crs=from_crs, to_crs=to_crs, point_obj=item[1])) for item in
-                              self.step_loc]
-        else:
-            trajectory_res = self.step_loc
-
-        trajectory_df = pd.DataFrame(trajectory_res,
-                                     columns=[gps_field.TIME_FIELD, 'geometry'])
-        if to_crs is not None:
-            used_crs = to_crs
-        else:
-            used_crs = crs
-        trajectory_gdf = gpd.GeoDataFrame(trajectory_df, geometry='geometry', crs=used_crs)
-        trajectory_gdf[gps_field.AGENT_ID_FIELD] = self.agent_id
-        trajectory_gdf.to_file(os.path.join(out_fldr, file_name + '.geojson'), encoding='gbk', driver='GeoJSON')
-        return trajectory_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, 'geometry']]
     @property
     def speed(self) -> float:
         """车辆速度, 服从正态分布"""
@@ -245,45 +246,171 @@ class Car(object):
     @staticmethod
     def location(line: LineString = None, distance: float = None, history_index: int = 0) -> tuple or list:
         """
-        计算车辆位置
+        计算车辆位置、航向角
         :param line:
         :param distance:
         :param history_index:
-        :return:
+        :return: (x, y, heading, his_index)
         """
-
+        coords = list(line.coords)
         if distance <= 0.0:
-            xy = list(line.coords)[0]
-            return xy[0], xy[1], 0
+            loc_xy = coords[0]
+            next_xy = coords[1]
+            heading_vec = np.array([next_xy[0] - loc_xy[0],
+                                    next_xy[1] - loc_xy[1]])
+            return loc_xy[0], loc_xy[1], calc_north_angle(dir_vec=heading_vec), 0
         elif distance >= line.length:
-            xy = list(line.coords)[-1]
-            return xy[0], xy[1], len(list(line.coords)) - 1
+            loc_xy = coords[-1]
+            pre_xy = coords[-2]
+            heading_vec = np.array([loc_xy[0] - pre_xy[0],
+                                    loc_xy[1] - pre_xy[1]])
+            return loc_xy[0], loc_xy[1], calc_north_angle(dir_vec=heading_vec), len(list(line.coords)) - 1
         else:
-            coords = list(line.coords)
-            for i, p in enumerate(coords):
-                if i < history_index:
-                    continue
+            for i in range(history_index, len(coords)):
+                p = coords[i]
+                # for i, p in enumerate(coords):
+                #     if i < history_index:
+                #         continue
                 xd = line.project(Point(p))
                 if xd == distance:
-                    return coords[i], i - 1
+                    loc_xy = p
+                    try:
+                        pre_xy = coords[i - 1]
+                        heading_vec = np.array([loc_xy[0] - pre_xy[0],
+                                                loc_xy[1] - pre_xy[1]])
+                        return loc_xy[0], loc_xy[1], calc_north_angle(dir_vec=heading_vec), i - 1
+                    except IndexError or KeyError:
+                        next_xy = coords[i + 1]
+                        heading_vec = np.array([next_xy[0] - loc_xy[0],
+                                                next_xy[1] - loc_xy[1]])
+                        return loc_xy[0], loc_xy[1], calc_north_angle(dir_vec=heading_vec), i - 1
                 if xd > distance:
                     cp = line.interpolate(distance)
-                    return cp.x, cp.y, i - 1
+                    next_xy = coords[i]
+                    pre_xy = coords[i - 1]
+                    heading_vec = np.array([next_xy[0] - pre_xy[0],
+                                            next_xy[1] - pre_xy[1]])
+                    return cp.x, cp.y, calc_north_angle(dir_vec=heading_vec), i - 1
+
+    def get_trajectory_info(self):
+        return self.__step_loc
+
+    def get_gps_loc_info(self) -> list[tuple[datetime.datetime, Point, float, str]]:
+        return self.gps_device.get_gps_loc_info()
 
 
-def convert_loc(from_crs: str = None, to_crs: str = None, point_obj: Point = None) -> Point:
-    """
-    地理坐标和平面坐标之间的转换
-    :param from_crs:
-    :param to_crs:
-    :param point_obj
-    :return:
-    """
-    before = pyproj.CRS(from_crs)
-    after = pyproj.CRS(to_crs)
-    project = pyproj.Transformer.from_crs(before, after, always_xy=True).transform
-    return transform(project, point_obj)
+class RouteInfoCollector(object):
+    """真实路径坐标以及GPS坐标收集器"""
+
+    def __init__(self, convert_prj_sys: bool = True,
+                 from_crs: str = None, to_crs: str = None, crs: str = None,
+                 convert_loc: bool = False, convert_type: str = 'bd-84'):
+        self.convert_prj_sys = convert_prj_sys
+        self.from_crs = from_crs
+        self.to_crs = to_crs
+        self.crs = crs
+        self.convert_loc = convert_loc
+        self.convert_type = convert_type
+
+        self.gps_info_list: list[tuple[datetime.datetime, Point, float, str]] = []
+        self.trajectory_info_list: list[tuple[datetime.datetime, Point, float, str]] = []
+        self.gps_gdf: gpd.GeoDataFrame = gpd.GeoDataFrame()
+        self.trajectory_gdf: gpd.GeoDataFrame = gpd.GeoDataFrame()
+
+    def collect_gps(self, gps_info: list[tuple[datetime.datetime, Point, float, str]] = None):
+        self.gps_info_list.extend(gps_info)
+
+    def collect_trajectory(self, trajectory_info: list[tuple[datetime.datetime, Point, float, str]] = None):
+        self.trajectory_info_list.extend(trajectory_info)
+
+    @staticmethod
+    def format_gdf(convert_prj_sys: bool = True, from_crs: str = None, to_crs: str = None,
+                   crs: str = None, convert_loc: bool = False, convert_type: str = 'bd-84',
+                   info_list: list = None) -> gpd.GeoDataFrame:
+        if convert_prj_sys:
+            assert from_crs is not None
+            assert to_crs is not None
+            format_res = [(item[0], prj_convert(from_crs=from_crs,
+                                                to_crs=to_crs,
+                                                point_obj=item[1]), item[2], item[3]) for item in info_list]
+        else:
+            format_res = info_list
+
+        format_df = pd.DataFrame(format_res,
+                                 columns=[gps_field.TIME_FIELD, 'geometry',
+                                          gps_field.HEADING_FIELD, gps_field.AGENT_ID_FIELD])
+        if to_crs is not None:
+            used_crs = to_crs
+        else:
+            used_crs = crs
+        trajectory_gdf = gpd.GeoDataFrame(format_df, geometry='geometry', crs=used_crs)
+        if convert_loc:
+            con = LngLatTransfer()
+            trajectory_gdf['geometry'] = \
+                trajectory_gdf['geometry'].apply(lambda geo: con.obj_convert(geo_obj=geo, con_type=convert_type))
+        return trajectory_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.HEADING_FIELD, 'geometry']]
+
+    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
+        """"""
+        if self.trajectory_gdf.empty:
+            self.trajectory_gdf = self.format_gdf(convert_prj_sys=self.convert_prj_sys, from_crs=self.from_crs,
+                                                  to_crs=self.to_crs,
+                                                  crs=self.crs, convert_loc=self.convert_loc,
+                                                  convert_type=self.convert_type,
+                                                  info_list=self.trajectory_info_list)
+        self.save_file(file_type=file_type, df=self.trajectory_gdf, out_fldr=out_fldr, file_name=file_name)
+
+    def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
+        """"""
+        if self.gps_gdf.empty:
+            self.gps_gdf = self.format_gdf(convert_prj_sys=self.convert_prj_sys, from_crs=self.from_crs,
+                                           to_crs=self.to_crs,
+                                           crs=self.crs, convert_loc=self.convert_loc, convert_type=self.convert_type,
+                                           info_list=self.gps_info_list)
+        self.save_file(file_type=file_type, df=self.gps_gdf, out_fldr=out_fldr, file_name=file_name)
+
+    def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
+                      from_crs: str = None, to_crs: str = None, crs: str = None,
+                      convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> None:
+        if self.gps_gdf.empty:
+            self.gps_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
+                                           crs=crs, convert_loc=convert_loc, convert_type=convert_type,
+                                           info_list=self.gps_info_list)
+        if self.trajectory_gdf.empty:
+            self.trajectory_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
+                                                  crs=crs, convert_loc=convert_loc, convert_type=convert_type,
+                                                  info_list=self.trajectory_info_list)
+        self.gps_gdf[gps_field.TYPE_FIELD] = 'gps'
+        self.trajectory_gdf[gps_field.TYPE_FIELD] = 'trajectory'
+        self.save_file(file_type=file_type, df=pd.concat([self.trajectory_gdf, self.gps_gdf]),
+                       file_name=file_name, out_fldr=out_fldr)
+
+    @staticmethod
+    def save_file(file_type: str = 'csv', df: pd.DataFrame or gpd.GeoDataFrame = None,
+                  out_fldr: str = r'./', file_name: str = None):
+        if file_type == 'csv':
+            df.to_csv(os.path.join(out_fldr, ''.join([file_name, '.csv'])), encoding='utf_8_sig',
+                      index=False)
+        else:
+            assert isinstance(df, gpd.GeoDataFrame)
+            df.to_file(os.path.join(out_fldr, ''.join([file_name, '.geojson'])), encoding='gbk',
+                       driver='GeoJSON')
+
+
+def calc_north_angle(dir_vec: np.ndarray = None) -> float:
+    """"""
+    north_vec = np.array([0, 1])
+    if np.linalg.norm(dir_vec) <= 0:
+        raise ValueError('向量的模为0...')
+    _heading = 180 * np.arccos(
+        np.dot(north_vec, dir_vec) / (np.linalg.norm(dir_vec) * np.linalg.norm(north_vec))) / np.pi
+    if dir_vec[0] < 0:
+        return 360.0 - _heading
+    else:
+        return _heading
+
 
 if __name__ == '__main__':
-    pass
+    print(calc_north_angle(dir_vec=np.array([-1, 100])))
+
 

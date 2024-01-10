@@ -7,12 +7,13 @@
 路网的信息存储与相关方法
 """
 
+import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
 from src.GlobalVal import NetField
 from shapely.geometry import LineString
-
+from src.WrapsFunc import function_time_cost
 
 net_field = NetField()
 
@@ -41,6 +42,8 @@ class Net(object):
     def get_shortest_path(self, o_node=1, d_node=2, weight_field: str = None):
         return self.__link.get_shortest_path(o_node=o_node, d_node=d_node, weight_field=weight_field)
 
+    def get_rnd_shortest_path(self) -> list[int]:
+        return self.__link.get_rnd_shortest_path()
     def get_node_loc(self, node_id: int = None):
         return self.__node.get_node_loc(node_id)
 
@@ -155,6 +158,15 @@ class Link(object):
             return node_seq
         except nx.NetworkXNoPath as e:
             raise nx.NetworkXNoPath
+
+    @function_time_cost
+    def get_rnd_shortest_path(self) -> list[int]:
+        # rnd_node = list(self.get_link_data()[net_field.FROM_NODE_FIELD].sample(n=1))[0]
+        # path_dict = nx.single_source_shortest_path(self.__graph, rnd_node)
+        # targets = list(path_dict.keys())
+        nx.ran
+        for node_path in nx.generate_random_paths(self.__graph, sample_size=5, path_length=15):
+            return node_path
 
     def get_link_data(self):
         return self.__single_link_gdf
