@@ -26,13 +26,13 @@ if __name__ == '__main__':
     my_net.init_net()
 
     _time_step = 0.1  # 仿真步长, s
-    agent_id = rf'car_{1}'
-    o_node, d_node = 5953, 8528
+    agent_id = rf'car_{3}'
+    # o_node, d_node = 5953, 8528
 
     # 新建一个route
     route = Route(net=my_net)
-    # route.o_node = o_node
-    # route.d_node = d_node
+    # route.o_node = 16283
+    # route.d_node = 12912
     # 2.新建一个车对象, 配备一个电子地图net, 仿真步长为{_time_step}s
     car = Car(agent_id=agent_id, speed_miu=12.0, speed_sigma=3.6,
               net=my_net, time_step=_time_step,

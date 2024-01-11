@@ -47,7 +47,37 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+        self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
         self.calc_gps_point_dis()
+
+    def neighboring_average(self):
+        """相邻点做平均"""
+        self.__gps_points_gdf = pd.concat([self.__gps_points_gdf.loc[[0], :],
+                                           self.__gps_points_gdf,
+                                           self.__gps_points_gdf.loc[[len(self.__gps_points_gdf) - 1], :]])
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf['geometry'].apply(lambda geo: geo.x)
+        self.__gps_points_gdf[gps_field.LAT_FIELD] = self.__gps_points_gdf['geometry'].apply(lambda geo: geo.y)
+
+        self.__gps_points_gdf[['next_x', 'next_y', 'next_time']] = \
+            self.__gps_points_gdf[
+                [gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD]].shift(-1)
+        self.__gps_points_gdf.dropna(subset='next_x', inplace=True)
+
+        self.__gps_points_gdf[gps_field.LNG_FIELD] = (self.__gps_points_gdf['next_x'] + self.__gps_points_gdf[
+            gps_field.LNG_FIELD]) / 2
+        self.__gps_points_gdf[gps_field.LAT_FIELD] = (self.__gps_points_gdf['next_y'] + self.__gps_points_gdf[
+            gps_field.LAT_FIELD]) / 2
+        self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD] + (
+                    self.__gps_points_gdf['next_time'] - self.__gps_points_gdf[gps_field.TIME_FIELD]) / 2
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+        self.__gps_points_gdf['geometry'] = self.__gps_points_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(
+            lambda item: Point(item), axis=1)
+        self.__gps_points_gdf.drop(columns=['next_x', 'next_y', 'next_time'], axis=1, inplace=True)
+        self.calc_gps_point_dis()
+
+
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
         self.__gps_point_dis_dict = {

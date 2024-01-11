@@ -25,10 +25,11 @@ net_field = NetField()
 
 
 class Route(object):
-    def __init__(self, net: Net = None, o_node: int = None, d_node: int = None):
+    def __init__(self, net: Net = None, o_node: int = None, d_node: int = None, ft_seq: list[tuple[int, int]] = None):
         self.net = net
         self._o_node = o_node
         self._d_node = d_node
+        self.ft_seq = ft_seq
 
     @property
     def o_node(self):
@@ -186,10 +187,13 @@ class Car(object):
         logging.info(rf'Car {self.agent_id}_logging_info:.....')
 
     def acquire_route(self):
-        if self.route.o_node is None or self.route.d_node is None:
-            return self.route.random_route
+        if self.route.ft_seq is None:
+            if self.route.o_node is None or self.route.d_node is None:
+                return self.route.random_route
+            else:
+                return self.route.od_route
         else:
-            return self.route.od_route
+            return self.route.ft_seq
     def start_drive(self) -> None:
         """开始模拟行车"""
         ft_seq = self.acquire_route()
@@ -354,7 +358,13 @@ class RouteInfoCollector(object):
                            gps_field.LAT_FIELD, 'geometry']]
 
     def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
-        """"""
+        """
+
+        :param out_fldr:
+        :param file_name:
+        :param file_type:
+        :return:
+        """
         if self.trajectory_gdf.empty:
             self.trajectory_gdf = self.format_gdf(convert_prj_sys=self.convert_prj_sys, from_crs=self.from_crs,
                                                   to_crs=self.to_crs,

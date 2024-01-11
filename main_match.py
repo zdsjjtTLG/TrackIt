@@ -22,11 +22,12 @@ if __name__ == '__main__':
     my_net.init_net()
 
     # 3.读取GPS文件
-    gps_df = gpd.read_file(r'./data/output/gps/car_1.geojson')
+    gps_df = gpd.read_file(r'./data/output/gps/car_3.geojson')
     gps_obj = GpsPointsGdf(gps_points_df=gps_df, lat_field=gps_field.LAT_FIELD, lng_field=gps_field.LNG_FIELD,
                            time_format="%Y-%m-%d %H:%M:%S.%f", buffer=80.0, geo_crs='EPSG:4326', plane_crs='EPSG:32650')
     # 降频
     gps_obj.lower_frequency(n=5)
+    gps_obj.neighboring_average()
     sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
     # 初始化一个隐马尔可夫模型
     hhm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)

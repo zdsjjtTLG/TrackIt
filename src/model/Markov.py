@@ -72,7 +72,6 @@ class HiddenMarkov(object):
         match_link_res.reset_index(drop=True, inplace=True)
         match_link_res.to_file(r'./data/output/match/res_link.shp')
 
-
         gps_gdf['match_link'] = gps_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: map_res[x])
         gps_gdf.drop(columns=[gps_field.TIME_FIELD], axis=1, inplace=True)
         gps_gdf.to_file(r'./data/output/match/res.shp', encoding='gbk')
@@ -193,13 +192,14 @@ class HiddenMarkov(object):
 
         if route_item[0]:
             if route_item[0][1] != from_link_ft[1]:
-                # abnormal, so, check
-                route_item_alpha = self.net.search(o_node=from_link_ft[1], d_node=to_link_ft[0],
-                                                   search_method=self.search_method)
-                if route_item_alpha[0]:
-                    route_l1 = route_item[1] + from_route_dis
-                else:
-                    return NOT_CONN_COST
+                # abnormal
+                # route_item_alpha = self.net.search(o_node=from_link_ft[1], d_node=to_link_ft[0],
+                #                                    search_method=self.search_method)
+                # if route_item_alpha[0]:
+                #     route_l1 = route_item[1] + from_route_dis
+                # else:
+                #     return NOT_CONN_COST
+                return NOT_CONN_COST
             else:
                 route_l1 = route_item[1] - from_route_dis
 
