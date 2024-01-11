@@ -17,11 +17,14 @@ class NetField(object):
         self.LENGTH_FIELD = 'length'
         self.GEOMETRY_FIELD = 'geometry'
         self.NODE_ID_FIELD = 'node_id'
+        self.NODE_PATH_FIELD = 'node_path'
+        self.COST_FIELD = 'cost'
 
 class GpsField(object):
     """gps数据字段"""
     def __init__(self):
         self.POINT_SEQ_FIELD = 'seq'
+        self.ORIGIN_POINT_SEQ_FIELD = 'origin_seq'
         self.TIME_FIELD = 'time'
         self.LNG_FIELD = 'lng'
         self.LAT_FIELD = 'lat'
@@ -36,6 +39,7 @@ class MarkovField(object):
         self.FROM_STATE = 'from_state'
         self.TO_STATE = 'to_state'
         self.ROUTE_LENGTH = 'route_l'
+        self.ROUTE_ITEM = 'route_item'
         self.STRAIGHT_LENGTH = 'straight_l'
         self.DIS_GAP = 'dis_gap'
         self.PRJ_L = 'prj_dis'

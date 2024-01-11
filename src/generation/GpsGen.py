@@ -36,7 +36,7 @@ class Route(object):
 
     @o_node.setter
     def o_node(self, value: int = None):
-        if value not in self.net.get_node_data()[net_field.NODE_ID_FIELD]:
+        if value not in list(self.net.get_node_data().index):
             raise ValueError
         self._o_node = value
 
@@ -46,7 +46,7 @@ class Route(object):
 
     @d_node.setter
     def d_node(self, value: int = None):
-        if value not in self.net.get_node_data()[net_field.NODE_ID_FIELD]:
+        if value not in list(self.net.get_node_data().index):
             raise ValueError
         self._d_node = value
     @property
@@ -56,9 +56,9 @@ class Route(object):
         return ft_seq
 
     @property
-    def od_route(self, o_node: int = None, d_node: int = None) -> list[tuple[int, int]]:
+    def od_route(self) -> list[tuple[int, int]]:
         """通过指定起终点节点获取路径"""
-        node_route = self.net.get_shortest_path(o_node=o_node, d_node=d_node)
+        node_route, route_cost = self.net.get_shortest_path_length(o_node=self.o_node, d_node=self.d_node)
         ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
         return ft_seq
 
@@ -343,12 +343,15 @@ class RouteInfoCollector(object):
             used_crs = to_crs
         else:
             used_crs = crs
-        trajectory_gdf = gpd.GeoDataFrame(format_df, geometry='geometry', crs=used_crs)
+        format_gdf = gpd.GeoDataFrame(format_df, geometry='geometry', crs=used_crs)
         if convert_loc:
             con = LngLatTransfer()
-            trajectory_gdf['geometry'] = \
-                trajectory_gdf['geometry'].apply(lambda geo: con.obj_convert(geo_obj=geo, con_type=convert_type))
-        return trajectory_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.HEADING_FIELD, 'geometry']]
+            format_gdf['geometry'] = \
+                format_gdf['geometry'].apply(lambda geo: con.obj_convert(geo_obj=geo, con_type=convert_type))
+        format_gdf[gps_field.LNG_FIELD] = format_df['geometry'].apply(lambda geo: geo.x)
+        format_gdf[gps_field.LAT_FIELD] = format_df['geometry'].apply(lambda geo: geo.y)
+        return format_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.HEADING_FIELD, gps_field.LNG_FIELD,
+                           gps_field.LAT_FIELD, 'geometry']]
 
     def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
         """"""
@@ -361,7 +364,13 @@ class RouteInfoCollector(object):
         self.save_file(file_type=file_type, df=self.trajectory_gdf, out_fldr=out_fldr, file_name=file_name)
 
     def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
-        """"""
+        """
+
+        :param out_fldr:
+        :param file_name:
+        :param file_type:
+        :return:
+        """
         if self.gps_gdf.empty:
             self.gps_gdf = self.format_gdf(convert_prj_sys=self.convert_prj_sys, from_crs=self.from_crs,
                                            to_crs=self.to_crs,
@@ -372,6 +381,19 @@ class RouteInfoCollector(object):
     def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
                       from_crs: str = None, to_crs: str = None, crs: str = None,
                       convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> None:
+        """
+
+        :param out_fldr:
+        :param file_name:
+        :param convert_prj_sys:
+        :param from_crs:
+        :param to_crs:
+        :param crs:
+        :param convert_loc:
+        :param convert_type:
+        :param file_type:
+        :return:
+        """
         if self.gps_gdf.empty:
             self.gps_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
                                            crs=crs, convert_loc=convert_loc, convert_type=convert_type,
@@ -388,6 +410,14 @@ class RouteInfoCollector(object):
     @staticmethod
     def save_file(file_type: str = 'csv', df: pd.DataFrame or gpd.GeoDataFrame = None,
                   out_fldr: str = r'./', file_name: str = None):
+        """
+
+        :param file_type:
+        :param df:
+        :param out_fldr:
+        :param file_name:
+        :return:
+        """
         if file_type == 'csv':
             df.to_csv(os.path.join(out_fldr, ''.join([file_name, '.csv'])), encoding='utf_8_sig',
                       index=False)
