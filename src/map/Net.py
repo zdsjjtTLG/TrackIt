@@ -42,9 +42,11 @@ class Net(object):
         self.weight_field = weight_field
         self.all_pair_path_df = pd.DataFrame()
         if link_gdf is None:
-            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=weight_field)
+            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=weight_field, geo_crs=self.geo_crs,
+                               plane_crs=self.plane_crs)
         else:
-            self.__link = Link(link_gdf=link_gdf, weight_field=weight_field)
+            self.__link = Link(link_gdf=link_gdf, weight_field=weight_field, geo_crs=self.geo_crs,
+                               plane_crs=self.plane_crs)
         if not init_from_existing:
             self.__link.init_link()
         else:
@@ -136,9 +138,17 @@ class Net(object):
     def crs(self):
         return self.__link.crs
 
+    def is_geo_crs(self) -> bool:
+        if self.crs == self.geo_crs:
+            return True
+        else:
+            return False
+
     @property
-    def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int]]:
+    def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
         return self.__link.bilateral_unidirectional_mapping
+    def get_ft_node_link_mapping(self):
+        return self.__link.get_ft_link_mapping()
 
     @function_time_cost
     def create_computational_net(self, gps_array_buffer:Polygon = None):
@@ -170,7 +180,7 @@ class Link(object):
         self.plane_crs = plane_crs
         self.link_gdf = link_gdf
         self.__single_link_gdf = gpd.GeoDataFrame()
-        self.__double_single_mapping: dict[int, tuple[int, int]] = dict()
+        self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
         self.__ft_link_mapping:dict[tuple[int, int], int] = dict()
         self.__graph = nx.DiGraph()
         self.weight_field = weight_field
@@ -188,11 +198,13 @@ class Link(object):
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):
         """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
         self.__single_link_gdf = single_link_gdf.copy()
-        self.__double_single_mapping = {single_link_id: (link_id, int(direction)) for
-                                        single_link_id, link_id, direction in
+        self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
+                                        single_link_id, link_id, direction, f, t in
                                         zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
                                             self.__single_link_gdf[net_field.LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.DIRECTION_FIELD])}
+                                            self.__single_link_gdf[net_field.DIRECTION_FIELD],
+                                            self.__single_link_gdf[net_field.FROM_NODE_FIELD],
+                                            self.__single_link_gdf[net_field.TO_NODE_FIELD])}
         self.__ft_link_mapping = {(f, t): single_link for f, t, single_link in
                                   zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
                                       self.__single_link_gdf[net_field.TO_NODE_FIELD],
@@ -216,15 +228,18 @@ class Link(object):
             self.__single_link_gdf = pd.concat([link_gdf, neg_link])
             self.__single_link_gdf.reset_index(inplace=True, drop=True)
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
-        self.__double_single_mapping = {single_link_id: (link_id, int(direction)) for
-                                        single_link_id, link_id, direction in
+        self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
+                                        single_link_id, link_id, direction, f, t in
                                         zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
                                             self.__single_link_gdf[net_field.LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.DIRECTION_FIELD])}
+                                            self.__single_link_gdf[net_field.DIRECTION_FIELD],
+                                            self.__single_link_gdf[net_field.FROM_NODE_FIELD],
+                                            self.__single_link_gdf[net_field.TO_NODE_FIELD])}
         self.__ft_link_mapping = {(f, t): single_link for f, t, single_link in
                                   zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
                                       self.__single_link_gdf[net_field.TO_NODE_FIELD],
                                       self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
+
 
     def create_graph(self, weight_field: str = None):
         """
@@ -273,7 +288,7 @@ class Link(object):
         return path_dict[targets[np.random.randint(len(targets))]]
 
     def get_link_data(self):
-        return self.__single_link_gdf
+        return self.__single_link_gdf.copy()
 
     def get_link_attr_by_ft(self, attr_name: str = None, from_node: int = None, to_node: int = None):
         """
@@ -329,9 +344,11 @@ class Link(object):
             self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
 
     @property
-    def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int]]:
+    def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
         return self.__double_single_mapping
 
+    def get_ft_link_mapping(self):
+        return self.__ft_link_mapping
 
 class Node(object):
     def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650'):
@@ -350,7 +367,7 @@ class Node(object):
         return geo.x, geo.y
 
     def get_node_data(self):
-        return self.__node_gdf
+        return self.__node_gdf.copy()
 
     @property
     def crs(self):

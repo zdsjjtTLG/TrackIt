@@ -21,9 +21,10 @@ class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None, lng_field: str = None, lat_field: str = None,
                  buffer: float = 200.0, time_format: str = '%Y-%m-%d %H:%M:%S',
-                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650'):
+                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
         self.geo_crs = geo_crs
         self.buffer = buffer
+        self.__crs = self.geo_crs
         self.plane_crs = plane_crs
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
@@ -77,7 +78,6 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.drop(columns=['next_x', 'next_y', 'next_time'], axis=1, inplace=True)
         self.calc_gps_point_dis()
 
-
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
         self.__gps_point_dis_dict = {
@@ -86,7 +86,14 @@ class GpsPointsGdf(object):
             range(len(self.__gps_points_gdf) - 1)}
 
     def get_gps_point_dis(self, adj_gps_seq: tuple = None):
-        return self.__gps_point_dis_dict[adj_gps_seq]
+        try:
+            dis = self.__gps_point_dis_dict[adj_gps_seq]
+        # some gps points do not have any candidate links
+        except KeyError:
+            dis = self.__gps_points_gdf.at[adj_gps_seq[0], net_field.GEOMETRY_FIELD].distance(
+                self.__gps_points_gdf.at[adj_gps_seq[1], net_field.GEOMETRY_FIELD])
+            self.__gps_point_dis_dict[adj_gps_seq] = dis
+        return dis
 
     def plot_point(self):
         pass
@@ -97,6 +104,10 @@ class GpsPointsGdf(object):
 
     def get_gps_buffer_gdf(self):
         pass
+
+    @property
+    def crs(self):
+        return self.__crs
 
     def get_gps_array_buffer(self, buffer: float = 200.0) -> Polygon:
         """输出gps路径的buffer范围面域"""
@@ -119,15 +130,19 @@ class GpsPointsGdf(object):
 
     def to_plane_prj(self) -> None:
         if self.__gps_points_gdf.crs == self.plane_crs:
+            self.__crs = self.plane_crs
             pass
         else:
             self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.plane_crs)
+            self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
         if self.__gps_points_gdf.crs == self.geo_crs:
+            self.__crs = self.geo_crs
             pass
         else:
             self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.geo_crs)
+            self.__crs = self.geo_crs
 
     def get_point(self, seq: int = 0):
         return self.__gps_points_gdf.at[seq, gps_field.TIME_FIELD], self.__gps_points_gdf.at[seq, 'geometry']

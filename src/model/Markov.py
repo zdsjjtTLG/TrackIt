@@ -6,6 +6,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from src.map.Net import Net
 from shapely.geometry import Point
 from src.solver.Viterbi import Viterbi
@@ -29,6 +30,7 @@ class HiddenMarkov(object):
         self.search_method = search_method
         # (from_gps_seq, from_link_id): (from_prj_p, from_prj_dis, from_route_dis)
         self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float]] = dict()
+        self.__adj_seq_path_dict: dict[tuple[int, int], list[int, int]] = dict()
         self.__ft_transition_dict = dict()
         self.__ft_mapping_dict = dict()
         self.beta = beta
@@ -36,6 +38,7 @@ class HiddenMarkov(object):
         self.__emission_mat_dict = dict()
         self.__solver = None
         self.index_state_list = None
+        self.gps_match_res_gdf = None
 
     def generate_markov_para(self):
         self.__generate_transition_mat()
@@ -50,32 +53,6 @@ class HiddenMarkov(object):
         self.index_state_list = self.__solver.iter_model()
 
         print(self.index_state_list)
-
-    def acquire_res(self):
-        single_link_state_list = [self.__ft_mapping_dict[observe_seq][state_index] for observe_seq, state_index in
-                                  zip(range(len(self.index_state_list)),
-                                      self.index_state_list)]
-        # print(single_link_state_list)
-        link_state_list = [self.net.bilateral_unidirectional_mapping[link] for link in single_link_state_list]
-        # print(link_state_list)
-        # print(len(link_state_list))
-
-        df = pd.DataFrame(link_state_list, columns=['link_id', 'dir'])
-        map_res = {i:link for i, link in zip(range(len(df)), df['link_id'])}
-        gps_gdf = self.gps_points.gps_gdf
-        # print(gps_gdf)
-        print(map_res)
-
-        single_link_gdf = self.net.get_link_data()
-        match_link_res = single_link_gdf[single_link_gdf['link_id'].isin(list(map_res.values()))].copy()
-        match_link_res.drop_duplicates(subset=['link_id'], inplace=True)
-        match_link_res.reset_index(drop=True, inplace=True)
-        match_link_res.to_file(r'./data/output/match/res_link.shp')
-
-        gps_gdf['match_link'] = gps_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: map_res[x])
-        gps_gdf.drop(columns=[gps_field.TIME_FIELD], axis=1, inplace=True)
-        gps_gdf.to_file(r'./data/output/match/res.shp', encoding='gbk')
-        return link_state_list
 
     @function_time_cost
     def __generate_transition_mat(self):
@@ -189,7 +166,8 @@ class HiddenMarkov(object):
             return np.absolute(route_l)
 
         route_item = self.net.search(o_node=from_link_ft[0], d_node=to_link_ft[0], search_method=self.search_method)
-
+        if len(route_item[0]) > 2:
+            self.__adj_seq_path_dict[(from_link_id, to_link_id)] = route_item[0]
         if route_item[0]:
             if route_item[0][1] != from_link_ft[1]:
                 # abnormal
@@ -237,20 +215,111 @@ class HiddenMarkov(object):
         p = np.e ** (-0.5 * (dis / sigma) ** 2)
         return p
 
+    def acquire_res(self) -> gpd.GeoDataFrame():
+        # 观测序列ID -> single_link
+        single_link_state_list = [self.__ft_mapping_dict[observe_seq][state_index] for observe_seq, state_index in
+                                  zip(range(len(self.index_state_list)),
+                                      self.index_state_list)]
+        print(single_link_state_list)
+        # 映射回原路网link_id, 以及dir
+        # {[link_id, dir, from_node, to_node], [link_id, dir, from_node, to_node]...}
+        bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
+        link_state_list = [(seq, link) + bilateral_unidirectional_mapping[link] for seq, link in
+                           zip(range(len(single_link_state_list)), single_link_state_list)]
+
+        link_gps_state_df = pd.DataFrame(link_state_list, columns=[gps_field.POINT_SEQ_FIELD,
+                                                                   net_field.SINGLE_LINK_ID_FIELD,
+                                                                   net_field.LINK_ID_FIELD,
+                                                                   net_field.DIRECTION_FIELD,
+                                                                   net_field.FROM_NODE_FIELD,
+                                                                   net_field.TO_NODE_FIELD])
+
+        del link_state_list
+
+        # 找出断掉的路径
+        link_gps_state_df['next_link'] = link_gps_state_df[net_field.SINGLE_LINK_ID_FIELD].shift(-1)
+        link_gps_state_df['next_link'] = link_gps_state_df['next_link'].fillna(-1)
+        link_gps_state_df['next_link'] = link_gps_state_df['next_link'].astype(int)
+        print(link_gps_state_df[[net_field.SINGLE_LINK_ID_FIELD, 'next_link']])
+
+        ft_node_link_mapping = self.net.get_ft_node_link_mapping()
+        for i, row in link_gps_state_df.iterrows():
+            if (int(row[net_field.SINGLE_LINK_ID_FIELD]), int(row['next_link'])) in self.__adj_seq_path_dict.keys():
+                next_seq = int(row[gps_field.POINT_SEQ_FIELD]) + 1
+                node_seq = self.__adj_seq_path_dict[(int(row[net_field.SINGLE_LINK_ID_FIELD]), int(row['next_link']))]
+                _ft_node_list = [[node_seq[i], node_seq[i+1]] for i in range(1, len(node_seq) - 1)]
+                _single_link_list = [ft_node_link_mapping[ft_node] for ft_node in _ft_node_list]
+                _link_gdf_df = [(next_seq, _single_link) + () for _single_link in _single_link_list]
+
+
+
+        # agent_id, seq
+        gps_match_res_gdf = self.gps_points.gps_gdf
+
+        # 给每个gps点打上路网link标签, 存在GPS匹配不到路段的情况(比如buffer范围内无候选路段)
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf,
+                                     link_gps_state_df, on=gps_field.POINT_SEQ_FIELD, how='left')
+        gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry='geometry', crs=self.gps_points.crs)
+        self.gps_match_res_gdf = gps_match_res_gdf
+        return gps_match_res_gdf
+
+    def acquire_visualization_res(self) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """获取可视化结果"""
+        single_link_gdf = self.net.get_link_data()
+        node_gdf = self.net.get_node_data()
+        net_crs = self.net.crs
+        plain_crs = self.net.plane_crs
+        is_geo_crs = self.net.is_geo_crs()
+        double_link_geo = {l: geo for l, geo in zip(single_link_gdf[net_field.LINK_ID_FIELD],
+                                                    single_link_gdf[net_field.GEOMETRY_FIELD])}
+
+        if self.gps_match_res_gdf is None:
+            self.acquire_res()
+
+        # 匹配路段
+        plot_gps_gdf = self.gps_match_res_gdf.copy()
+
+        # GPS点转化为circle polygon
+        plot_gps_gdf.drop(columns=[gps_field.LNG_FIELD, gps_field.LAT_FIELD], axis=1, inplace=True)
+        if plot_gps_gdf.crs != plain_crs:
+            plot_gps_gdf = plot_gps_gdf.to_crs(plain_crs)
+        plot_gps_gdf[net_field.GEOMETRY_FIELD] = plot_gps_gdf[net_field.GEOMETRY_FIELD].apply(lambda p: p.buffer(3.0))
+        plot_gps_gdf[gps_field.TYPE_FIELD] = 'gps'
+
+        # 匹配路段GDF
+        plot_match_link_gdf = plot_gps_gdf.copy()
+        plot_match_link_gdf[gps_field.TYPE_FIELD] = 'link'
+        plot_match_link_gdf[net_field.GEOMETRY_FIELD] = plot_match_link_gdf[net_field.LINK_ID_FIELD].apply(
+            lambda x: double_link_geo[x])
+        plot_match_link_gdf.crs = net_crs
+        plot_match_link_gdf.drop_duplicates(subset=net_field.LINK_ID_FIELD, keep='first', inplace=True)
+        plot_match_link_gdf.reset_index(drop=True, inplace=True)
+        if is_geo_crs:
+            plot_match_link_gdf = plot_match_link_gdf.to_crs(plain_crs)
+        plot_match_link_gdf[net_field.GEOMETRY_FIELD] = plot_match_link_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda l: l.buffer(5.0))
+
+        plot_gps_gdf = plot_gps_gdf.to_crs(self.net.geo_crs)
+        plot_match_link_gdf = plot_match_link_gdf.to_crs(self.net.geo_crs)
+        gps_link_gdf = pd.concat([plot_gps_gdf, plot_match_link_gdf])
+        gps_link_gdf.reset_index(inplace=True, drop=True)
+
+        # 路网底图
+        origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first')
+        if is_geo_crs:
+            origin_link_gdf = origin_link_gdf.to_crs(plain_crs)
+            node_gdf = node_gdf.to_crs(plain_crs)
+        origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda x: x.buffer(1.5))
+        node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda x: x.buffer(1.5))
+
+        origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
+        node_gdf = node_gdf.to_crs(self.net.geo_crs)
+
+        return gps_link_gdf, origin_link_gdf, node_gdf
+
 
 if __name__ == '__main__':
-    # df = pd.DataFrame({'a': [12, 2, 31, 4], 'b': [34, 12, 11, 1241], 'c': [123, 222, 444, 555]})
-    # print(df.set_index(['a', 'b']).unstack())
-    # print(df.set_index(['a', 'b']).unstack().values)
-    #
-    # a = np.array([[1, 2, 3], [3, 1, 0]])
-    #
-    # print(a)
-    # print(HiddenMarkov.transition_probability(0.2, a))
-
-    # a = {(1,2) :(3,45,12), (3,1):(234,12,11)}
-    # pd.DataFrame(a).T.reset_index(drop=False)
-
-    # print(HiddenMarkov.emission_probability(sigma=20.0, dis=0))
     pass
 

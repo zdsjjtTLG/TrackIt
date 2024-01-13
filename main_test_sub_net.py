@@ -22,8 +22,8 @@ gps_field = GpsField()
 
 if __name__ == '__main__':
     # 1.新建一个路网对象, 并且使用平面坐标
-    my_net = Net(link_path=r'./data/input/net/FinalLink.shp',
-                 node_path=r'./data/input/net/FinalNode.shp',
+    my_net = Net(link_path=r'data/input/net/cc/FinalLink.shp',
+                 node_path=r'data/input/net/cc/FinalNode.shp',
                  weight_field='length', geo_crs='EPSG:4326', plane_crs='EPSG:32650')
     # 初始化
     my_net.init_net()

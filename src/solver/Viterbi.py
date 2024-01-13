@@ -71,7 +71,7 @@ class Viterbi(object):
             # self.zeta_array_dict[i].T * self.AMat[i] 是一个m * n的矩阵, self.BMat[i + 1]是一个n * 1的矩阵
             # m是i观测点的可选状态数, n是i+1观测点的可选状态数
             x = self.zeta_array_dict[i].T * self.AMat[i] * self.BMat[i + 1]
-            print(x)
+            # print(x)
             # 找出当前每种状态的最大值, last_state_index是一个 n * 1的矩阵
             last_state_index = np.argmax(x, axis=0)
 

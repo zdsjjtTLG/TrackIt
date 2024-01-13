@@ -228,6 +228,7 @@ class Car(object):
 
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
                 used_speed = speed + np.random.normal(loc=0, scale=speed * 0.08)
+                print(used_speed)
                 step_l = used_speed * self.time_step
 
                 logging.info(

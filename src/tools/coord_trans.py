@@ -4,8 +4,7 @@
 # @Team    : ZheChengData
 
 """GCJO2、百度、84坐标互转"""
-
-
+import datetime
 import math
 import pyproj
 import shapely
@@ -242,15 +241,21 @@ def prj_convert(from_crs: str = None, to_crs: str = None, point_obj: Point = Non
 
 
 if __name__ == '__main__':
-    fileName = r'F:\武汉轨迹数据\交通事故(2018年)\accidentFileLocations.csv'
-    transData = pd.read_csv(fileName, engine='python')
-    transData["WGS84lng"] = None
-    transData["WGS84lat"] = None
-    # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
-    handler = LngLatTransfer()
-    transData[["WGS84lng", "WGS84lat"]] = transData.apply(lambda x: handler.GCJ02_to_WGS84(x["LON"], x["LAT"]), axis=1,
-                                                          result_type="expand")
+    # fileName = r'F:\武汉轨迹数据\交通事故(2018年)\accidentFileLocations.csv'
+    # transData = pd.read_csv(fileName, engine='python')
+    # transData["WGS84lng"] = None
+    # transData["WGS84lat"] = None
+    # # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
+    # handler = LngLatTransfer()
+    # # transData[["WGS84lng", "WGS84lat"]] = transData.apply(lambda x: handler.GCJ02_to_WGS84(x["LON"], x["LAT"]), axis=1,
+    # #                                                       result_type="expand")
+    #
+    # x, y = handler.loc_convert(120.002458,30.288055, con_type='gc-84')
+    # print(x, y)
 
+    x = datetime.datetime.now()
+    print(x)
+    print(x.timestamp())
 
 
 
