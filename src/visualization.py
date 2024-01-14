@@ -53,6 +53,8 @@ class VisualizationCombination(object):
                       file_name=file_name, config_fldr=config_fldr)
 
 
+
+
 def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_name: str = None,
                   link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, zoom: int = 15,
                   config_fldr: str = None):

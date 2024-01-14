@@ -397,6 +397,12 @@ class HiddenMarkov(object):
         else:
             return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf
 
+    def get_final_match_res(self):
+        if self.gps_match_res_gdf is None:
+            self.acquire_res()
+
+        return self.gps_match_res_gdf.copy()
+
 
 if __name__ == '__main__':
     from shapely.geometry import LineString

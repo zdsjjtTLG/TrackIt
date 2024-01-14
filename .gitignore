@@ -7,7 +7,6 @@ __pycache__/
 *.so
 
 # data and doc fldr
-data/
 doc/
 
 # pycharm setting files

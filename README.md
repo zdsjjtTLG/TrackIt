@@ -1,12 +1,22 @@
 # TrackIt
-## 简介
-Map-Match-Algorithm Based on Hidden Markov Model,基于隐马尔可夫模型的离线地图匹配模型
+## 一、简介
+Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的离线地图匹配模型
+
+![main.png](DocFiles%2Fimages%2F例子1.png)
 
 ![main.png](DocFiles%2Fimages%2Fmain.png)
 
+![main.png](DocFiles%2Fimages%2F单态生成概率.png)
+
+![main.png](DocFiles%2Fimages%2F状态转移概率.png)
+
+![main.png](DocFiles%2Fimages%2Fviterb.png)
+
+![main.png](DocFiles%2Fimages%2F回溯.png)
+
 想了解算法过程的可以参考B站视频:
 
-## 所需依赖
+## 二、所需依赖
 括号中为作者使用版本(基于python3.11), 仅供参考
 - geopandas(0.14.1)
 - gdal(3.4.3)
@@ -16,18 +26,17 @@ Map-Match-Algorithm Based on Hidden Markov Model,基于隐马尔可夫模型的�
 - numpy(1.26.2)
 - pyproj(3.6.1)
 - keplergl(0.3.2)
-
 geopandas为最新版本, 如果不是最新版本可能会报错(有个函数旧版本没有)
 
-## 所需数据
+## 三、所需数据
 
-离线地图匹配需要提供一份拓扑正确的路网以及GPS数据,如果没有GPS数据可以使用本文的GPS生成模块生成样例数据,参见
+离线地图匹配需要提供一份拓扑正确的路网以及GPS数据,如果没有GPS数据可以使用本文的GPS生成模块生成样例数据,参见后文
 
-### 路网
+### 1.路网
 
 路网有两个文件组成:点层文件和线层文件
 
-#### 线层文件Link
+#### 1.1线层文件Link
 
 geojson或者shp文件,要求必需字段名称如下:
 - link_id: 路段唯一编码, integer
@@ -38,14 +47,14 @@ geojson或者shp文件,要求必需字段名称如下:
 - geometry: 路段几何线型, geometry
 - ...(其他属性字段)
 
-#### 点文件Node
+#### 1.2点文件Node
 geojson或者shp文件,要求必需字段名称如下:
 - node_id: 节点唯一编码, integer
 - geometry: 节点几何坐标, geometry
 - ...(其他属性字段)
 
 
-#### GPS数据文件
+### 2.GPS数据文件
 要求必需字段名称如下:
 - agent_id: 车辆唯一编码ID, string
 - time: 定位时间戳, string, '%Y-%m-%d %H:%M:%S'
@@ -57,12 +66,12 @@ geojson或者shp文件,要求必需字段名称如下:
 目前的版本,匹配算法还没用到航向角的信息
 
 
-## 模块构成
+## 四、模块构成
 由三大块组成：样例GPS数据生成、离线地图匹配、匹配可视化
 
 
 
-## 如何使用
+## 五、如何使用
 
 ### 1.样例GPS数据生成
 
@@ -112,7 +121,7 @@ route = Route(net=my_net, ft_seq=[(137226, 42212), (42212, 21174), (21174, 39617
 ```
 
 - 使用随机路径
-既不指定o_node和d_node也不指定ft_seq, 将会自动生成随机路径
+既不指定o_node和d_node,也不指定ft_seq, 将会自动生成随机路径
 ``` python
 route = Route(net=my_net)
 ```
@@ -135,7 +144,7 @@ loc_frequency = 1.0  # 每多少s进行一次GPS定位
 loc_error_sigma = 20.0  # 定位误差标准差(m)
 loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
-# 新建车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
+# 新建车对象, 分配一个车辆ID, 配备一个电子地图net, 分配一个route, 且设置仿真参数
 car = Car(net=my_net, time_step=_time_step, route=route,
           agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
           loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
@@ -175,19 +184,92 @@ gps_gdf = data_col.save_gps_info()
 mix_gdf = data_col.save_mix_info()
 ```
 
-### 离线地图匹配
+### 2离线地图匹配
+
+#### 2.1 引入相关模块
 ``` python
-import pandas as pd
+import geopandas as gpd
+from src.map.Net import Net
+from src.gps.LocGps import GpsPointsGdf
+from src.model.Markov import HiddenMarkov
+from src.GlobalVal import NetField, GpsField
+from src.visualization import VisualizationCombination
+
+net_field = NetField()
+gps_field = GpsField()
+```
+
+#### 2.2 初始化一个全局Net对象
+
+``` python
+# 1.新建一个路网对象, 并且使用平面坐标
+plain_crs = 'EPSG:32649'
+geo_crs = 'EPSG:4326'
+my_net = Net(link_path=r'data/input/net/xian/link.shp',
+             node_path=r'data/input/net/xian/node.shp',
+             weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs)
+# 初始化
+my_net.init_net()
 
 ```
 
-### 匹配可视化
+#### 2.3 创建一个GPS数据对象以及一个匹配结果管理器对象
 ``` python
-import pandas as pd
+# 2.读取GPS文件
+gps_df = gpd.read_file(r'./data/output/gps/rnd_route.geojson')
+
+# 3.初始化一个匹配结果管理器
+vc = VisualizationCombination(use_gps_source=False)
+
+# 创建按一个gps_obj对象
+gps_obj = GpsPointsGdf(gps_points_df=gps_df, lat_field=gps_field.LAT_FIELD, lng_field=gps_field.LNG_FIELD,
+                       time_format="%Y-%m-%d %H:%M:%S", buffer=80.0, geo_crs=geo_crs, plane_crs=plain_crs)
+                       
+# 测试数据的GPS是1秒一个, 太密了, 降频处理
+gps_obj.lower_frequency(n=6)
+
+# 做一次滑动窗口平均来降噪
+gps_obj.rolling_average(window=2)
 
 ```
 
+#### 2.4 基于GPS数据的buffer范围创建一个子Net网络对象
+``` python
+# 4.依据当前的GPS数据做一个子网络
+sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
+```
 
+#### 2.5 创建一个HMM对象用于匹配GPS数据
+
+``` python
+# 5.初始化一个隐马尔可夫模型, 初始化并且执行匹配
+# 初始化
+hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)
+
+# 计算参数
+hmm_obj.generate_markov_para()
+
+# 执行匹配
+hmm_obj.solve()
+```
+
+### 3.匹配结果输出以及可视化
+#### 3.1从内存拿匹配结果
+``` python
+match_res_gdf = hmm_obj.get_final_match_res()
+```
+#### 3.2输出可视化html(这里用的kepler做的可视化)
+
+``` python
+vc.collect_hmm(hmm_obj)
+# 指定地图的初始缩放级别zoom
+# 指定HTML文件的输出目录
+# 指定HTML文件的名称
+# 指定config配置文件的路径
+vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/',
+                     file_name='rnd_path', config_fldr=r'./config')
+# 然后使用浏览器打开生成的HTML文件然后使用筛选器功能,选中时间字段, 然后开始播放就可以可视化匹配过程
+```
 
 ## 作者信息
 唐铠, 794568794@qq.com, zhechengdata@tangkai.com
