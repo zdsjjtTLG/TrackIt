@@ -4,6 +4,7 @@
 # @Team    : ZheChengData
 
 """车辆GPS数据的相关方法和属性"""
+import datetime
 
 import pandas as pd
 import geopandas as gpd
@@ -88,6 +89,46 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf['geometry'] = self.__gps_points_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(
             lambda item: Point(item), axis=1)
         self.__gps_points_gdf.drop(columns=['next_x', 'next_y', 'next_time'], axis=1, inplace=True)
+        self.calc_gps_point_dis()
+
+    def rolling_average(self, window: int = 2):
+        """滑动窗口降噪"""
+        if self.__source_gps_points_gdf is None:
+            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
+        self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
+            lambda t: t.timestamp())
+        self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda geo: geo.x)
+        self.__gps_points_gdf[gps_field.LAT_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda geo: geo.y)
+
+        rolling_num_df = self.__gps_points_gdf[
+            [gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD]].rolling(window=window).mean()
+        rolling_heading_df = self.__gps_points_gdf[[gps_field.HEADING_FIELD]].rolling(window=window).median()
+
+        rolling_heading_df.dropna(subset=[gps_field.HEADING_FIELD], inplace=True)
+        rolling_num_df.dropna(subset=[gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD], inplace=True,
+                              how='any')
+
+        rolling_average_df = pd.concat([rolling_num_df, rolling_heading_df], axis=1)
+        rolling_average_df[gps_field.AGENT_ID_FIELD] = self.__gps_points_gdf.at[0, gps_field.AGENT_ID_FIELD]
+        del rolling_heading_df, rolling_num_df
+
+        self.__gps_points_gdf = pd.concat([self.__gps_points_gdf.loc[[0], :],
+                                           rolling_average_df,
+                                           self.__gps_points_gdf.loc[[len(self.__gps_points_gdf) - 1], :]])
+        del rolling_average_df
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+
+        self.__gps_points_gdf[net_field.GEOMETRY_FIELD] = self.__gps_points_gdf[
+            [gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(
+            lambda item: Point(item), axis=1)
+        self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
+                                                                     unit='s')
+        self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
+                                                                     format='%Y-%m-%d %H:%M:%S')
+        print(self.__gps_points_gdf.crs)
         self.calc_gps_point_dis()
 
     def dwell_point_processing(self, buffer: float = 25.0):
@@ -219,5 +260,22 @@ class GpsPointsGdf(object):
 
 
 if __name__ == '__main__':
-    pass
+    from datetime import timedelta
+
+    df = pd.DataFrame({'val': [1,2,3,4,5,6,7]})
+    df['val1'] = [1,2,3,4,5,6,7]
+    df['time'] = [datetime.datetime.now() + timedelta(seconds=i * 10) for i in range(1, len(df) + 1)]
+    result = df[['val', 'val1']].rolling(window=2).mean()
+    print(result)
+    print(result.at[1, 'val'])
+    # print(df)
+    # df['time'] = df['time'].apply(lambda x: x.timestamp())
+    # result = df['val'].rolling(window=2).mean()
+    # result = df['time'].rolling(window=2).mean()
+    # print(result)
+    #
+    # df['time'] = result
+    # df['time'] = pd.to_datetime(df['time'], unit='s')
+    # print(df)
+
 

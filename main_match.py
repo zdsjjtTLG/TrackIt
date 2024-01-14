@@ -28,7 +28,7 @@ if __name__ == '__main__':
     gps_df = gpd.read_file(r'./data/output/gps/rnd_route.geojson')
 
     # 4.初始化一个匹配结果管理器
-    vc = VisualizationCombination(use_gps_source=True)
+    vc = VisualizationCombination(use_gps_source=False)
 
     # 对每辆车的轨迹进行匹配
     for agent_id, gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
@@ -39,10 +39,11 @@ if __name__ == '__main__':
         gps_obj = GpsPointsGdf(gps_points_df=_gps_df, lat_field=gps_field.LAT_FIELD, lng_field=gps_field.LNG_FIELD,
                                time_format="%Y-%m-%d %H:%M:%S", buffer=80.0, geo_crs=geo_crs, plane_crs=plain_crs)
         # 测试数据的GPS是1秒一个, 太密了, 降频处理
-        gps_obj.lower_frequency(n=5)
+        gps_obj.lower_frequency(n=6)
 
         # 做一次滑动窗口平均
-        gps_obj.neighboring_average()
+        # gps_obj.neighboring_average()
+        gps_obj.rolling_average(window=2)
 
         # 依据当前的GPS数据做一个子网络
         sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))

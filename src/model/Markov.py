@@ -2,8 +2,9 @@
 # @Time    : 2023/12/9 8:29
 # @Author  : TangKai
 # @Team    : ZheChengData
-import datetime
+
 import time
+import datetime
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -24,7 +25,7 @@ markov_field = MarkovField()
 
 
 class HiddenMarkov(object):
-
+    """隐马尔可夫模型类"""
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  search_method: str = 'all_pairs'):
         self.gps_points = gps_points
@@ -378,7 +379,7 @@ class HiddenMarkov(object):
             gps_link_gdf.reset_index(inplace=True, drop=True)
 
             # 路网底图
-            origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first')
+            origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first').copy()
             if is_geo_crs:
                 origin_link_gdf = origin_link_gdf.to_crs(plain_crs)
                 node_gdf = node_gdf.to_crs(plain_crs)
@@ -395,6 +396,7 @@ class HiddenMarkov(object):
 
         else:
             return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf
+
 
 if __name__ == '__main__':
     from shapely.geometry import LineString
