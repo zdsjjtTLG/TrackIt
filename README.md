@@ -215,7 +215,7 @@ my_net.init_net()
 
 #### 2.3 创建一个GPS数据对象以及一个匹配结果管理器对象
 ``` python
-# 2.读取GPS文件
+# 2.读取GPS文件(这里不一定要求是GDF, 读取csv也可以, 只要有gps数据所必须的字段就行)
 gps_df = gpd.read_file(r'./data/output/gps/rnd_route.geojson')
 
 # 3.初始化一个匹配结果管理器
