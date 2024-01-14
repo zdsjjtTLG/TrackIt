@@ -24,6 +24,7 @@ class GpsField(object):
     """gps数据字段"""
     def __init__(self):
         self.POINT_SEQ_FIELD = 'seq'
+        self.SUB_SEQ_FIELD = 'sub_seq'
         self.ORIGIN_POINT_SEQ_FIELD = 'origin_seq'
         self.TIME_FIELD = 'time'
         self.LNG_FIELD = 'lng'
@@ -31,6 +32,7 @@ class GpsField(object):
         self.HEADING_FIELD = 'heading'
         self.AGENT_ID_FIELD = 'agent_id'
         self.TYPE_FIELD = 'type'
+        self.NEXT_LINK_FIELD = 'next_link'
 
 
 class MarkovField(object):

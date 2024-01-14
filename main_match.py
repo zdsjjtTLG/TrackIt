@@ -7,8 +7,9 @@ import geopandas as gpd
 from src.map.Net import Net
 from src.gps.LocGps import GpsPointsGdf
 from src.model.Markov import HiddenMarkov
-from src.GlobalVal import NetField, GpsField
 from src.visualization import generate_html
+from src.GlobalVal import NetField, GpsField
+
 net_field = NetField()
 gps_field = GpsField()
 
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     hhm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)
     hhm_obj.generate_markov_para()
     hhm_obj.solve()
-    gps_link_gdf, base_link_gdf, base_node_gdf = hhm_obj.acquire_visualization_res()
-    #
-    # generate_html(mix_gdf=gps_link_gdf, out_fldr=r'./data/output/match_visualization', file_name=r'test2',
-    #               link_gdf=base_link_gdf, node_gdf=base_node_gdf)
+    gps_link_gdf, base_link_gdf, base_node_gdf = hhm_obj.acquire_visualization_res(use_gps_source=True)
+
+    generate_html(mix_gdf=gps_link_gdf, out_fldr=r'./data/output/match_visualization', file_name=r'test2',
+                  link_gdf=base_link_gdf, node_gdf=base_node_gdf)

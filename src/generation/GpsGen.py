@@ -25,7 +25,15 @@ net_field = NetField()
 
 
 class Route(object):
+    """路径类"""
     def __init__(self, net: Net = None, o_node: int = None, d_node: int = None, ft_seq: list[tuple[int, int]] = None):
+        """
+        若不指定ft_seq, 则使用o_node -> d_node进行搜录获取路径, 若没有指定o_node和d_node则使用随机路径
+        :param net:
+        :param o_node: 起点节点ID
+        :param d_node: 终点节点ID
+        :param ft_seq: 路径节点序列, [(12, 24), (24, 121), (121, 90)...]
+        """
         self.net = net
         self._o_node = o_node
         self._d_node = d_node
@@ -50,6 +58,7 @@ class Route(object):
         if value not in list(self.net.get_node_data().index):
             raise ValueError
         self._d_node = value
+
     @property
     def random_route(self) -> list[tuple[int, int]]:
         node_route = self.net.get_rnd_shortest_path()
@@ -60,20 +69,25 @@ class Route(object):
     def od_route(self) -> list[tuple[int, int]]:
         """通过指定起终点节点获取路径"""
         node_route, route_cost = self.net.get_shortest_path_length(o_node=self.o_node, d_node=self.d_node)
-        ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
-        return ft_seq
+        if node_route:
+            ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
+            return ft_seq
+        else:
+
+            print(rf'{self.od_route}->{self.d_node}无路径, 启用随机路径...')
+            return self.random_route
+
 
 class GpsDevice(object):
     """gps设备类"""
-
     def __init__(self, time_step: float = 0.5, loc_frequency: float = 1.0, agent_id: str = None,
                  loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
-                 heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0, ):
+                 heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0):
         """
-        假定gps的定位误差服从正态分布 ~ N(μ, σ2)
+        假定gps的定位误差服从正态分布 ~ N(μ, σ2) ~ N(loc_error_miu, loc_error_sigma^2)
         落在区间(μ-σ, μ+σ)内的概率为0.68，横轴区间(μ-1.96σ, μ+1.96σ)内的概率为0.95，横轴区间(μ-2.58σ,μ+2.58σ)内的概率为0.997
         :param agent_id: 车辆id
-        :param time_step: 仿真时间步长
+        :param time_step: 仿真时间步长, s
         :param loc_frequency: gps定位频率(s), 每多少秒记录一次定位
         :param loc_error_miu: gps定位误差参数, N(μ, σ2)中的μ
         :param loc_error_sigma: gps定位误差参数, N(μ, σ2)中的σ
@@ -126,27 +140,27 @@ class GpsDevice(object):
 
 class Car(object):
     """车类"""
-
     def __init__(self, agent_id: str = None, speed_miu: float = 10.0, speed_sigma: float = 3,
                  net: Net = None, time_step: float = 0.2, start_time: datetime.datetime = None,
                  loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
                  heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0,
                  save_gap: int = 5, route: Route = None):
         """
-
-        :param agent_id:
-        :param speed_miu:
-        :param speed_sigma:
-        :param net:
-        :param time_step:
-        :param start_time:
-        :param loc_frequency:
-        :param loc_error_miu:
-        :param loc_error_sigma:
-        :param heading_error_sigma:
-        :param heading_error_miu:
-        :param save_gap: 每多少步存储一次车辆的真实轨迹
+        使用正态分布对车辆速度进行简单建模, 车辆速度服从正态分布 ~ N(speed_miu, speed_sigma^2)
+        :param agent_id: 车辆ID
+        :param speed_miu: 速度速度期望值, m/s
+        :param speed_sigma: 速度标准差, m/s
+        :param net: Net
+        :param time_step: 仿真步长, s
+        :param start_time: datetime.datetime, 行车开始的时间
+        :param loc_frequency: GPS定位频率(s), 每多少秒定位一次
+        :param loc_error_miu: 定位误差期望值参数
+        :param loc_error_sigma: 定位误差标准差参数
+        :param heading_error_sigma: 航向角误差标准差参数
+        :param heading_error_miu: 航向角误差期望值
+        :param save_gap: 每多少个仿真步存储一次车辆的真实轨迹, 每 save_gap * time_step (s)存储一次车辆的真实坐标
         """
+
         self.net = net
         self.time_step = time_step
         assert self.time_step <= 0.5, '仿真时间步长应该小于0.5s'
@@ -186,7 +200,7 @@ class Car(object):
                             handlers=[file_handler, console_handler])
         logging.info(rf'Car {self.agent_id}_logging_info:.....')
 
-    def acquire_route(self):
+    def acquire_route(self) -> list[tuple[int, int]]:
         if self.route.ft_seq is None:
             if self.route.o_node is None or self.route.d_node is None:
                 return self.route.random_route
@@ -209,6 +223,7 @@ class Car(object):
             # 计算link上的速度
             if now_drive_link_name == '路口转向':
                 speed = np.abs(self.speed - np.random.randint(0, 5))
+                speed = 0.01 if speed < 0.01 else speed
             else:
                 speed = self.speed
 
@@ -227,7 +242,7 @@ class Car(object):
                     self.__step_loc.append((now_time, Point(now_loc_x, now_loc_y), now_heading, self.agent_id))
 
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
-                used_speed = speed + np.random.normal(loc=0, scale=speed * 0.08)
+                used_speed = speed + np.random.normal(loc=0, scale=speed * 0.2)
                 print(used_speed)
                 step_l = used_speed * self.time_step
 
@@ -306,7 +321,6 @@ class Car(object):
 
 class RouteInfoCollector(object):
     """真实路径坐标以及GPS坐标收集器"""
-
     def __init__(self, convert_prj_sys: bool = True,
                  from_crs: str = None, to_crs: str = None, crs: str = None,
                  convert_loc: bool = False, convert_type: str = 'bd-84'):

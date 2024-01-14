@@ -23,29 +23,29 @@ net_field = NetField()
 class Net(object):
 
     @function_time_cost
-    def __init__(self, link_path=None, node_path=None,
-                 link_gdf: gpd.GeoDataFrame = None,
-                 node_gdf: gpd.GeoDataFrame = None,
-                 weight_field: str = 'length',
+    def __init__(self, link_path=None, node_path=None, link_gdf: gpd.GeoDataFrame = None,
+                 node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
                  geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False):
         """
-
-        :param link_path:
-        :param node_path:
-        :param weight_field:
+        创建Net类
+        :param link_path: link层的路网文件路径, 若指定了改参数, 则直接从磁盘IO创建Net线层
+        :param node_path: node层的路网文件路径, 若指定了改参数, 则直接从磁盘IO创建Net点层
+        :param link_gdf: 若指定了改参数, 则直接从内存中的gdf创建Net线层
+        :param node_gdf: 若指定了改参数, 则直接从内存中的gdf创建Net点层
+        :param weight_field: 搜路权重字段
         :param geo_crs:
         :param plane_crs:
-        :param init_from_existing:
+        :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
         """
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.weight_field = weight_field
         self.all_pair_path_df = pd.DataFrame()
         if link_gdf is None:
-            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=weight_field, geo_crs=self.geo_crs,
+            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, geo_crs=self.geo_crs,
                                plane_crs=self.plane_crs)
         else:
-            self.__link = Link(link_gdf=link_gdf, weight_field=weight_field, geo_crs=self.geo_crs,
+            self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, geo_crs=self.geo_crs,
                                plane_crs=self.plane_crs)
         if not init_from_existing:
             self.__link.init_link()
@@ -60,7 +60,16 @@ class Net(object):
             self.__node.init_node()
         else:
             pass
+
+        self.check()
         self.to_plane_prj()
+
+    def check(self) -> None:
+        """检查点层线层的关联一致性"""
+        node_set = set(self.__node.get_node_data().index)
+        link_node_set = set(self.__link.get_link_data()[net_field.FROM_NODE_FIELD]) | \
+                        set(self.__link.get_link_data()[net_field.TO_NODE_FIELD])
+        assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录...'
 
     @function_time_cost
     def init_net(self):
@@ -179,12 +188,28 @@ class Link(object):
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.link_gdf = link_gdf
+        self.weight_field = weight_field
+        self.check()
         self.__single_link_gdf = gpd.GeoDataFrame()
         self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
         self.__ft_link_mapping:dict[tuple[int, int], int] = dict()
         self.__graph = nx.DiGraph()
-        self.weight_field = weight_field
         self.__one_out_degree_nodes = None
+
+    def check(self):
+        gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                   net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
+                   net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
+        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
+        assert len(self.link_gdf[net_field.LINK_ID_FIELD]) == len(self.link_gdf[net_field.LINK_ID_FIELD].unique()), \
+            rf'字段{net_field.LINK_ID_FIELD}不唯一...'
+        assert set(self.link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), \
+            rf'{net_field.DIRECTION_FIELD}字段值只能为0或者1'
+        for col in [net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
+            assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
+            self.link_gdf[col] = self.link_gdf[col].astype(int)
+        assert self.link_gdf.crs == self.geo_crs, rf'源文件Link:地理坐标系指定有误:实际:{self.link_gdf.crs}, 指定: {self.geo_crs}'
 
     def init_link(self):
         """
@@ -217,7 +242,6 @@ class Link(object):
         """
         link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
         neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
-        print(len(neg_link))
         if neg_link.empty:
             self.__single_link_gdf = link_gdf.copy()
         else:
@@ -239,7 +263,6 @@ class Link(object):
                                   zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
                                       self.__single_link_gdf[net_field.TO_NODE_FIELD],
                                       self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
-
 
     def create_graph(self, weight_field: str = None):
         """
@@ -355,6 +378,17 @@ class Node(object):
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.__node_gdf = node_gdf
+        self.check()
+
+    def check(self):
+        gap_set = {net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD} - set(self.__node_gdf.columns)
+        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
+        assert len(self.__node_gdf[net_field.NODE_ID_FIELD]) == len(self.__node_gdf[net_field.NODE_ID_FIELD].unique()), \
+            rf'字段{net_field.NODE_ID_FIELD}不唯一...'
+        for col in [net_field.NODE_ID_FIELD]:
+            assert len(self.__node_gdf[self.__node_gdf[col].isna()]) == 0, rf'点层Node字段{col}有空值...'
+            self.__node_gdf[col] = self.__node_gdf[col].astype(int)
+        assert self.__node_gdf.crs == self.geo_crs, rf'源文件Node:地理坐标系指定有误:实际:{self.__node_gdf.crs}, 指定: {self.geo_crs}'
 
     def init_node(self):
         self.__node_gdf.set_index(net_field.NODE_ID_FIELD, inplace=True)

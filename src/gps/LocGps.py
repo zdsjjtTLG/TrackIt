@@ -42,7 +42,17 @@ class GpsPointsGdf(object):
         self.to_plane_prj()
         self.calc_gps_point_dis()
 
+        # 存储最原始的GPS信息(未经过降噪)
+        self.__source_gps_points_gdf = None
+
     def lower_frequency(self, n: int = 5):
+        """
+        GPS数据降频
+        :param n:
+        :return:
+        """
+        if self.__source_gps_points_gdf is None:
+            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: x % n)
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'] == 0].copy()
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
@@ -52,7 +62,9 @@ class GpsPointsGdf(object):
         self.calc_gps_point_dis()
 
     def neighboring_average(self):
-        """相邻点做平均"""
+        """滑动窗口降噪"""
+        if self.__source_gps_points_gdf is None:
+            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf = pd.concat([self.__gps_points_gdf.loc[[0], :],
                                            self.__gps_points_gdf,
                                            self.__gps_points_gdf.loc[[len(self.__gps_points_gdf) - 1], :]])
@@ -78,6 +90,14 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.drop(columns=['next_x', 'next_y', 'next_time'], axis=1, inplace=True)
         self.calc_gps_point_dis()
 
+    def dwell_point_processing(self, buffer: float = 25.0):
+        """识别停留点, 去除多余的停留点GPS信息"""
+        if self.__source_gps_points_gdf is None:
+            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
+        # TO DO ......
+        self.calc_gps_point_dis()
+        pass
+
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
         self.__gps_point_dis_dict = {
@@ -98,12 +118,12 @@ class GpsPointsGdf(object):
     def plot_point(self):
         pass
 
+    def get_gps_buffer_gdf(self):
+        pass
+
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:
         return self.__gps_points_gdf.copy()
-
-    def get_gps_buffer_gdf(self):
-        pass
 
     @property
     def crs(self):
@@ -146,6 +166,13 @@ class GpsPointsGdf(object):
 
     def get_point(self, seq: int = 0):
         return self.__gps_points_gdf.at[seq, gps_field.TIME_FIELD], self.__gps_points_gdf.at[seq, 'geometry']
+
+    @property
+    def source_gps(self):
+        if self.__source_gps_points_gdf is None:
+            return self.__gps_points_gdf.copy()
+        else:
+            return self.__source_gps_points_gdf.copy()
 
     def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float]:
         """

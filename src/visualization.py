@@ -2,20 +2,59 @@
 # @Time    : 2024/1/13 17:21
 # @Author  : TangKai
 # @Team    : ZheChengData
-import datetime
+
 import os
 import json
+import datetime
+import pandas as pd
 import geopandas as gpd
 from keplergl import KeplerGl
+from src.model.Markov import HiddenMarkov
+from src.GlobalVal import GpsField, NetField
 from src.tools.coord_trans import LngLatTransfer
-con = LngLatTransfer()
-from src.GlobalVal import GpsField
 
+
+con = LngLatTransfer()
 gps_field = GpsField()
+net_field = NetField()
+
+
+class VisualizationCombination(object):
+    def __init__(self, hmm_obj: HiddenMarkov = None, use_gps_source:bool = False):
+        if hmm_obj is None:
+            self.__hmm_obj_list = []
+        else:
+            self.__hmm_obj_list = [hmm_obj]
+        self.use_gps_source = use_gps_source
+
+    def collect_hmm(self, hmm_obj: HiddenMarkov = None):
+        self.__hmm_obj_list.append(hmm_obj)
+
+    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None) -> None:
+        base_link_gdf = gpd.GeoDataFrame()
+        base_node_gdf = gpd.GeoDataFrame()
+        gps_link_gdf = gpd.GeoDataFrame()
+        for hmm in self.__hmm_obj_list:
+            _gps_link_gdf, _base_link_gdf, _base_node_gdf = hmm.acquire_visualization_res(
+                use_gps_source=self.use_gps_source)
+            base_link_gdf = pd.concat([base_link_gdf, _base_link_gdf])
+            base_node_gdf = pd.concat([base_node_gdf, _base_node_gdf])
+            gps_link_gdf = pd.concat([gps_link_gdf, _gps_link_gdf])
+
+        gps_link_gdf.reset_index(inplace=True, drop=True)
+        base_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first', inplace=True)
+        base_node_gdf.drop_duplicates(subset=[net_field.NODE_ID_FIELD], keep='first', inplace=True)
+        base_link_gdf.reset_index(inplace=True, drop=True)
+        base_node_gdf.reset_index(inplace=True, drop=True)
+
+        generate_html(mix_gdf=gps_link_gdf, link_gdf=base_link_gdf, node_gdf=base_node_gdf, zoom=zoom,
+                      out_fldr=out_fldr,
+                      file_name=file_name)
 
 
 def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_name: str = None,
-                  link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, zoom: int = 15):
+                  link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, zoom: int = 15,
+                  config_fldr: str = None):
     """
 
     :param mix_gdf:
@@ -24,17 +63,26 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     :param link_gdf:
     :param node_gdf:
     :param zoom:
+    :param config_fldr:
     :return:
     """
-    # 生成KeplerGl对象s
+    # 生成KeplerGl对象
+    if gps_field.HEADING_FIELD in mix_gdf.columns:
+        mix_gdf.drop(columns=gps_field.HEADING_FIELD, axis=1, inplace=True)
     data_item = {'mix': mix_gdf}
+
     # 起点经纬度
-    cen_geo = mix_gdf.at[0, 'geometry'].centroid
+    cen_geo = mix_gdf.at[0, net_field.GEOMETRY_FIELD].centroid
     cen_x, cen_y = cen_geo.x, cen_geo.y
     s_time, e_time = mix_gdf[gps_field.TIME_FIELD].min().timestamp(), mix_gdf[gps_field.TIME_FIELD].max().timestamp()
     mix_gdf[gps_field.TIME_FIELD] = mix_gdf[gps_field.TIME_FIELD].astype(str)
-    with open(r'./config.json') as f:
-        user_config = json.load(f)
+
+    try:
+        with open(os.path.join(config_fldr, 'config.json')) as f:
+            user_config = json.load(f)
+    except FileNotFoundError or FileExistsError as e:
+        print(rf'{config_fldr}目录下不存在 config.json 配置文件...')
+
     user_config["config"]["visState"]["filters"][0]["value"] = [s_time, e_time]
     user_config["config"]["mapState"]["latitude"] = cen_y
     user_config["config"]["mapState"]["longitude"] = cen_x
@@ -53,7 +101,6 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     user_map = KeplerGl(height=600, data=data_item)  # data以图层名为键，对应的矢量数据为值
     user_map.config = user_config
     user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
-
     print(user_map.config)
 
 
