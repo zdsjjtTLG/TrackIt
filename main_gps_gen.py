@@ -35,7 +35,11 @@ if __name__ == '__main__':
     # route.d_node = 228133
     # ft_seq = [(137226, 42212), (42212, 21174), (21174, 39617)]
 
-    # 设置仿真参数
+    # 3.新建一个行程信息收集器对象, 对数据进行统一管理
+    # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
+    data_col = RouteInfoCollector(from_crs=plain_crs, to_crs=geo_crs, convert_prj_sys=True)
+
+    # 4.设置仿真参数, 并且初始化一个车辆实体
     _time_step = 0.1  # 仿真步长, s
     speed_miu = 12.0  # 速度期望值
     speed_sigma = 3.6  # 速度标准差
@@ -43,10 +47,6 @@ if __name__ == '__main__':
     loc_frequency = 1.0  # 每多少s进行一次GPS定位
     loc_error_sigma = 20.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
-
-    # 3.新建一个行程信息收集器对象, 对数据进行统一管理
-    # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
-    data_col = RouteInfoCollector(from_crs=plain_crs, to_crs=geo_crs, convert_prj_sys=True)
 
     # 开始行车
     for car_id in [rf'xa_car_{i}' for i in range(7, 11)]:

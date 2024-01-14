@@ -393,7 +393,7 @@ class RouteInfoCollector(object):
                            gps_field.LAT_FIELD, 'geometry']]
 
     @function_time_cost
-    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
+    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> gpd.GeoDataFrame:
         """
         存储轨迹信息
         :param out_fldr:
@@ -407,10 +407,14 @@ class RouteInfoCollector(object):
                                                   crs=self.crs, convert_loc=self.convert_loc,
                                                   convert_type=self.convert_type,
                                                   info_list=self.trajectory_info_list)
-        self.save_file(file_type=file_type, df=self.trajectory_gdf, out_fldr=out_fldr, file_name=file_name)
+        if out_fldr is None:
+            pass
+        else:
+            self.save_file(file_type=file_type, df=self.trajectory_gdf, out_fldr=out_fldr, file_name=file_name)
+        return self.trajectory_gdf
 
     @function_time_cost
-    def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
+    def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> gpd.GeoDataFrame:
         """
         存储gps信息
         :param out_fldr:
@@ -423,12 +427,15 @@ class RouteInfoCollector(object):
                                            to_crs=self.to_crs,
                                            crs=self.crs, convert_loc=self.convert_loc, convert_type=self.convert_type,
                                            info_list=self.gps_info_list)
-        self.save_file(file_type=file_type, df=self.gps_gdf, out_fldr=out_fldr, file_name=file_name)
-
+        if out_fldr is None:
+            pass
+        else:
+            self.save_file(file_type=file_type, df=self.gps_gdf, out_fldr=out_fldr, file_name=file_name)
+        return self.gps_gdf
     @function_time_cost
     def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
                       from_crs: str = None, to_crs: str = None, crs: str = None,
-                      convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> None:
+                      convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> gpd.GeoDataFrame:
         """
 
         :param out_fldr:
@@ -452,8 +459,14 @@ class RouteInfoCollector(object):
                                                   info_list=self.trajectory_info_list)
         self.gps_gdf[gps_field.TYPE_FIELD] = 'gps'
         self.trajectory_gdf[gps_field.TYPE_FIELD] = 'trajectory'
-        self.save_file(file_type=file_type, df=pd.concat([self.trajectory_gdf, self.gps_gdf]),
-                       file_name=file_name, out_fldr=out_fldr)
+        mix_gdf = pd.concat([self.trajectory_gdf, self.gps_gdf])
+        mix_gdf.reset_index(inplace=True, drop=True)
+        if out_fldr is None:
+            pass
+        else:
+            self.save_file(file_type=file_type, df=mix_gdf,
+                           file_name=file_name, out_fldr=out_fldr)
+        return mix_gdf
 
     @staticmethod
     def save_file(file_type: str = 'csv', df: pd.DataFrame or gpd.GeoDataFrame = None,
