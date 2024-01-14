@@ -13,14 +13,13 @@ from src.model.Markov import HiddenMarkov
 from src.GlobalVal import GpsField, NetField
 from src.tools.coord_trans import LngLatTransfer
 
-
 con = LngLatTransfer()
 gps_field = GpsField()
 net_field = NetField()
 
 
 class VisualizationCombination(object):
-    def __init__(self, hmm_obj: HiddenMarkov = None, use_gps_source:bool = False):
+    def __init__(self, hmm_obj: HiddenMarkov = None, use_gps_source: bool = False):
         if hmm_obj is None:
             self.__hmm_obj_list = []
         else:
@@ -30,7 +29,8 @@ class VisualizationCombination(object):
     def collect_hmm(self, hmm_obj: HiddenMarkov = None):
         self.__hmm_obj_list.append(hmm_obj)
 
-    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None) -> None:
+    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None,
+                      config_fldr: str = None) -> None:
         base_link_gdf = gpd.GeoDataFrame()
         base_node_gdf = gpd.GeoDataFrame()
         gps_link_gdf = gpd.GeoDataFrame()
@@ -43,13 +43,14 @@ class VisualizationCombination(object):
 
         gps_link_gdf.reset_index(inplace=True, drop=True)
         base_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first', inplace=True)
+        base_node_gdf.reset_index(inplace=True, drop=False)
         base_node_gdf.drop_duplicates(subset=[net_field.NODE_ID_FIELD], keep='first', inplace=True)
         base_link_gdf.reset_index(inplace=True, drop=True)
         base_node_gdf.reset_index(inplace=True, drop=True)
 
         generate_html(mix_gdf=gps_link_gdf, link_gdf=base_link_gdf, node_gdf=base_node_gdf, zoom=zoom,
                       out_fldr=out_fldr,
-                      file_name=file_name)
+                      file_name=file_name, config_fldr=config_fldr)
 
 
 def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_name: str = None,

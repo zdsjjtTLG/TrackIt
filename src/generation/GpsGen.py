@@ -14,6 +14,7 @@ import pandas as pd
 import geopandas as gpd
 from src.map.Net import Net
 from datetime import timedelta
+from src.WrapsFunc import function_time_cost
 from src.tools.coord_trans import prj_convert
 from shapely.geometry import LineString, Point
 from src.tools.coord_trans import LngLatTransfer
@@ -208,6 +209,8 @@ class Car(object):
                 return self.route.od_route
         else:
             return self.route.ft_seq
+
+    @function_time_cost
     def start_drive(self) -> None:
         """开始模拟行车"""
         ft_seq = self.acquire_route()
@@ -321,9 +324,18 @@ class Car(object):
 
 class RouteInfoCollector(object):
     """真实路径坐标以及GPS坐标收集器"""
-    def __init__(self, convert_prj_sys: bool = True,
-                 from_crs: str = None, to_crs: str = None, crs: str = None,
-                 convert_loc: bool = False, convert_type: str = 'bd-84'):
+    def __init__(self, convert_prj_sys: bool = True, convert_type: str = 'bd-84',
+                 convert_loc: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None):
+        """
+
+        :param convert_prj_sys: 是否转换坐标系(GCJ02、百度、84之间的转化)
+        :param convert_type: 'gc-84', 'gc-bd'分别代表GCJ02转化为84, GCJ02转化为百度,
+        :param from_crs: str
+        :param to_crs: str
+        :param crs: str
+        :param convert_loc: 是否进行地理坐标系到平面投影系的转化
+
+        """
         self.convert_prj_sys = convert_prj_sys
         self.from_crs = from_crs
         self.to_crs = to_crs
@@ -339,42 +351,52 @@ class RouteInfoCollector(object):
     def collect_gps(self, gps_info: list[tuple[datetime.datetime, Point, float, str]] = None):
         self.gps_info_list.extend(gps_info)
 
+    @function_time_cost
     def collect_trajectory(self, trajectory_info: list[tuple[datetime.datetime, Point, float, str]] = None):
         self.trajectory_info_list.extend(trajectory_info)
 
     @staticmethod
+    @function_time_cost
     def format_gdf(convert_prj_sys: bool = True, from_crs: str = None, to_crs: str = None,
                    crs: str = None, convert_loc: bool = False, convert_type: str = 'bd-84',
                    info_list: list = None) -> gpd.GeoDataFrame:
-        if convert_prj_sys:
-            assert from_crs is not None
-            assert to_crs is not None
-            format_res = [(item[0], prj_convert(from_crs=from_crs,
-                                                to_crs=to_crs,
-                                                point_obj=item[1]), item[2], item[3]) for item in info_list]
-        else:
-            format_res = info_list
+        # if convert_prj_sys:
+        #     assert from_crs is not None
+        #     assert to_crs is not None
+        #     format_res = [(item[0], prj_convert(from_crs=from_crs,
+        #                                         to_crs=to_crs,
+        #                                         point_obj=item[1]), item[2], item[3]) for item in info_list]
+        # else:
+        #     format_res = info_list
 
-        format_df = pd.DataFrame(format_res,
+        format_df = pd.DataFrame(info_list,
                                  columns=[gps_field.TIME_FIELD, 'geometry',
                                           gps_field.HEADING_FIELD, gps_field.AGENT_ID_FIELD])
+
         if to_crs is not None:
-            used_crs = to_crs
+            used_crs = from_crs
         else:
             used_crs = crs
+            to_crs = crs
+
         format_gdf = gpd.GeoDataFrame(format_df, geometry='geometry', crs=used_crs)
+        format_gdf = format_gdf.to_crs(to_crs)
+        format_gdf[gps_field.TIME_FIELD] = format_gdf[gps_field.TIME_FIELD].apply(
+            lambda t: t.strftime("%Y-%m-%d %H:%M:%S"))
+
         if convert_loc:
             con = LngLatTransfer()
             format_gdf['geometry'] = \
                 format_gdf['geometry'].apply(lambda geo: con.obj_convert(geo_obj=geo, con_type=convert_type))
-        format_gdf[gps_field.LNG_FIELD] = format_df['geometry'].apply(lambda geo: geo.x)
-        format_gdf[gps_field.LAT_FIELD] = format_df['geometry'].apply(lambda geo: geo.y)
+        format_gdf[gps_field.LNG_FIELD] = format_gdf['geometry'].apply(lambda geo: geo.x)
+        format_gdf[gps_field.LAT_FIELD] = format_gdf['geometry'].apply(lambda geo: geo.y)
         return format_gdf[[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD, gps_field.HEADING_FIELD, gps_field.LNG_FIELD,
                            gps_field.LAT_FIELD, 'geometry']]
 
+    @function_time_cost
     def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
         """
-
+        存储轨迹信息
         :param out_fldr:
         :param file_name:
         :param file_type:
@@ -388,9 +410,10 @@ class RouteInfoCollector(object):
                                                   info_list=self.trajectory_info_list)
         self.save_file(file_type=file_type, df=self.trajectory_gdf, out_fldr=out_fldr, file_name=file_name)
 
+    @function_time_cost
     def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> None:
         """
-
+        存储gps信息
         :param out_fldr:
         :param file_name:
         :param file_type:
@@ -403,6 +426,7 @@ class RouteInfoCollector(object):
                                            info_list=self.gps_info_list)
         self.save_file(file_type=file_type, df=self.gps_gdf, out_fldr=out_fldr, file_name=file_name)
 
+    @function_time_cost
     def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
                       from_crs: str = None, to_crs: str = None, crs: str = None,
                       convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> None:

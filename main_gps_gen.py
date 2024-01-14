@@ -35,9 +35,8 @@ if __name__ == '__main__':
     # route.d_node = 228133
     # ft_seq = [(137226, 42212), (42212, 21174), (21174, 39617)]
 
-    # 3.新建一个车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
+    # 设置仿真参数
     _time_step = 0.1  # 仿真步长, s
-    agent_id = rf'xa_car_{3}'  # 车辆ID
     speed_miu = 12.0  # 速度期望值
     speed_sigma = 3.6  # 速度标准差
     save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
@@ -45,22 +44,30 @@ if __name__ == '__main__':
     loc_error_sigma = 20.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
-    car = Car(net=my_net, time_step=_time_step, route=route,
-              agent_id=agent_id, speed_miu=speed_miu,speed_sigma=speed_sigma,
-              loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
-              start_time=datetime.datetime.now(), save_gap=save_gap)
+    # 3.新建一个行程信息收集器对象, 对数据进行统一管理
+    # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
+    data_col = RouteInfoCollector(from_crs=plain_crs, to_crs=geo_crs, convert_prj_sys=True)
 
-    # 4.开始行车
-    car.start_drive()
+    # 开始行车
+    for car_id in [rf'xa_car_{i}' for i in range(7, 11)]:
+        # 新建车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
+        car = Car(net=my_net, time_step=_time_step, route=route,
+                  agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
+                  loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
+                  start_time=datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0),
+                  save_gap=save_gap)
 
-    # 新建一个行程信息收集器对象
-    data_col = RouteInfoCollector(from_crs=plain_crs, to_crs=geo_crs, convert_prj_sys=True, convert_type='gc-84',
-                                  convert_loc=False)
-    data_col.collect_trajectory(car.get_trajectory_info())
-    data_col.collect_gps(car.get_gps_loc_info())
-    data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name=agent_id)
-    data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name=agent_id)
-    data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name=agent_id)
+        # 4.开始行车
+        car.start_drive()
+
+        # 收集数据
+        data_col.collect_trajectory(car.get_trajectory_info())
+        data_col.collect_gps(car.get_gps_loc_info())
+
+    # 存储数据
+    data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='rnd_route')
+    data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='rnd_route')
+    data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='rnd_route')
 
 
 

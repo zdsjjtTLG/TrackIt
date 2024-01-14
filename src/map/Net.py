@@ -25,7 +25,8 @@ class Net(object):
     @function_time_cost
     def __init__(self, link_path=None, node_path=None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
-                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False):
+                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,
+                 is_check: bool = True):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了改参数, 则直接从磁盘IO创建Net线层
@@ -43,25 +44,26 @@ class Net(object):
         self.all_pair_path_df = pd.DataFrame()
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, geo_crs=self.geo_crs,
-                               plane_crs=self.plane_crs)
+                               plane_crs=self.plane_crs, is_check=is_check)
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, geo_crs=self.geo_crs,
-                               plane_crs=self.plane_crs)
+                               plane_crs=self.plane_crs, is_check=is_check)
         if not init_from_existing:
             self.__link.init_link()
         else:
             self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path))
+            self.__node = Node(node_gdf=gpd.read_file(node_path),is_check=is_check)
         else:
-            self.__node = Node(node_gdf=node_gdf)
+            self.__node = Node(node_gdf=node_gdf, is_check=is_check)
         if not init_from_existing:
             self.__node.init_node()
         else:
             pass
 
-        self.check()
+        if is_check:
+            self.check()
         self.to_plane_prj()
 
     def check(self) -> None:
@@ -177,19 +179,20 @@ class Net(object):
         sub_net = Net(link_gdf=sub_single_link_gdf,
                       node_gdf=sub_node_gdf,
                       weight_field=self.weight_field,
-                      geo_crs=self.geo_crs, plane_crs=self.plane_crs, init_from_existing=True)
+                      geo_crs=self.geo_crs, plane_crs=self.plane_crs, init_from_existing=True, is_check=False)
         sub_net.init_net()
         return sub_net
 
 class Link(object):
     def __init__(self, link_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
-                 weight_field: str = None):
+                 weight_field: str = None, is_check: bool = True):
 
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.link_gdf = link_gdf
         self.weight_field = weight_field
-        self.check()
+        if is_check:
+            self.check()
         self.__single_link_gdf = gpd.GeoDataFrame()
         self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
         self.__ft_link_mapping:dict[tuple[int, int], int] = dict()
@@ -374,11 +377,13 @@ class Link(object):
         return self.__ft_link_mapping
 
 class Node(object):
-    def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650'):
+    def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
+                 is_check: bool = True):
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.__node_gdf = node_gdf
-        self.check()
+        if is_check:
+            self.check()
 
     def check(self):
         gap_set = {net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD} - set(self.__node_gdf.columns)
