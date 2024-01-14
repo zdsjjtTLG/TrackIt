@@ -15,7 +15,6 @@ import geopandas as gpd
 from src.map.Net import Net
 from datetime import timedelta
 from src.WrapsFunc import function_time_cost
-from src.tools.coord_trans import prj_convert
 from shapely.geometry import LineString, Point
 from src.tools.coord_trans import LngLatTransfer
 

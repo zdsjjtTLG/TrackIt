@@ -29,6 +29,8 @@ class GpsPointsGdf(object):
         self.plane_crs = plane_crs
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
+        if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
+            self.__gps_points_gdf[gps_field.HEADING_FIELD] = 0.0
         self.__gps_points_gdf['geometry'] = self.__gps_points_gdf.apply(
             lambda item: Point(item[lng_field], item[lat_field]), axis=1)
         self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry='geometry', crs=self.geo_crs)
