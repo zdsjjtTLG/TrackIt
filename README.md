@@ -1,4 +1,5 @@
 # TrackIt
+作者: 唐铠, 794568794@qq.com, zhechengdata@tangkai.com
 ## 一、简介
 Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的离线地图匹配模型
 
@@ -270,6 +271,4 @@ vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/',
                      file_name='rnd_path', config_fldr=r'./config')
 # 然后使用浏览器打开生成的HTML文件然后使用筛选器功能,选中时间字段, 然后开始播放就可以可视化匹配过程
 ```
-
-## 作者信息
-唐铠, 794568794@qq.com, zhechengdata@tangkai.com
+![main.png](DocFiles%2Fimages%2F动态可视化.png)

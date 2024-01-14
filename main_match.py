@@ -28,7 +28,7 @@ if __name__ == '__main__':
     gps_df = gpd.read_file(r'./data/output/gps/rnd_route.geojson')
 
     # 4.初始化一个匹配结果管理器
-    vc = VisualizationCombination(use_gps_source=False)
+    vc = VisualizationCombination(use_gps_source=True)
 
     # 对每辆车的轨迹进行匹配
     for agent_id, gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
