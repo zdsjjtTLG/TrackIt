@@ -1,7 +1,11 @@
 # TrackIt
-作者: 唐铠, 794568794@qq.com, zhechengdata@tangkai.com
+作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 ## 一、简介
 Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的离线地图匹配模型
+
+想了解算法过程的可以参考B站视频:
+
+https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2
 
 ![main.png](DocFiles%2Fimages%2F例子1.png)
 
@@ -15,7 +19,6 @@ Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的
 
 ![main.png](DocFiles%2Fimages%2F回溯.png)
 
-想了解算法过程的可以参考B站视频:
 
 ## 二、所需依赖
 括号中为作者使用版本(基于python3.11), 仅供参考
@@ -44,7 +47,7 @@ geojson或者shp文件,要求必需字段名称如下:
 - from_node: 路段拓扑起点节点编号, integer
 - to_node: 路段拓扑终点节点编号, integer
 - dir: 路段方向, integer, 取值为0或者1, 0代表双向通行,1代表通行方向为路段拓扑正向
-- length: 路段长度, float, m
+- length: 路段长度, float, 米
 - geometry: 路段几何线型, geometry
 - ...(其他属性字段)
 
@@ -61,7 +64,7 @@ geojson或者shp文件,要求必需字段名称如下:
 - time: 定位时间戳, string, '%Y-%m-%d %H:%M:%S'
 - lng: 经度,float
 - lat: 纬度,float
-- heading: 航向角,float,可有可无
+- heading: 航向角,float,度,可有可无
 - ...(其他属性字段)
 
 目前的版本,匹配算法还没用到航向角的信息
