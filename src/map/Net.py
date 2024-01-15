@@ -29,10 +29,10 @@ class Net(object):
                  is_check: bool = True):
         """
         创建Net类
-        :param link_path: link层的路网文件路径, 若指定了改参数, 则直接从磁盘IO创建Net线层
-        :param node_path: node层的路网文件路径, 若指定了改参数, 则直接从磁盘IO创建Net点层
-        :param link_gdf: 若指定了改参数, 则直接从内存中的gdf创建Net线层
-        :param node_gdf: 若指定了改参数, 则直接从内存中的gdf创建Net点层
+        :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
+        :param node_path: node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
+        :param link_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net线层
+        :param node_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net点层
         :param weight_field: 搜路权重字段
         :param geo_crs:
         :param plane_crs:
