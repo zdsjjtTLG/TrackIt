@@ -34,8 +34,8 @@ class Net(object):
         :param link_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net线层
         :param node_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net点层
         :param weight_field: 搜路权重字段
-        :param geo_crs:
-        :param plane_crs:
+        :param geo_crs:  地理坐标系
+        :param plane_crs: 平面投影坐标系
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
         """
         self.geo_crs = geo_crs
@@ -74,7 +74,7 @@ class Net(object):
         assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录...'
 
     @function_time_cost
-    def init_net(self):
+    def init_net(self) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
 
     def get_shortest_path_length(self, o_node=1, d_node=2) -> tuple[list, float]:
@@ -107,22 +107,22 @@ class Net(object):
     def get_rnd_shortest_path(self) -> list[int]:
         return self.__link.get_rnd_shortest_path()
 
-    def get_node_loc(self, node_id: int = None):
+    def get_node_loc(self, node_id: int = None) -> tuple:
         return self.__node.get_node_loc(node_id)
 
     def get_one_out_degree_nodes(self) -> list[int]:
         return self.__link.one_out_degree_nodes()
 
-    def get_link_data(self):
+    def get_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_link_data()
 
-    def get_node_data(self):
+    def get_node_data(self) -> gpd.GeoDataFrame:
         return self.__node.get_node_data()
 
-    def get_link_geo(self, link_id: int = None):
+    def get_link_geo(self, link_id: int = None) -> LineString:
         return self.__link.get_link_geo(link_id=link_id)
 
-    def get_link_from_to(self, link_id: int = None):
+    def get_link_from_to(self, link_id: int = None) -> tuple[int, int]:
         return self.__link.get_link_from_to(link_id=link_id)
 
     def get_line_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
@@ -326,6 +326,7 @@ class Link(object):
         """
         return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], attr_name]
 
+    @DeprecationWarning
     def one_out_degree_nodes(self) -> list[int]:
         """只有一个出度的节点集合"""
         if self.__one_out_degree_nodes is None:
@@ -339,10 +340,6 @@ class Link(object):
 
         return self.__one_out_degree_nodes
 
-    @staticmethod
-    def check_link():
-        pass
-
     def get_link_geo(self, link_id: int = None) -> LineString:
         return self.__single_link_gdf.at[link_id, 'geometry']
 
@@ -353,28 +350,28 @@ class Link(object):
     def get_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
         return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], net_field.GEOMETRY_FIELD]
 
-    @property
-    def crs(self):
-        return self.__single_link_gdf.crs
+    def get_ft_link_mapping(self) -> dict[tuple[int, int], int]:
+        return self.__ft_link_mapping
 
-    def to_plane_prj(self):
+    def to_plane_prj(self) -> None:
         if self.__single_link_gdf.crs == self.plane_crs:
             pass
         else:
             self.__single_link_gdf = self.__single_link_gdf.to_crs(self.plane_crs)
 
-    def to_geo_prj(self):
+    def to_geo_prj(self) -> None:
         if self.__single_link_gdf.crs == self.geo_crs:
             pass
         else:
             self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
+    @property
+    def crs(self):
+        return self.__single_link_gdf.crs
 
     @property
     def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
         return self.__double_single_mapping
 
-    def get_ft_link_mapping(self):
-        return self.__ft_link_mapping
 
 class Node(object):
     def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
@@ -401,7 +398,7 @@ class Node(object):
     def get_node_geo(self, node_id: int = None):
         return self.__node_gdf.at[node_id, net_field.GEOMETRY_FIELD]
 
-    def get_node_loc(self, node_id: int = None):
+    def get_node_loc(self, node_id: int = None) -> tuple:
         geo = self.get_node_geo(node_id)
         return geo.x, geo.y
 
