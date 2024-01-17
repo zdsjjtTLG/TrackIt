@@ -12,6 +12,9 @@ doc/
 # pycharm setting files
 .idea/
 
+
+data/output/
+
 # Distribution / packaging
 .Python
 build/

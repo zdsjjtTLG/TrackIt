@@ -21,12 +21,27 @@ net_field = NetField()
 class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None, lng_field: str = None, lat_field: str = None,
-                 buffer: float = 200.0, time_format: str = '%Y-%m-%d %H:%M:%S',
+                 buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
+                 time_format: str = '%Y-%m-%d %H:%M:%S',
                  geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
+        """
+
+        :param gps_points_df:
+        :param lng_field:
+        :param lat_field:
+        :param buffer: GPS点的buffer半径大小(用于生成候选路段), m
+        :param increment_buffer: 使用buffer进行关联, 可能会存在部分GPS点仍然关联不到任何路段, 对于这部分路段, 将启用增量buffer进一步关联
+        :param max_increment_times: 增量搜索的最大次数
+        :param time_format:
+        :param geo_crs:
+        :param plane_crs:
+        """
         self.geo_crs = geo_crs
         self.buffer = buffer
         self.__crs = self.geo_crs
         self.plane_crs = plane_crs
+        self.increment_buffer = increment_buffer
+        self.max_increment_times = 1 if max_increment_times <= 0 else max_increment_times
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
         if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
@@ -43,7 +58,7 @@ class GpsPointsGdf(object):
 
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.to_plane_prj()
-        self.calc_gps_point_dis()
+        # self.calc_gps_point_dis()
 
         # 存储最原始的GPS信息(未经过降噪)
         self.__source_gps_points_gdf = None
@@ -58,40 +73,11 @@ class GpsPointsGdf(object):
             self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: x % n)
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'] == 0].copy()
-        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
-        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+        # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+        # self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
-        self.calc_gps_point_dis()
-
-    def neighboring_average(self):
-        """滑动窗口降噪"""
-        if self.__source_gps_points_gdf is None:
-            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
-        self.__gps_points_gdf = pd.concat([self.__gps_points_gdf.loc[[0], :],
-                                           self.__gps_points_gdf,
-                                           self.__gps_points_gdf.loc[[len(self.__gps_points_gdf) - 1], :]])
-        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
-        self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf['geometry'].apply(lambda geo: geo.x)
-        self.__gps_points_gdf[gps_field.LAT_FIELD] = self.__gps_points_gdf['geometry'].apply(lambda geo: geo.y)
-
-        self.__gps_points_gdf[['next_x', 'next_y', 'next_time']] = \
-            self.__gps_points_gdf[
-                [gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD]].shift(-1)
-        self.__gps_points_gdf.dropna(subset='next_x', inplace=True)
-
-        self.__gps_points_gdf[gps_field.LNG_FIELD] = (self.__gps_points_gdf['next_x'] + self.__gps_points_gdf[
-            gps_field.LNG_FIELD]) / 2
-        self.__gps_points_gdf[gps_field.LAT_FIELD] = (self.__gps_points_gdf['next_y'] + self.__gps_points_gdf[
-            gps_field.LAT_FIELD]) / 2
-        self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD] + (
-                    self.__gps_points_gdf['next_time'] - self.__gps_points_gdf[gps_field.TIME_FIELD]) / 2
-        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
-        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-        self.__gps_points_gdf['geometry'] = self.__gps_points_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(
-            lambda item: Point(item), axis=1)
-        self.__gps_points_gdf.drop(columns=['next_x', 'next_y', 'next_time'], axis=1, inplace=True)
-        self.calc_gps_point_dis()
+        # self.calc_gps_point_dis()
 
     def rolling_average(self, window: int = 2):
         """滑动窗口降噪"""
@@ -103,6 +89,9 @@ class GpsPointsGdf(object):
             lambda geo: geo.x)
         self.__gps_points_gdf[gps_field.LAT_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
             lambda geo: geo.y)
+
+        # 滑动窗口执行后会重置所有的gps的seq字段
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
 
         rolling_num_df = self.__gps_points_gdf[
             [gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD]].rolling(window=window).mean()
@@ -130,8 +119,8 @@ class GpsPointsGdf(object):
                                                                      unit='s')
         self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
                                                                      format='%Y-%m-%d %H:%M:%S')
-        print(self.__gps_points_gdf.crs)
-        self.calc_gps_point_dis()
+        # print(self.__gps_points_gdf.crs)
+        # self.calc_gps_point_dis()
 
     def dwell_point_processing(self, buffer: float = 25.0):
         """识别停留点, 去除多余的停留点GPS信息"""
@@ -178,18 +167,42 @@ class GpsPointsGdf(object):
         return gps_array_buffer
 
     @function_time_cost
-    def generate_candidate_link(self, net: Net = None):
-        gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, 'geometry']].copy()
+    def generate_candidate_link(self, net: Net = None) -> tuple[pd.DataFrame, list[int]]:
+        """
+        计算GPS观测点的候选路段
+        :param net:
+        :return: GPS候选路段信息, 未匹配到候选路段的gps点id
+        """
+        gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, net_field.GEOMETRY_FIELD]].copy()
         if gps_buffer_gdf.crs != self.plane_crs:
             gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
-        gps_buffer_gdf['geometry'] = gps_buffer_gdf['geometry'].apply(lambda point_geo: point_geo.buffer(self.buffer))
-        candidate_link = gpd.sjoin(gps_buffer_gdf,
-                                   net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
-                                                        net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
-                                                        net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]])
-        candidate_link.drop(columns=['index_right'], axis=1, inplace=True)
+
+        single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                                               net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
+                                               net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]]
+
+        candidate_link = pd.DataFrame()
+        remain_gps_list = []
+        for i in [i for i in range(0, self.max_increment_times)]:
+            now_buffer = self.buffer + i * self.increment_buffer
+            print(rf'buffer: {now_buffer}m...')
+
+            gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].apply(lambda p: p.buffer(now_buffer))
+            gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
+            join_df = gpd.sjoin(gps_buffer_gdf, single_link_gdf, how='left')
+
+            _candidate_link = join_df[~join_df[net_field.SINGLE_LINK_ID_FIELD].isna()]
+            candidate_link = pd.concat([candidate_link, _candidate_link])
+
+            remain_gps_list = list(join_df[join_df[net_field.SINGLE_LINK_ID_FIELD].isna()][gps_field.POINT_SEQ_FIELD].unique())
+            if not remain_gps_list:
+                break
+
+            gps_buffer_gdf = gps_buffer_gdf[gps_buffer_gdf[gps_field.POINT_SEQ_FIELD].isin(remain_gps_list)].copy()
+        candidate_link.drop(columns=['index_right', net_field.GEOMETRY_FIELD, 'gps_buffer'], axis=1, inplace=True)
         candidate_link.reset_index(inplace=True, drop=True)
-        return candidate_link
+
+        return candidate_link, remain_gps_list
 
     def to_plane_prj(self) -> None:
         if self.__gps_points_gdf.crs == self.plane_crs:
@@ -227,6 +240,11 @@ class GpsPointsGdf(object):
         (prj_p, prj_dis, route_dis, l_length) = self._get_prj_inf(self.get_point(seq)[1], line)
         return prj_p, prj_dis, route_dis, l_length
 
+    def delete_target_gps(self, target_seq_list: list[int]) -> None:
+        self.__gps_points_gdf.drop(
+            index=self.__gps_points_gdf[self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].isin(target_seq_list)].index,
+            inplace=True, axis=0)
+
     @staticmethod
     def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float]:
         """
@@ -259,6 +277,10 @@ class GpsPointsGdf(object):
     @property
     def gps_list_length(self):
         return len(self.__gps_points_gdf)
+
+    @property
+    def used_observation_seq_list(self) -> list[int]:
+        return self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
 
 
 if __name__ == '__main__':

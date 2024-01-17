@@ -43,3 +43,6 @@ if __name__ == '__main__':
 
     x = datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0)
     print(x)
+
+    for i, a in enumerate([1,2,3,6]):
+        print(i, a)

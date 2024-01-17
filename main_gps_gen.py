@@ -44,12 +44,12 @@ if __name__ == '__main__':
     speed_miu = 12.0  # 速度期望值
     speed_sigma = 3.6  # 速度标准差
     save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
-    loc_frequency = 1.0  # 每多少s进行一次GPS定位
+    loc_frequency = 3.0  # 每多少s进行一次GPS定位
     loc_error_sigma = 20.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
     # 开始行车
-    for car_id in [rf'xa_car_{i}' for i in range(7, 11)]:
+    for car_id in [rf'xa_car_{i}' for i in range(125, 126)]:
         # 新建车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route,
                   agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
@@ -65,9 +65,9 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='rnd_route')
-    data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='rnd_route')
-    data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='rnd_route')
+    data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='test125')
+    data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='test125')
+    data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='test125')
 
 
 

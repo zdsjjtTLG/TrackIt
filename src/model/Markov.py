@@ -5,6 +5,7 @@
 
 import time
 import datetime
+import warnings
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -51,7 +52,7 @@ class HiddenMarkov(object):
 
     def solve(self):
         # 使用viterbi模型求解
-        self.__solver = Viterbi(observation_num=self.gps_points.gps_list_length,
+        self.__solver = Viterbi(observation_list=self.gps_points.used_observation_seq_list,
                                 o_mat_dict=self.__emission_mat_dict,
                                 t_mat_dict=self.__ft_transition_dict)
         self.__solver.init_model()
@@ -61,14 +62,24 @@ class HiddenMarkov(object):
 
     @function_time_cost
     def __generate_transition_mat(self):
+
         # 依据一辆车的时序gps点和和底层路网生成转移概率矩阵和生成概率矩阵
         # seq, geometry, single_link_id, from_node, to_node, dir, length
-        gps_candidate_link = self.gps_points.generate_candidate_link(net=self.net)
+        gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net)
 
+        if _gap:
+            warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
+
+            # 删除关联不到任何路段的gps点
+            self.gps_points.delete_target_gps(target_seq_list=list(_gap))
+
+        # 一定要排序
         seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
 
         if self.search_method == 'all_pairs':
             self.net.calc_all_pairs_shortest_path()
+
+        self.gps_points.calc_gps_point_dis()
 
         # 计算状态转移概率矩阵
         for i in range(0, len(seq_list) - 1):
@@ -221,24 +232,24 @@ class HiddenMarkov(object):
         return p
 
     def acquire_res(self) -> gpd.GeoDataFrame():
-        # 观测序列ID -> single_link
-        single_link_state_list = [self.__ft_mapping_dict[observe_seq][state_index] for observe_seq, state_index in
-                                  zip(range(len(self.index_state_list)),
+        # 观测序列 -> (观测序列, single_link)
+        single_link_state_list = [(observe_val, self.__ft_mapping_dict[observe_val][state_index]) for
+                                  observe_val, state_index in
+                                  zip(self.gps_points.used_observation_seq_list,
                                       self.index_state_list)]
         print(single_link_state_list)
         # 映射回原路网link_id, 以及dir
         # {[link_id, dir, from_node, to_node], [link_id, dir, from_node, to_node]...}
         bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
-        link_state_list = [(seq, link) + bilateral_unidirectional_mapping[link] for seq, link in
-                           zip(range(len(single_link_state_list)), single_link_state_list)]
+        link_state_list = [item + bilateral_unidirectional_mapping[item[1]] for item in single_link_state_list]
 
-        link_gps_state_df = pd.DataFrame(link_state_list, columns=[gps_field.POINT_SEQ_FIELD,
+        gps_link_state_df = pd.DataFrame(link_state_list, columns=[gps_field.POINT_SEQ_FIELD,
                                                                    net_field.SINGLE_LINK_ID_FIELD,
                                                                    net_field.LINK_ID_FIELD,
                                                                    net_field.DIRECTION_FIELD,
                                                                    net_field.FROM_NODE_FIELD,
                                                                    net_field.TO_NODE_FIELD])
-        link_gps_state_df[gps_field.SUB_SEQ_FIELD] = 0
+        gps_link_state_df[gps_field.SUB_SEQ_FIELD] = 0
         del link_state_list
 
         # agent_id, seq
@@ -248,75 +259,99 @@ class HiddenMarkov(object):
         # gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, gps_field.SUB_SEQ_FIELD
         # net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD
         # gps_field.TIME_FIELD, net_field.GEOMETRY_FIELD
-        omitted_gps_state_df = self.acquire_omitted_match_item(link_gps_state_df=link_gps_state_df)
+        omitted_gps_state_df = self.acquire_omitted_match_item(gps_link_state_df=gps_link_state_df)
         if not omitted_gps_state_df.empty:
-            link_gps_state_df = pd.concat([link_gps_state_df, omitted_gps_state_df[[gps_field.POINT_SEQ_FIELD,
+            gps_link_state_df = pd.concat([gps_link_state_df, omitted_gps_state_df[[gps_field.POINT_SEQ_FIELD,
                                                                                     net_field.SINGLE_LINK_ID_FIELD,
                                                                                     net_field.LINK_ID_FIELD,
                                                                                     net_field.DIRECTION_FIELD,
                                                                                     net_field.FROM_NODE_FIELD,
                                                                                     net_field.TO_NODE_FIELD,
                                                                                     gps_field.SUB_SEQ_FIELD]]])
-            link_gps_state_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
+            gps_link_state_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
                                           ascending=[True, True], inplace=True)
-            link_gps_state_df.reset_index(inplace=True, drop=True)
+            gps_link_state_df.reset_index(inplace=True, drop=True)
 
         # 给每个gps点打上路网link标签, 存在GPS匹配不到路段的情况(比如buffer范围内无候选路段)
         gps_match_res_gdf = pd.merge(gps_match_res_gdf,
-                                     link_gps_state_df, on=gps_field.POINT_SEQ_FIELD, how='right')
+                                     gps_link_state_df, on=gps_field.POINT_SEQ_FIELD, how='right')
         gps_match_res_gdf.loc[gps_match_res_gdf[gps_field.NEXT_LINK_FIELD].isna(), net_field.GEOMETRY_FIELD] = \
             omitted_gps_state_df[net_field.GEOMETRY_FIELD].to_list()
         gps_match_res_gdf.loc[gps_match_res_gdf[gps_field.NEXT_LINK_FIELD].isna(), gps_field.TIME_FIELD] = \
             omitted_gps_state_df[gps_field.TIME_FIELD].to_list()
 
         gps_match_res_gdf.drop(columns=[gps_field.NEXT_LINK_FIELD], axis=1, inplace=True)
-        gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry='geometry', crs=self.gps_points.crs)
+        gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry=net_field.GEOMETRY_FIELD,
+                                             crs=self.gps_points.crs)
         self.gps_match_res_gdf = gps_match_res_gdf
         return gps_match_res_gdf
 
-    def acquire_omitted_match_item(self, link_gps_state_df: pd.DataFrame = None) -> pd.DataFrame:
+    @function_time_cost
+    def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
         """
         推算补全不完整的路径之间的path以及GPS点
-        :param link_gps_state_df: 初步的匹配结果, 可能存在断掉的路径
+        :param gps_link_state_df: 初步的匹配结果, 可能存在断掉的路径
         :return:
         """
         bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
         gps_match_res_gdf = self.gps_points.gps_gdf
 
         # 找出断掉的路径
-        link_gps_state_df[gps_field.NEXT_LINK_FIELD] = link_gps_state_df[net_field.SINGLE_LINK_ID_FIELD].shift(-1)
-        link_gps_state_df[gps_field.NEXT_LINK_FIELD] = link_gps_state_df[gps_field.NEXT_LINK_FIELD].fillna(-1)
-        link_gps_state_df[gps_field.NEXT_LINK_FIELD] = link_gps_state_df[gps_field.NEXT_LINK_FIELD].astype(int)
+        gps_link_state_df.sort_values(by=gps_field.POINT_SEQ_FIELD, ascending=True, inplace=True)
+        gps_link_state_df[gps_field.NEXT_LINK_FIELD] = gps_link_state_df[net_field.SINGLE_LINK_ID_FIELD].shift(-1)
+        gps_link_state_df[gps_field.NEXT_LINK_FIELD] = gps_link_state_df[gps_field.NEXT_LINK_FIELD].fillna(-1)
+        gps_link_state_df[gps_field.NEXT_LINK_FIELD] = gps_link_state_df[gps_field.NEXT_LINK_FIELD].astype(int)
+        gps_link_state_df.reset_index(inplace=True, drop=True)
 
         ft_node_link_mapping = self.net.get_ft_node_link_mapping()
         omitted_gps_state_item = []
         omitted_gps_points = []
         omitted_gps_points_time = []
-        for i, row in link_gps_state_df.iterrows():
-            ft_state = (int(row[net_field.SINGLE_LINK_ID_FIELD]), int(row[gps_field.NEXT_LINK_FIELD]))
-            if ft_state in self.__adj_seq_path_dict.keys():
-                pre_seq = int(row[gps_field.POINT_SEQ_FIELD])
-                node_seq = self.__adj_seq_path_dict[ft_state]
-                _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
-                                     range(1, len(node_seq) - 1)]
+        used_observation_seq_list = self.gps_points.used_observation_seq_list
+        for i, used_o in enumerate(used_observation_seq_list[:-1]):
+            ft_state = (int(gps_link_state_df.at[i, net_field.SINGLE_LINK_ID_FIELD]),
+                        int(gps_link_state_df.at[i, gps_field.NEXT_LINK_FIELD]))
 
-                omitted_gps_state_item += [
-                    (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
-                    for _single_link, sub_seq in zip(_single_link_list,
-                                                     range(1, len(_single_link_list) + 1))]
+            now_from_node, now_to_node = int(gps_link_state_df.at[i, net_field.FROM_NODE_FIELD]), \
+                int(gps_link_state_df.at[i, net_field.TO_NODE_FIELD])
 
-                # 利用前后的GPS点信息来补全缺失的GPS点
-                pre_order_gps, post_order_gps = gps_match_res_gdf.at[pre_seq, net_field.GEOMETRY_FIELD], \
-                    gps_match_res_gdf.at[pre_seq + 1, net_field.GEOMETRY_FIELD]
-                omitted_gps_points.extend(n_equal_points(len(_single_link_list) + 1, from_point=pre_order_gps,
-                                                         to_point=post_order_gps, add_noise=True, noise_frac=0.3))
+            next_from_node, next_to_node = int(gps_link_state_df.at[i + 1, net_field.FROM_NODE_FIELD]), \
+                int(gps_link_state_df.at[i + 1, net_field.TO_NODE_FIELD])
 
-                # 一条补出来的路生成一个GPS点
-                pre_seq_time, next_seq_time = gps_match_res_gdf.at[pre_seq, gps_field.TIME_FIELD], \
-                    gps_match_res_gdf.at[pre_seq + 1, gps_field.TIME_FIELD]
-                dt = (next_seq_time - pre_seq_time).total_seconds() / (len(omitted_gps_points) + 1)
-                omitted_gps_points_time.extend(
-                    [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
+            if ((now_from_node, now_to_node) == (next_from_node, next_to_node)) or now_to_node == next_from_node:
+                pass
+            else:
+                if ft_state in self.__adj_seq_path_dict.keys():
+                    pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
+                    next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
+                    node_seq = self.__adj_seq_path_dict[ft_state]
+                    if node_seq[1] != now_to_node:
+                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, GPS点位太少..., 请增密...')
+                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                                             range(0, len(node_seq) - 1)]
+                    else:
+                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                                             range(1, len(node_seq) - 1)]
+
+                    omitted_gps_state_item += [
+                        (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
+                        for _single_link, sub_seq in zip(_single_link_list,
+                                                         range(1, len(_single_link_list) + 1))]
+
+                    # 利用前后的GPS点信息来补全缺失的GPS点
+                    pre_order_gps, next_order_gps = gps_match_res_gdf.at[pre_seq, net_field.GEOMETRY_FIELD], \
+                        gps_match_res_gdf.at[next_seq, net_field.GEOMETRY_FIELD]
+                    omitted_gps_points.extend(n_equal_points(len(_single_link_list) + 1, from_point=pre_order_gps,
+                                                             to_point=next_order_gps, add_noise=True, noise_frac=0.3))
+
+                    # 一条补出来的路生成一个GPS点
+                    pre_seq_time, next_seq_time = gps_match_res_gdf.at[pre_seq, gps_field.TIME_FIELD], \
+                        gps_match_res_gdf.at[next_seq, gps_field.TIME_FIELD]
+                    dt = (next_seq_time - pre_seq_time).total_seconds() / (len(omitted_gps_points) + 1)
+                    omitted_gps_points_time.extend(
+                        [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
+                else:
+                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, GPS点位太少..., 请增密...')
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,
