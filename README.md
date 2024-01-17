@@ -31,6 +31,7 @@ https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7e
 - numpy(1.26.2)
 - pyproj(3.6.1)
 - keplergl(0.3.2)
+
 geopandas为最新版本, 如果不是最新版本可能会报错(有个函数旧版本没有)
 
 ## 三、所需数据
