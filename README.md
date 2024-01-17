@@ -1,5 +1,6 @@
 # TrackIt
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
+![main.png](DocFiles%2Fimages%2Fgif.gif)
 ## 一、简介
 Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的离线地图匹配模型
 
