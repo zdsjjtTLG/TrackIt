@@ -1,11 +1,15 @@
 # TrackIt
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
-中高频GPS匹配效果
+
+中高频GPS匹配效果:
+
 ![main.png](DocFiles%2Fimages%2Fgif.gif)
 
 
+
 低频GPS匹配效果:
+
 ![main.png](DocFiles%2Fimages%2Fgif-低频.gif)
 
 ## 一、简介
