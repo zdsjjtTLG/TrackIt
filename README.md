@@ -1,9 +1,11 @@
-# -- coding: utf-8 --
-
 # TrackIt
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
+## 安装
 
+``` shell
+pip install -i https://test.pypi.org/simple/ gotrackit==0.0.2
+```
 中高频GPS匹配效果:
 
 ![main.png](DocFiles%2Fimages%2Fgif-中高频.gif)
@@ -12,6 +14,9 @@
 低频GPS匹配效果:
 
 ![main.png](DocFiles%2Fimages%2Fgif-低频.gif)
+
+
+
 
 ## 一、简介
 Map-Match-Algorithm Based on Hidden Markov Model, 基于隐马尔可夫模型的离线地图匹配模型
@@ -97,10 +102,10 @@ geojson或者shp文件,要求必需字段名称如下:
 引入路网Net类、路径类Route、车辆类Car、行程信息收集器类RouteInfoCollector、字段常量NetField、GpsField
 ``` python
 import datetime
-from src.map.Net import Net
-from src.generation.GpsGen import Route
-from src.GlobalVal import NetField, GpsField
-from src.generation.GpsGen import Car, RouteInfoCollector
+from gotrackit.map.Net import Net
+from gotrackit.generation.GpsGen import Route
+from gotrackit.GlobalVal import NetField, GpsField
+from gotrackit.generation.GpsGen import Car, RouteInfoCollector
 ```
 #### 1.2初始化一个路网对象
 指定路网点层和线层的文件路径, 并且指定坐标系
@@ -207,11 +212,11 @@ mix_gdf = data_col.save_mix_info()
 #### 2.1 引入相关模块
 ``` python
 import geopandas as gpd
-from src.map.Net import Net
-from src.gps.LocGps import GpsPointsGdf
-from src.model.Markov import HiddenMarkov
-from src.GlobalVal import NetField, GpsField
-from src.visualization import VisualizationCombination
+from gotrackit.map.Net import Net
+from gotrackit.gps.LocGps import GpsPointsGdf
+from gotrackit.model.Markov import HiddenMarkov
+from gotrackit.GlobalVal import NetField, GpsField
+from gotrackit.visualization import VisualizationCombination
 
 net_field = NetField()
 gps_field = GpsField()
