@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gotrackit"
+version = "0.0.2"
+dependencies = ["geopandas>=0.14.1", "shapely", "networkx", "pandas", "numpy", "keplergl"]
+requires-python = ">=3.8"
+authors = [
+  { name="Kai Tang", email="794568794@qq.com" },
+]
+description = "A Python Package for Map Matching Algorithm Based on Hidden Markov Model"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = {text = "LICENCE"}
+keywords = ["HMM", "MapMatching", "Net", "Link", "Node", "Hidden Markov Model", "Algorithm"]
+
+[project.urls]
+Homepage = "https://github.com/zdsjjtTLG/TrackIt"

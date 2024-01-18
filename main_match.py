@@ -4,11 +4,11 @@
 # @Team    : ZheChengData
 
 import geopandas as gpd
-from src.map.Net import Net
-from src.gps.LocGps import GpsPointsGdf
-from src.model.Markov import HiddenMarkov
-from src.GlobalVal import NetField, GpsField
-from src.visualization import VisualizationCombination
+from gotrackit.map.Net import Net
+from gotrackit.gps.LocGps import GpsPointsGdf
+from gotrackit.model.Markov import HiddenMarkov
+from gotrackit.GlobalVal import NetField, GpsField
+from gotrackit.visualization import VisualizationCombination
 
 net_field = NetField()
 gps_field = GpsField()

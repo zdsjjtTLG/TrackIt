@@ -6,7 +6,7 @@
 """viterbi算法求解动态规划"""
 
 import numpy as np
-from src.WrapsFunc import function_time_cost
+from gotrackit.WrapsFunc import function_time_cost
 
 
 class Viterbi(object):
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # 1: 分享了
     state_map = {0: '海润C', 1: '新羽胜', 2: '亿利达'}
 
-    # test = Viterbi(observation_list=[0, 1, 2, 3],
+    # tests = Viterbi(observation_list=[0, 1, 2, 3],
     #                t_mat_dict={0: np.array([[1, 1.2, 1.3],
     #                                         [1.2, 1.3, 1.4],
     #                                         [1.5, 1.4, 1.3]]),
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     #                            2: np.array([0.4, 0.2]),
     #                            3: np.array([0.1, 0.5, 0.1])})
 
-    # test = Viterbi(observation_list=[0, 2, 4, 7],
+    # tests = Viterbi(observation_list=[0, 2, 4, 7],
     #                t_mat_dict={0: np.array([[1, 1.2, 1.3],
     #                                         [1.2, 1.3, 1.4],
     #                                         [1.5, 1.4, 1.3]]),

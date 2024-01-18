@@ -1,11 +1,12 @@
+# -- coding: utf-8 --
+
 # TrackIt
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
 中高频GPS匹配效果:
 
-![main.png](DocFiles%2Fimages%2Fgif.gif)
-
+![main.png](DocFiles%2Fimages%2Fgif-中高频.gif)
 
 
 低频GPS匹配效果:
@@ -27,7 +28,7 @@ https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7e
 
 ![main.png](DocFiles%2Fimages%2F状态转移概率.png)
 
-![main.png](DocFiles%2Fimages%2Fviterb.png)
+![main.png](DocFiles%2Fimages%2Fviterbi.png)
 
 ![main.png](DocFiles%2Fimages%2F回溯.png)
 

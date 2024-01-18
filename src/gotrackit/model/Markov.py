@@ -3,22 +3,24 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
+"""Markov Model Class"""
+
 import time
 import datetime
 import warnings
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from src.map.Net import Net
 from datetime import timedelta
 from shapely.geometry import Point
-from src.solver.Viterbi import Viterbi
-from src.gps.LocGps import GpsPointsGdf
-from src.WrapsFunc import function_time_cost
-from src.tools.geo_process import n_equal_points
-from src.GlobalVal import NetField, GpsField, MarkovField
+from gotrackit.map.Net import Net
+from gotrackit.map.Net import NOT_CONN_COST
+from gotrackit.solver.Viterbi import Viterbi
+from gotrackit.gps.LocGps import GpsPointsGdf
+from gotrackit.WrapsFunc import function_time_cost
+from gotrackit.tools.geo_process import n_equal_points
+from gotrackit.GlobalVal import NetField, GpsField, MarkovField
 
-from src.map.Net import NOT_CONN_COST
 
 gps_field = GpsField()
 net_field = NetField()
@@ -440,8 +442,6 @@ class HiddenMarkov(object):
 
 
 if __name__ == '__main__':
-    from shapely.geometry import LineString
-
     # a = LineString([(0, 0), (0, 1)])
     # z = a.segmentize(1/3 + 0.1 * 1/ 3)
     # print(z)

@@ -6,15 +6,10 @@
 
 """测试创建子net"""
 
-import datetime
-import pandas as pd
 import geopandas as gpd
-from src.map.Net import Net
-from src.generation.GpsGen import Route
-from src.gps.LocGps import GpsPointsGdf
-from src.model.Markov import HiddenMarkov
-from src.generation.GpsGen import Car, RouteInfoCollector
-from src.GlobalVal import NetField, GpsField
+from src.gotrackit.map.Net import Net
+from src.gotrackit.gps.LocGps import GpsPointsGdf
+from src.gotrackit.GlobalVal import NetField, GpsField
 
 net_field = NetField()
 gps_field = GpsField()

@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
-from src.GlobalVal import NetField
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
-from src.WrapsFunc import function_time_cost
+from gotrackit.GlobalVal import NetField
+from gotrackit.WrapsFunc import function_time_cost
 
 NOT_CONN_COST = 200.0
 net_field = NetField()

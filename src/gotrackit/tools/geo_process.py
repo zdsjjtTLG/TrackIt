@@ -4,9 +4,7 @@
 # @Team    : ZheChengData
 
 
-import pyproj
 import numpy as np
-from shapely.ops import transform
 from shapely.geometry import LineString, Point
 
 
@@ -40,12 +38,23 @@ def n_equal_points(n, from_loc: tuple = None, to_loc=None,
 
 
 def cut_line_in_nearest_point(line, point) -> list[LineString]:
+    """
+
+    :param line:
+    :param point:
+    :return:
+    """
     xd = line.project(point)
     return cut(line, xd)
 
 
 def cut(line: LineString = None, dis: float = None) -> list[LineString]:
-    # Cuts a line in two at a distance from its starting point
+    """
+
+    :param line:
+    :param dis:
+    :return:
+    """
     if dis <= 0.0 or dis >= line.length:
         return [LineString(line)]
     coords = list(line.coords)
@@ -62,7 +71,13 @@ def cut(line: LineString = None, dis: float = None) -> list[LineString]:
                 LineString([(cp.x, cp.y)] + coords[i:])]
 
 
-def calc_link_angle(link_geo1=None, link_geo2=None):
+def calc_link_angle(link_geo1=None, link_geo2=None) -> float:
+    """
+
+    :param link_geo1:
+    :param link_geo2:
+    :return:
+    """
     coord_list_a = list(link_geo1.coords)
     coord_list_b = list(link_geo2.coords)
 
@@ -80,34 +95,5 @@ def calc_link_angle(link_geo1=None, link_geo2=None):
     return 180 * np.arccos(cos_res) / np.pi
 
 
-def prj_xfer(from_crs='EPSG:4326', to_crs='EPSG:32650', origin_p: Point = None):
-
-    before = pyproj.CRS(from_crs)
-    after = pyproj.CRS(to_crs)
-    project = pyproj.Transformer.from_crs(before, after, always_xy=True).transform
-    utm_point = transform(project, origin_p)
-    return utm_point
-
-
 if __name__ == '__main__':
-    import geopandas as gpd
-    import matplotlib.pyplot as plt
     pass
-    # l1 = LineString([(1, 2), (3,7)])
-    # l2 = LineString([(3,7), (1,2)])
-    #
-    # print(calc_link_angle(l1, l2))
-
-    # print(180 * np.arccos(0) / np.pi)
-
-    # l1 = LineString([(1, 2), (3,7)])
-    p1 = Point((12.122, 14.109))
-    p2 = Point((3,7))
-
-    z = n_equal_points(3, from_point=p1, to_point=p2, add_noise=True, noise_frac=0.5)
-
-    p_gdf = gpd.GeoSeries([p1, p2])
-    p1_gdf = gpd.GeoSeries([Point(x) for x in z])
-    ax = p_gdf.plot()
-    p1_gdf.plot(ax=ax, color='red')
-    plt.show()

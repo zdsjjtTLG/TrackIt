@@ -4,15 +4,15 @@
 # @Team    : ZheChengData
 
 """车辆GPS数据的相关方法和属性"""
-import datetime
 
+import datetime
 import pandas as pd
 import geopandas as gpd
-from src.map.Net import Net
+from gotrackit.map.Net import Net
 from shapely.geometry import LineString
 from shapely.geometry import Point, Polygon
-from src.GlobalVal import GpsField, NetField
-from src.WrapsFunc import function_time_cost
+from gotrackit.GlobalVal import GpsField, NetField
+from gotrackit.WrapsFunc import function_time_cost
 
 gps_field = GpsField()
 net_field = NetField()

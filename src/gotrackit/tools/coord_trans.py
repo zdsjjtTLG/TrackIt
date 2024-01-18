@@ -4,13 +4,12 @@
 # @Team    : ZheChengData
 
 """GCJO2、百度、84坐标互转"""
-import datetime
+
 import math
-import pyproj
 import shapely
-import pandas as pd
-from shapely.ops import transform
+import datetime
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
+
 
 class LngLatTransfer(object):
 
@@ -216,28 +215,17 @@ class LngLatTransfer(object):
         else:
             raise ValueError('obj只能为 LineString or LinearRing or Polygon')
 
-def remove_z(coords_list=None):
+
+def remove_z(coords_list=None) -> list[tuple]:
     return [(item[0], item[1]) for item in coords_list]
 
-def judge_hole(p=None):
+
+def judge_hole(p=None) -> bool:
     """判断一个polygon对象内部是否含有ring"""
     if len(list(p.interiors)) >= 1:
         return True
     else:
         return False
-
-def prj_convert(from_crs: str = None, to_crs: str = None, point_obj: Point = None) -> Point:
-    """
-    地理坐标系和平面投影坐标系之间的转换
-    :param from_crs:
-    :param to_crs:
-    :param point_obj
-    :return:
-    """
-    before = pyproj.CRS(from_crs)
-    after = pyproj.CRS(to_crs)
-    project = pyproj.Transformer.from_crs(before, after, always_xy=True).transform
-    return transform(project, point_obj)
 
 
 if __name__ == '__main__':

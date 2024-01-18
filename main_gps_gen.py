@@ -6,10 +6,10 @@
 """依据路网生成GPS数据"""
 
 import datetime
-from src.map.Net import Net
-from src.generation.GpsGen import Route
-from src.GlobalVal import NetField, GpsField
-from src.generation.GpsGen import Car, RouteInfoCollector
+from src.gotrackit.map.Net import Net
+from src.gotrackit.generation.GpsGen import Route
+from src.gotrackit.GlobalVal import NetField, GpsField
+from src.gotrackit.generation.GpsGen import Car, RouteInfoCollector
 
 
 net_field = NetField()

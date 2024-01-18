@@ -3,14 +3,14 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 import os
-import datetime
-
 import geopandas as gpd
-from src.tools.coord_trans import LngLatTransfer
+import datetime
+from src.gotrackit.tools.coord_trans import LngLatTransfer
 con = LngLatTransfer()
 
+
 if __name__ == '__main__':
-    # link = gpd.read_file(r'./data/input/net/xian/link_a.shp')
+    link = gpd.read_file(r'./data/input/net/xian/link_a.shp')
     # node = gpd.read_file(r'./data/input/net/xian/node_a.shp')
     # link = link.to_crs('EPSG:4326')
     # node = node.to_crs('EPSG:4326')
