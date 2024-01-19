@@ -30,7 +30,7 @@ pip install -i https://test.pypi.org/simple/ gotrackit==0.0.2
 
 ### 1.2 用户手册
 
-XXXXXXXXXX
+链接：https://gotrackitdocs.readthedocs.io/en/latest/
 
 
 ## 2. 地图匹配问题
