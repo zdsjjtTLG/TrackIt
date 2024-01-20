@@ -25,7 +25,7 @@ if __name__ == '__main__':
     my_net.init_net()
 
     # 3.读取GPS文件
-    gps_df = gpd.read_file(r'./data/output/gps/test125.geojson')
+    gps_df = gpd.read_file(r'./data/output/gps/test120.geojson')
 
     # 4.初始化一个匹配结果管理器
     vc = VisualizationCombination(use_gps_source=False)
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         vc.collect_hmm(hmm_obj)
 
     vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/',
-                     file_name='test125', config_fldr=r'./config')
+                     file_name='test120')
 
     # generate_html(mix_gdf=gps_link_gdf, out_fldr=r'./data/output/match_visualization', file_name=r'test2',
     #               link_gdf=base_link_gdf, node_gdf=base_node_gdf)

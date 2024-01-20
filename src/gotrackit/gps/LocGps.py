@@ -22,19 +22,18 @@ class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None, lng_field: str = None, lat_field: str = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
-                 time_format: str = '%Y-%m-%d %H:%M:%S',
-                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
+                 time_format: str = '%Y-%m-%d %H:%M:%S', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
         """
 
-        :param gps_points_df:
-        :param lng_field:
-        :param lat_field:
+        :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
+        :param lng_field: 经度字段名称
+        :param lat_field: 纬度字段名称
         :param buffer: GPS点的buffer半径大小(用于生成候选路段), m
         :param increment_buffer: 使用buffer进行关联, 可能会存在部分GPS点仍然关联不到任何路段, 对于这部分路段, 将启用增量buffer进一步关联
         :param max_increment_times: 增量搜索的最大次数
-        :param time_format:
-        :param geo_crs:
-        :param plane_crs:
+        :param time_format: 时间列的字符格式
+        :param geo_crs: 地理坐标系
+        :param plane_crs: 平面投影坐标系
         """
         self.geo_crs = geo_crs
         self.buffer = buffer
@@ -46,9 +45,9 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf = gps_points_df
         if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
             self.__gps_points_gdf[gps_field.HEADING_FIELD] = 0.0
-        self.__gps_points_gdf['geometry'] = self.__gps_points_gdf.apply(
+        self.__gps_points_gdf[gps_field.GEOMETRY_FIELD] = self.__gps_points_gdf.apply(
             lambda item: Point(item[lng_field], item[lat_field]), axis=1)
-        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry='geometry', crs=self.geo_crs)
+        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.geo_crs)
 
         self.__gps_points_gdf[gps_field.TIME_FIELD] = \
             pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
@@ -66,7 +65,7 @@ class GpsPointsGdf(object):
     def lower_frequency(self, n: int = 5):
         """
         GPS数据降频
-        :param n:
+        :param n: 降频倍数
         :return:
         """
         if self.__source_gps_points_gdf is None:
@@ -80,7 +79,11 @@ class GpsPointsGdf(object):
         # self.calc_gps_point_dis()
 
     def rolling_average(self, window: int = 2):
-        """滑动窗口降噪"""
+        """
+        滑动窗口降噪
+        :param window: 窗口大小
+        :return:
+        """
         if self.__source_gps_points_gdf is None:
             self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
@@ -133,17 +136,17 @@ class GpsPointsGdf(object):
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
         self.__gps_point_dis_dict = {
-            (seq_list[i], seq_list[i + 1]): self.__gps_points_gdf.at[seq_list[i], net_field.GEOMETRY_FIELD].distance(
-                self.__gps_points_gdf.at[seq_list[i + 1], net_field.GEOMETRY_FIELD]) for i in
+            (seq_list[i], seq_list[i + 1]): self.__gps_points_gdf.at[seq_list[i], gps_field.GEOMETRY_FIELD].distance(
+                self.__gps_points_gdf.at[seq_list[i + 1], gps_field.GEOMETRY_FIELD]) for i in
             range(len(self.__gps_points_gdf) - 1)}
 
-    def get_gps_point_dis(self, adj_gps_seq: tuple = None):
+    def get_gps_point_dis(self, adj_gps_seq: tuple = None) -> float:
         try:
             dis = self.__gps_point_dis_dict[adj_gps_seq]
         # some gps points do not have any candidate links
         except KeyError:
-            dis = self.__gps_points_gdf.at[adj_gps_seq[0], net_field.GEOMETRY_FIELD].distance(
-                self.__gps_points_gdf.at[adj_gps_seq[1], net_field.GEOMETRY_FIELD])
+            dis = self.__gps_points_gdf.at[adj_gps_seq[0], gps_field.GEOMETRY_FIELD].distance(
+                self.__gps_points_gdf.at[adj_gps_seq[1], gps_field.GEOMETRY_FIELD])
             self.__gps_point_dis_dict[adj_gps_seq] = dis
         return dis
 
@@ -163,7 +166,7 @@ class GpsPointsGdf(object):
 
     def get_gps_array_buffer(self, buffer: float = 200.0) -> Polygon:
         """输出gps路径的buffer范围面域"""
-        gps_array_buffer = LineString(self.__gps_points_gdf['geometry'].to_list()).buffer(buffer)
+        gps_array_buffer = LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()).buffer(buffer)
         return gps_array_buffer
 
     @function_time_cost
@@ -173,7 +176,7 @@ class GpsPointsGdf(object):
         :param net:
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
-        gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, net_field.GEOMETRY_FIELD]].copy()
+        gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
         if gps_buffer_gdf.crs != self.plane_crs:
             gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
 
@@ -221,10 +224,11 @@ class GpsPointsGdf(object):
             self.__crs = self.geo_crs
 
     def get_point(self, seq: int = 0):
-        return self.__gps_points_gdf.at[seq, gps_field.TIME_FIELD], self.__gps_points_gdf.at[seq, 'geometry']
+        return self.__gps_points_gdf.at[seq, gps_field.TIME_FIELD], \
+            self.__gps_points_gdf.at[seq, gps_field.GEOMETRY_FIELD]
 
     @property
-    def source_gps(self):
+    def source_gps(self) -> gpd.GeoDataFrame:
         if self.__source_gps_points_gdf is None:
             return self.__gps_points_gdf.copy()
         else:
@@ -275,7 +279,7 @@ class GpsPointsGdf(object):
                     return prj_p, prj_p.distance(gps_point), distance, line.length
 
     @property
-    def gps_list_length(self):
+    def gps_list_length(self) -> int:
         return len(self.__gps_points_gdf)
 
     @property

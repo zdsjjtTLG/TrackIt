@@ -59,15 +59,10 @@ class Viterbi(object):
 
         # 1.迭代状态转移(i状态向 i + 1状态 转移)
         for i, o in enumerate(self.o_seq_list[:-1]):
-            # print('**********')
-            # print(self.zeta_array_dict[i].T)
-            # print(self.AMat[i])
-            # print(self.zeta_array_dict[i].T * self.AMat[i])
-            # print(self.BMat[i + 1])
-            # print(self.zeta_array_dict[i].T * self.AMat[i] * self.BMat[i + 1])
 
             # 第i个观测点的各状态的概率 * (i -> i + 1)状态转移概率 * 当前状态的概率
-            # self.zeta_array_dict[i].T * self.AMat[i] 是一个m * n的矩阵, self.BMat[i + 1]是一个n * 1的矩阵
+            # self.zeta_array_dict[self.o_seq_list[i]].T * self.AMat[self.o_seq_list[i]] 是一个m * n的矩阵
+            # self.BMat[self.o_seq_list[i + 1]]是一个n * 1的矩阵
             # m是i观测点的可选状态数, n是i+1观测点的可选状态数
             t = self.zeta_array_dict[self.o_seq_list[i]].T * self.AMat[self.o_seq_list[i]] * self.BMat[self.o_seq_list[i + 1]]
 
@@ -79,16 +74,10 @@ class Viterbi(object):
             self.zeta_array_dict[self.o_seq_list[i + 1]] = \
                 np.array([t[last_state_index, [i for i in range(0, len(last_state_index))]]])
 
-            # print(self.psi_array_dict[i + 1])
-            # print(self.zeta_array_dict[i + 1])
-
         # 2.回溯
-        print('回溯......')
         state_list = []
         last_max_state = -1
-
         for i in range(self.T - 1, 0, -1):
-            # print(i)
             if i == self.T - 1:
                 # 回溯起点, 找出当前最大概率的状态
                 start_max_state = np.argmax(self.zeta_array_dict[self.o_seq_list[i]])

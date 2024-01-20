@@ -28,7 +28,12 @@ def n_equal_points(n, from_loc: tuple = None, to_loc=None,
     else:
         line = LineString([from_point, to_point])
     line_length = line.length
-    dense_line = line.segmentize(line_length / (1.0 * n))
+
+    try:
+        dense_line = line.segmentize(line_length / (1.0 * n))
+    except AttributeError:
+        raise AttributeError(r'请升级geopandas到最新版本0.14.1')
+
     equal_points = list(dense_line.coords)[1:-1]
     if add_noise:
         base_noise = 0.707106 * noise_frac * line_length / n

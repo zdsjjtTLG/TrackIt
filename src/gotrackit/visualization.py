@@ -4,18 +4,20 @@
 # @Team    : ZheChengData
 
 import os
-import json
 import datetime
 import pandas as pd
 import geopandas as gpd
 from keplergl import KeplerGl
+from src.gotrackit.GlobalVal import KeplerConfig
 from src.gotrackit.model.Markov import HiddenMarkov
 from src.gotrackit.GlobalVal import GpsField, NetField
 from src.gotrackit.tools.coord_trans import LngLatTransfer
 
+
 con = LngLatTransfer()
 gps_field = GpsField()
 net_field = NetField()
+kepler_config = KeplerConfig()
 
 
 class VisualizationCombination(object):
@@ -29,8 +31,7 @@ class VisualizationCombination(object):
     def collect_hmm(self, hmm_obj: HiddenMarkov = None):
         self.__hmm_obj_list.append(hmm_obj)
 
-    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None,
-                      config_fldr: str = None) -> None:
+    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None) -> None:
         base_link_gdf = gpd.GeoDataFrame()
         base_node_gdf = gpd.GeoDataFrame()
         gps_link_gdf = gpd.GeoDataFrame()
@@ -50,12 +51,11 @@ class VisualizationCombination(object):
 
         generate_html(mix_gdf=gps_link_gdf, link_gdf=base_link_gdf, node_gdf=base_node_gdf, zoom=zoom,
                       out_fldr=out_fldr,
-                      file_name=file_name, config_fldr=config_fldr)
+                      file_name=file_name)
 
 
 def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_name: str = None,
-                  link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, zoom: int = 15,
-                  config_fldr: str = None):
+                  link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, zoom: int = 15) -> None:
     """
 
     :param mix_gdf:
@@ -64,13 +64,12 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     :param link_gdf:
     :param node_gdf:
     :param zoom:
-    :param config_fldr:
     :return:
     """
     # 生成KeplerGl对象
     if gps_field.HEADING_FIELD in mix_gdf.columns:
         mix_gdf.drop(columns=gps_field.HEADING_FIELD, axis=1, inplace=True)
-    data_item = {'mix': mix_gdf}
+    data_item = {kepler_config.MIX_NAME: mix_gdf}
 
     # 起点经纬度
     cen_geo = mix_gdf.at[0, net_field.GEOMETRY_FIELD].centroid
@@ -78,115 +77,35 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     s_time, e_time = mix_gdf[gps_field.TIME_FIELD].min().timestamp(), mix_gdf[gps_field.TIME_FIELD].max().timestamp()
     mix_gdf[gps_field.TIME_FIELD] = mix_gdf[gps_field.TIME_FIELD].astype(str)
 
-    try:
-        with open(os.path.join(config_fldr, 'config.json')) as f:
-            user_config = json.load(f)
-    except FileNotFoundError or FileExistsError as e:
-        print(rf'{config_fldr}目录下不存在 config.json 配置文件...')
-
+    user_config = kepler_config.get_base_config()
     user_config["config"]["visState"]["filters"][0]["value"] = [s_time, e_time]
     user_config["config"]["mapState"]["latitude"] = cen_y
     user_config["config"]["mapState"]["longitude"] = cen_x
     user_config["config"]["mapState"]["zoom"] = int(zoom)
 
     if node_gdf is not None:
-        node_item = generate_polygon_layer(color=[100, 100, 100], layer_id='base_node')
+        node_item = generate_polygon_layer(color=[100, 100, 100], layer_id=kepler_config.BASE_NODE_NAME)
         user_config["config"]["visState"]["layers"].append(node_item)
-        data_item['base_node'] = node_gdf
+        data_item[kepler_config.BASE_NODE_NAME] = node_gdf
 
     if link_gdf is not None:
-        link_item = generate_polygon_layer(color=[65, 72, 88], layer_id='base_link')
+        link_item = generate_polygon_layer(color=[65, 72, 88], layer_id=kepler_config.BASE_LINK_NAME)
         user_config["config"]["visState"]["layers"].append(link_item)
-        data_item['base_link'] = link_gdf
+        data_item[kepler_config.BASE_LINK_NAME] = link_gdf
 
     user_map = KeplerGl(height=600, data=data_item)  # data以图层名为键，对应的矢量数据为值
     user_map.config = user_config
     user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
-    print(user_map.config)
+    # print(data_item)
+    # print(user_map.config)
 
 
-def generate_polygon_layer(color: list = None, layer_id: str = None):
-    polygon_item = {
-        "id": layer_id,
-        "type": "geojson",
-        "config": {
-            "dataId": layer_id,
-            "label": layer_id,
-            "color": color,
-            "highlightColor": [
-                252,
-                242,
-                26,
-                255
-            ],
-            "columns": {
-                "geojson": "geometry"
-            },
-            "isVisible": True,
-            "visConfig": {
-                "opacity": 0.8,
-                "strokeOpacity": 0.8,
-                "thickness": 0.1,
-                "strokeColor": [
-                    221,
-                    178,
-                    124
-                ],
-                "radius": 10,
-                "sizeRange": [
-                    0,
-                    10
-                ],
-                "radiusRange": [
-                    0,
-                    50
-                ],
-                "heightRange": [
-                    0,
-                    500
-                ],
-                "elevationScale": 5,
-                "enableElevationZoomFactor": True,
-                "stroked": False,
-                "filled": True,
-                "enable3d": False,
-                "wireframe": False
-            },
-            "hidden": False,
-            "textLabel": [
-                {
-                    "field": None,
-                    "color": [
-                        255,
-                        255,
-                        255
-                    ],
-                    "size": 18,
-                    "offset": [
-                        0,
-                        0
-                    ],
-                    "anchor": "start",
-                    "alignment": "center"
-                }
-            ]
-        },
-        "visualChannels": {
-            "colorField": {
-                "name": "type",
-                "type": "string"
-            },
-            "colorScale": "ordinal",
-            "strokeColorField": None,
-            "strokeColorScale": "quantile",
-            "sizeField": None,
-            "sizeScale": "linear",
-            "heightField": None,
-            "heightScale": "linear",
-            "radiusField": None,
-            "radiusScale": "linear"
-        }
-    }
+def generate_polygon_layer(color: list = None, layer_id: str = None) -> dict:
+    polygon_item = kepler_config.get_polygon_config()
+    polygon_item['id'] = layer_id
+    polygon_item['config']['dataId'] = layer_id
+    polygon_item['config']['label'] = layer_id
+    polygon_item['config']['color'] = color
     return polygon_item
 
 

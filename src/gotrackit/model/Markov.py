@@ -78,6 +78,9 @@ class HiddenMarkov(object):
         # 一定要排序
         seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
 
+        if len(seq_list) <= 1:
+            raise ValueError(r'GPS数据样本点不足2个, 请检查...')
+
         if self.search_method == 'all_pairs':
             self.net.calc_all_pairs_shortest_path()
 
@@ -222,15 +225,13 @@ class HiddenMarkov(object):
         :return:
         """
         # p = (1 / beta) * np.e ** (- dis_gap / beta)
-        dis_gap = dis_gap / 10
-        p = np.e ** (- dis_gap / beta)
+        p = np.e ** (- 0.1 * dis_gap / beta)
         return p
 
     @staticmethod
     def emission_probability(sigma: float = 1.0, dis: float = 10.0) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (dis / sigma) ** 2))
-        dis = dis / 10
-        p = np.e ** (-0.5 * (dis / sigma) ** 2)
+        p = np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p
 
     def acquire_res(self) -> gpd.GeoDataFrame():
@@ -328,7 +329,7 @@ class HiddenMarkov(object):
                     next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
-                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, GPS点位太少..., 请增密...')
+                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏...')
                         _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
                                              range(0, len(node_seq) - 1)]
                     else:
@@ -353,7 +354,7 @@ class HiddenMarkov(object):
                     omitted_gps_points_time.extend(
                         [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
                 else:
-                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, GPS点位太少..., 请增密...')
+                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏...')
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,

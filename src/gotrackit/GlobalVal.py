@@ -4,6 +4,7 @@
 # @Team    : ZheChengData
 
 """字段名称常量"""
+import copy
 
 
 class NetField(object):
@@ -33,6 +34,7 @@ class GpsField(object):
         self.AGENT_ID_FIELD = 'agent_id'
         self.TYPE_FIELD = 'type'
         self.NEXT_LINK_FIELD = 'next_link'
+        self.GEOMETRY_FIELD = 'geometry'
 
 
 class MarkovField(object):
@@ -45,3 +47,320 @@ class MarkovField(object):
         self.STRAIGHT_LENGTH = 'straight_l'
         self.DIS_GAP = 'dis_gap'
         self.PRJ_L = 'prj_dis'
+
+
+class KeplerConfig(object):
+    def __init__(self):
+        self.__BASE_CONFIG = {
+            'version': 'v1',
+            'config': {
+                'visState': {
+                    'filters': [
+                        {
+                            'dataId': [
+                                'mix'
+                            ],
+                            'id': 'fd18q2cbg',
+                            'name': [
+                                'time'
+                            ],
+                            'type': 'timeRange',
+                            'value': [
+                                1652372040.0,
+                                1652373265.0
+                            ],
+                            'enlarged': False,
+                            'plotType': 'histogram',
+                            'animationWindow': 'incremental',
+                            'yAxis': None,
+                            'speed': 0.2
+                        }
+                    ],
+                    'layers': [
+                        {
+                            'id': 'kb29zg',
+                            'type': 'geojson',
+                            'config': {
+                                'dataId': 'mix',
+                                'label': 'mix',
+                                'color': [
+                                    18,
+                                    147,
+                                    154
+                                ],
+                                'highlightColor': [
+                                    252,
+                                    242,
+                                    26,
+                                    255
+                                ],
+                                'columns': {
+                                    'geojson': 'geometry'
+                                },
+                                'isVisible': True,
+                                'visConfig': {
+                                    'opacity': 0.8,
+                                    'strokeOpacity': 0.8,
+                                    'thickness': 0.1,
+                                    'strokeColor': [
+                                        221,
+                                        178,
+                                        124
+                                    ],
+                                    'colorRange': {
+                                        'name': 'Custom Palette',
+                                        'type': 'custom',
+                                        'category': 'Custom',
+                                        'colors': [
+                                            '#FFC300',
+                                            '#438ecd'
+                                        ],
+                                        'reversed': True
+                                    },
+                                    'strokeColorRange': {
+                                        'name': 'Global Warming',
+                                        'type': 'sequential',
+                                        'category': 'Uber',
+                                        'colors': [
+                                            '#5A1846',
+                                            '#900C3F',
+                                            '#C70039',
+                                            '#E3611C',
+                                            '#F1920E',
+                                            '#FFC300'
+                                        ]
+                                    },
+                                    'radius': 10,
+                                    'sizeRange': [
+                                        0,
+                                        10
+                                    ],
+                                    'radiusRange': [
+                                        0,
+                                        50
+                                    ],
+                                    'heightRange': [
+                                        0,
+                                        500
+                                    ],
+                                    'elevationScale': 5,
+                                    'enableElevationZoomFactor': True,
+                                    'stroked': False,
+                                    'filled': True,
+                                    'enable3d': False,
+                                    'wireframe': False
+                                },
+                                'hidden': False,
+                                'textLabel': [
+                                    {
+                                        'field': None,
+                                        'color': [
+                                            255,
+                                            255,
+                                            255
+                                        ],
+                                        'size': 18,
+                                        'offset': [
+                                            0,
+                                            0
+                                        ],
+                                        'anchor': 'start',
+                                        'alignment': 'center'
+                                    }
+                                ]
+                            },
+                            'visualChannels': {
+                                'colorField': {
+                                    'name': 'type',
+                                    'type': 'string'
+                                },
+                                'colorScale': 'ordinal',
+                                'strokeColorField': None,
+                                'strokeColorScale': 'quantile',
+                                'sizeField': None,
+                                'sizeScale': 'linear',
+                                'heightField': None,
+                                'heightScale': 'linear',
+                                'radiusField': None,
+                                'radiusScale': 'linear'
+                            }
+                        },
+                    ],
+                    'interactionConfig': {
+                        'tooltip': {
+                            'fieldsToShow': {
+                                'mix': [
+                                    {
+                                        'name': 'agent_id',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'time',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'seq',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'sub_seq',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'link_id',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'from_node',
+                                        'format': None
+                                    },
+                                    {
+                                        'name': 'to_node',
+                                        'format': None
+                                    }
+                                ]
+                            },
+                            'compareMode': False,
+                            'compareType': 'absolute',
+                            'enabled': True
+                        },
+                        'brush': {
+                            'size': 2.7,
+                            'enabled': False
+                        },
+                        'geocoder': {
+                            'enabled': False
+                        },
+                        'coordinate': {
+                            'enabled': True
+                        }
+                    },
+                    'layerBlending': 'normal',
+                    'splitMaps': [],
+                    'animationConfig': {
+                        'currentTime': None,
+                        'speed': 0.5
+                    }
+                },
+                'mapState': {
+                    'bearing': 24,
+                    'dragRotate': True,
+                    'latitude': 34.23188690328708,
+                    'longitude': 108.94371457924842,
+                    'pitch': 50,
+                    'zoom': 15,
+                    'isSplit': False
+                },
+                'mapStyle': {
+                    'styleType': 'dark',
+                    'topLayerGroups': {},
+                    'visibleLayerGroups': {
+                        'label': True,
+                        'road': False,
+                        'border': False,
+                        'building': True,
+                        'water': True,
+                        'land': True,
+                        '3d building': False
+                    },
+                    'threeDBuildingColor': [
+                        9.665468314072013,
+                        17.18305478057247,
+                        31.1442867897876
+                    ],
+                    'mapStyles': {}
+                }
+            }
+        }
+
+        self.__POLYGON_CONFIG = {
+            "id": 'layer_id',
+            "type": "geojson",
+            "config": {
+                "dataId": 'layer_id',
+                "label": 'layer_id',
+                "color": [65, 72, 88],
+                "highlightColor": [
+                    252,
+                    242,
+                    26,
+                    255
+                ],
+                "columns": {
+                    "geojson": "geometry"
+                },
+                "isVisible": True,
+                "visConfig": {
+                    "opacity": 0.8,
+                    "strokeOpacity": 0.8,
+                    "thickness": 0.1,
+                    "strokeColor": [
+                        221,
+                        178,
+                        124
+                    ],
+                    "radius": 10,
+                    "sizeRange": [
+                        0,
+                        10
+                    ],
+                    "radiusRange": [
+                        0,
+                        50
+                    ],
+                    "heightRange": [
+                        0,
+                        500
+                    ],
+                    "elevationScale": 5,
+                    "enableElevationZoomFactor": True,
+                    "stroked": False,
+                    "filled": True,
+                    "enable3d": False,
+                    "wireframe": False
+                },
+                "hidden": False,
+                "textLabel": [
+                    {
+                        "field": None,
+                        "color": [
+                            255,
+                            255,
+                            255
+                        ],
+                        "size": 18,
+                        "offset": [
+                            0,
+                            0
+                        ],
+                        "anchor": "start",
+                        "alignment": "center"
+                    }
+                ]
+            },
+            "visualChannels": {
+                "colorField": {
+                    "name": "type",
+                    "type": "string"
+                },
+                "colorScale": "ordinal",
+                "strokeColorField": None,
+                "strokeColorScale": "quantile",
+                "sizeField": None,
+                "sizeScale": "linear",
+                "heightField": None,
+                "heightScale": "linear",
+                "radiusField": None,
+                "radiusScale": "linear"
+            }
+        }
+
+        self.BASE_LINK_NAME = 'base_link'
+        self.BASE_NODE_NAME = 'base_node'
+        self.MIX_NAME = 'mix'
+    def get_base_config(self):
+        return copy.deepcopy(self.__BASE_CONFIG)
+
+    def get_polygon_config(self):
+        return copy.deepcopy(self.__POLYGON_CONFIG)
+
