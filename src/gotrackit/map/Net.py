@@ -13,8 +13,10 @@ import networkx as nx
 import geopandas as gpd
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
-from src.gotrackit.GlobalVal import NetField
-from src.gotrackit.WrapsFunc import function_time_cost
+from gotrackit.GlobalVal import NetField
+from gotrackit.WrapsFunc import function_time_cost
+# from src.gotrackit.GlobalVal import NetField
+# from src.gotrackit.WrapsFunc import function_time_cost
 
 NOT_CONN_COST = 200.0
 net_field = NetField()
@@ -190,6 +192,8 @@ class Link(object):
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
         self.link_gdf = link_gdf
+        for col in [net_field.DIRECTION_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]:
+            link_gdf[col] = link_gdf[col].astype(int)
         self.weight_field = weight_field
         if is_check:
             self.check()

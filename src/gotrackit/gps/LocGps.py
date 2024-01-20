@@ -8,11 +8,16 @@
 import datetime
 import pandas as pd
 import geopandas as gpd
-from src.gotrackit.map.Net import Net
+from gotrackit.map.Net import Net
 from shapely.geometry import LineString
 from shapely.geometry import Point, Polygon
-from src.gotrackit.GlobalVal import GpsField, NetField
-from src.gotrackit.WrapsFunc import function_time_cost
+from gotrackit.GlobalVal import GpsField, NetField
+from gotrackit.WrapsFunc import function_time_cost
+# from src.gotrackit.map.Net import Net
+# from shapely.geometry import LineString
+# from shapely.geometry import Point, Polygon
+# from src.gotrackit.GlobalVal import GpsField, NetField
+# from src.gotrackit.WrapsFunc import function_time_cost
 
 gps_field = GpsField()
 net_field = NetField()
@@ -20,14 +25,12 @@ net_field = NetField()
 
 class GpsPointsGdf(object):
 
-    def __init__(self, gps_points_df: pd.DataFrame = None, lng_field: str = None, lat_field: str = None,
+    def __init__(self, gps_points_df: pd.DataFrame = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
                  time_format: str = '%Y-%m-%d %H:%M:%S', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
         """
 
         :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
-        :param lng_field: 经度字段名称
-        :param lat_field: 纬度字段名称
         :param buffer: GPS点的buffer半径大小(用于生成候选路段), m
         :param increment_buffer: 使用buffer进行关联, 可能会存在部分GPS点仍然关联不到任何路段, 对于这部分路段, 将启用增量buffer进一步关联
         :param max_increment_times: 增量搜索的最大次数
@@ -43,11 +46,13 @@ class GpsPointsGdf(object):
         self.max_increment_times = 1 if max_increment_times <= 0 else max_increment_times
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
+        self.check()
         if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
             self.__gps_points_gdf[gps_field.HEADING_FIELD] = 0.0
         self.__gps_points_gdf[gps_field.GEOMETRY_FIELD] = self.__gps_points_gdf.apply(
-            lambda item: Point(item[lng_field], item[lat_field]), axis=1)
-        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.geo_crs)
+            lambda item: Point(item[gps_field.LNG_FIELD], item[gps_field.LAT_FIELD]), axis=1)
+        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD,
+                                                 crs=self.geo_crs)
 
         self.__gps_points_gdf[gps_field.TIME_FIELD] = \
             pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
@@ -62,6 +67,11 @@ class GpsPointsGdf(object):
         # 存储最原始的GPS信息(未经过降噪)
         self.__source_gps_points_gdf = None
 
+    def check(self):
+        assert {gps_field.LNG_FIELD, gps_field.LAT_FIELD,
+                gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
+            set(self.__gps_points_gdf.columns)), \
+            rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
     def lower_frequency(self, n: int = 5):
         """
         GPS数据降频

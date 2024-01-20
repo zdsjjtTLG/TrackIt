@@ -13,14 +13,20 @@ import pandas as pd
 import geopandas as gpd
 from datetime import timedelta
 from shapely.geometry import Point
-from src.gotrackit.map.Net import Net
-from src.gotrackit.map.Net import NOT_CONN_COST
-from src.gotrackit.solver.Viterbi import Viterbi
-from src.gotrackit.gps.LocGps import GpsPointsGdf
-from src.gotrackit.WrapsFunc import function_time_cost
-from src.gotrackit.tools.geo_process import n_equal_points
-from src.gotrackit.GlobalVal import NetField, GpsField, MarkovField
-
+from gotrackit.map.Net import Net
+from gotrackit.map.Net import NOT_CONN_COST
+from gotrackit.solver.Viterbi import Viterbi
+from gotrackit.gps.LocGps import GpsPointsGdf
+from gotrackit.WrapsFunc import function_time_cost
+from gotrackit.tools.geo_process import n_equal_points
+from gotrackit.GlobalVal import NetField, GpsField, MarkovField
+# from src.gotrackit.map.Net import Net
+# from src.gotrackit.map.Net import NOT_CONN_COST
+# from src.gotrackit.solver.Viterbi import Viterbi
+# from src.gotrackit.gps.LocGps import GpsPointsGdf
+# from src.gotrackit.WrapsFunc import function_time_cost
+# from src.gotrackit.tools.geo_process import n_equal_points
+# from src.gotrackit.GlobalVal import NetField, GpsField, MarkovField
 
 gps_field = GpsField()
 net_field = NetField()
@@ -329,7 +335,7 @@ class HiddenMarkov(object):
                     next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
-                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏...')
+                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
                         _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
                                              range(0, len(node_seq) - 1)]
                     else:
@@ -354,7 +360,7 @@ class HiddenMarkov(object):
                     omitted_gps_points_time.extend(
                         [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
                 else:
-                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏...')
+                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,

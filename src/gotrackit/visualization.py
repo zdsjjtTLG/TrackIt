@@ -8,10 +8,15 @@ import datetime
 import pandas as pd
 import geopandas as gpd
 from keplergl import KeplerGl
-from src.gotrackit.GlobalVal import KeplerConfig
-from src.gotrackit.model.Markov import HiddenMarkov
-from src.gotrackit.GlobalVal import GpsField, NetField
-from src.gotrackit.tools.coord_trans import LngLatTransfer
+from gotrackit.GlobalVal import KeplerConfig
+from gotrackit.model.Markov import HiddenMarkov
+from gotrackit.GlobalVal import GpsField, NetField
+from gotrackit.tools.coord_trans import LngLatTransfer
+# from src.gotrackit.GlobalVal import KeplerConfig
+# from src.gotrackit.model.Markov import HiddenMarkov
+# from src.gotrackit.GlobalVal import GpsField, NetField
+# from src.gotrackit.tools.coord_trans import LngLatTransfer
+
 
 
 con = LngLatTransfer()
