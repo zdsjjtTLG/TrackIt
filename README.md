@@ -30,24 +30,22 @@ pip install -i https://test.pypi.org/simple/ gotrackit==0.0.2
 
 ### 1.2 用户手册
 
-链接：https://gotrackitdocs.readthedocs.io/en/latest/
-
+[用户文档链接](https://gotrackitdocs.readthedocs.io/en/latest/)
 
 ## 2. 地图匹配问题
 
-![car_gps.png](./doc/docs/source/images/car_gps.png)
+![car_gps.png](doc/docs/source/images/car_gps.png)
 
-![where_car.png](./doc/docs/source/images/whereIsCar.png)
+![where_car.png](doc/docs/source/images/whereIsCar.png)
 
 __如何依据GPS数据推算车辆的实际路径？__
 
 ## 3. 地图匹配算法动画演示
 
 想了解算法过程的可以参考B站视频:
+[基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！](https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2)
 
-https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2
-
-![main.png](./doc/docs/source/images/single_p.png)
+![main.png](doc/docs/source/images/single_p.png)
 
 ![main.png](./doc/docs/source/images/transition.png)
 
