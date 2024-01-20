@@ -35,9 +35,9 @@ pip install -i https://test.pypi.org/simple/ gotrackit==0.0.2
 
 ## 2. 地图匹配问题
 
-![car_gps.png](./doc/source/images/car_gps.png)
+![car_gps.png](./doc/docs/source/images/car_gps.png)
 
-![where_car.png](./doc/source/images/whereIsCar.png)
+![where_car.png](./doc/docs/source/images/whereIsCar.png)
 
 __如何依据GPS数据推算车辆的实际路径？__
 
@@ -47,21 +47,21 @@ __如何依据GPS数据推算车辆的实际路径？__
 
 https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2
 
-![main.png](./doc/source/images/single_p.png)
+![main.png](./doc/docs/source/images/single_p.png)
 
-![main.png](./doc/source/images/transition.png)
+![main.png](./doc/docs/source/images/transition.png)
 
-![main.png](./doc/source/images/viterbi.png)
+![main.png](./doc/docs/source/images/viterbi.png)
 
-![main.png](./doc/source/images/trace.png)
+![main.png](./doc/docs/source/images/trace.png)
 
 
 ## 4. 匹配结果可视化
 
 中高频GPS匹配效果:
 
-![main.png](./doc/source/images/m_h_f.gif)
+![main.png](./doc/docs/source/images/m_h_f.gif)
 
 低频GPS匹配效果:
 
-![main.png](./doc/source/images/l_f.gif)
+![main.png](./doc/docs/source/images/l_f.gif)
