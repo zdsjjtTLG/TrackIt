@@ -13,16 +13,16 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from datetime import timedelta
-from gotrackit.map.Net import Net
-from shapely.geometry import LineString, Point
-from gotrackit.WrapsFunc import function_time_cost
-from gotrackit.GlobalVal import GpsField, NetField
-from gotrackit.tools.coord_trans import LngLatTransfer
-# from src.gotrackit.map.Net import Net
+# from gotrackit.map.Net import Net
 # from shapely.geometry import LineString, Point
-# from src.gotrackit.WrapsFunc import function_time_cost
-# from src.gotrackit.GlobalVal import GpsField, NetField
-# from src.gotrackit.tools.coord_trans import LngLatTransfer
+# from gotrackit.WrapsFunc import function_time_cost
+# from gotrackit.GlobalVal import GpsField, NetField
+# from gotrackit.tools.coord_trans import LngLatTransfer
+from src.gotrackit.map.Net import Net
+from shapely.geometry import LineString, Point
+from src.gotrackit.WrapsFunc import function_time_cost
+from src.gotrackit.GlobalVal import GpsField, NetField
+from src.gotrackit.tools.coord_trans import LngLatTransfer
 
 gps_field = GpsField()
 net_field = NetField()
@@ -41,7 +41,7 @@ class Route(object):
         self.net = net
         self._o_node = o_node
         self._d_node = d_node
-        self.ft_seq = ft_seq
+        self._ft_seq = ft_seq
 
     @property
     def o_node(self):
@@ -64,6 +64,14 @@ class Route(object):
         self._d_node = value
 
     @property
+    def ft_seq(self):
+        return self._ft_seq
+
+    @ft_seq.setter
+    def ft_seq(self, ft_seq: list[int] = None):
+        self._ft_seq = ft_seq
+
+    @property
     def random_route(self) -> list[tuple[int, int]]:
         node_route = self.net.get_rnd_shortest_path()
         ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
@@ -77,7 +85,6 @@ class Route(object):
             ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
             return ft_seq
         else:
-
             print(rf'{self.od_route}->{self.d_node}无路径, 启用随机路径...')
             return self.random_route
 

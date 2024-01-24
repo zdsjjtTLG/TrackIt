@@ -6,14 +6,14 @@
 """依据路网生成GPS数据"""
 
 import datetime
-from gotrackit.map.Net import Net
-from gotrackit.generation.GpsGen import Route
-from gotrackit.GlobalVal import NetField, GpsField
-from gotrackit.generation.GpsGen import Car, RouteInfoCollector
-# from src.gotrackit.map.Net import Net
-# from src.gotrackit.generation.GpsGen import Route
-# from src.gotrackit.GlobalVal import NetField, GpsField
-# from src.gotrackit.generation.GpsGen import Car, RouteInfoCollector
+# from gotrackit.map.Net import Net
+# from gotrackit.generation.GpsGen import Route
+# from gotrackit.GlobalVal import NetField, GpsField
+# from gotrackit.generation.GpsGen import Car, RouteInfoCollector
+from src.gotrackit.map.Net import Net
+from src.gotrackit.generation.GpsGen import Route
+from src.gotrackit.GlobalVal import NetField, GpsField
+from src.gotrackit.generation.GpsGen import Car, RouteInfoCollector
 
 
 net_field = NetField()
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     route = Route(net=my_net, o_node=None, d_node=None, ft_seq=None)
     # route.o_node = 176356
     # route.d_node = 228133
-    # ft_seq = [(137226, 42212), (42212, 21174), (21174, 39617)]
+    # route.ft_seq = [(137226, 42212), (42212, 21174), (21174, 39617)]
 
     # 3.新建一个行程信息收集器对象, 对数据进行统一管理
     # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
@@ -53,15 +53,15 @@ if __name__ == '__main__':
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
     # 开始行车
-    for car_id in [rf'xa_car_{i}' for i in range(125, 126)]:
-        # 新建车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
+    for car_id in [rf'xa_car_{i}' for i in range(129, 130)]:
+        # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route,
                   agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
                   loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
                   start_time=datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0),
                   save_gap=save_gap)
 
-        # 4.开始行车
+        # 开始行车
         car.start_drive()
 
         # 收集数据
@@ -69,9 +69,16 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='test125')
-    data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='test125')
-    data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='test125')
+    trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='test129')
+    gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='test129')
+    mix_gdf = data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='test129')
+
+    print(trajectory_gdf)
+    print(gps_gdf)
+    print(mix_gdf)
+
+
+
 
 
 
