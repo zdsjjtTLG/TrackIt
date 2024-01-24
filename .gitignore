@@ -32,6 +32,8 @@ share/python-wheels/
 *.egg
 *.html
 
+data/output/match_visualization/
+
 MANIFEST
 
 # PyInstaller
