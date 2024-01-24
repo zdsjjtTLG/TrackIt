@@ -24,8 +24,15 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 #### __使用pip安装__
 
+安装：
+
 ``` shell
 pip install -i https://pypi.org/simple/ gotrackit
+```
+
+更新：
+``` shell
+pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ```
 
 ### 1.2 用户手册
