@@ -13,10 +13,8 @@ import networkx as nx
 import geopandas as gpd
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
-# from gotrackit.GlobalVal import NetField
-# from gotrackit.WrapsFunc import function_time_cost
-from src.gotrackit.GlobalVal import NetField
-from src.gotrackit.WrapsFunc import function_time_cost
+from ..GlobalVal import NetField
+from ..WrapsFunc import function_time_cost
 
 
 NOT_CONN_COST = 200.0

@@ -12,10 +12,10 @@ from keplergl import KeplerGl
 # from gotrackit.model.Markov import HiddenMarkov
 # from gotrackit.GlobalVal import GpsField, NetField
 # from gotrackit.tools.coord_trans import LngLatTransfer
-from src.gotrackit.GlobalVal import KeplerConfig
-from src.gotrackit.model.Markov import HiddenMarkov
-from src.gotrackit.GlobalVal import GpsField, NetField
-from src.gotrackit.tools.coord_trans import LngLatTransfer
+from .GlobalVal import KeplerConfig
+from .model.Markov import HiddenMarkov
+from .GlobalVal import GpsField, NetField
+from .tools.coord_trans import LngLatTransfer
 
 
 

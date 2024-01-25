@@ -13,16 +13,18 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from datetime import timedelta
+from ..map.Net import Net
+
 # from gotrackit.map.Net import Net
 # from shapely.geometry import LineString, Point
 # from gotrackit.WrapsFunc import function_time_cost
 # from gotrackit.GlobalVal import GpsField, NetField
 # from gotrackit.tools.coord_trans import LngLatTransfer
-from src.gotrackit.map.Net import Net
+
 from shapely.geometry import LineString, Point
-from src.gotrackit.WrapsFunc import function_time_cost
-from src.gotrackit.GlobalVal import GpsField, NetField
-from src.gotrackit.tools.coord_trans import LngLatTransfer
+from ..WrapsFunc import function_time_cost
+from ..GlobalVal import GpsField, NetField
+from ..tools.coord_trans import LngLatTransfer
 
 gps_field = GpsField()
 net_field = NetField()
@@ -151,11 +153,12 @@ class GpsDevice(object):
 
 class Car(object):
     """车类"""
+
     def __init__(self, agent_id: str = None, speed_miu: float = 10.0, speed_sigma: float = 3,
                  net: Net = None, time_step: float = 0.2, start_time: datetime.datetime = None,
                  loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
                  heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0,
-                 save_gap: int = 5, route: Route = None):
+                 save_gap: int = 5, route: Route = None, save_log: bool = False):
         """
         使用正态分布对车辆速度进行简单建模, 车辆速度服从正态分布 ~ N(speed_miu, speed_sigma^2)
         :param agent_id: 车辆ID
@@ -174,6 +177,7 @@ class Car(object):
 
         self.net = net
         self.time_step = time_step
+        self.save_log = save_log
         assert self.time_step <= 0.5, '仿真时间步长应该小于0.5s'
         self.agent_id = agent_id
         self.speed_miu = speed_miu
@@ -207,8 +211,12 @@ class Car(object):
             logging.Formatter('[%(asctime)s %(levelname)s] %(message)s', datefmt='%m/%d/%Y %H:%M:%S'))
         file_handler.setLevel(logging.INFO)
 
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
-                            handlers=[file_handler, console_handler])
+        if self.save_log:
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
+                                handlers=[file_handler, console_handler])
+        else:
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
+                                handlers=[console_handler])
         logging.info(rf'Car {self.agent_id}_logging_info:.....')
 
     def acquire_route(self) -> list[tuple[int, int]]:

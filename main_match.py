@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
         x = hmm_obj.acquire_res()
 
-        print(x)
+        print(x[['seq', 'sub_seq', 'origin_seq']])
         print(x.columns)
         # gps_link_gdf, base_link_gdf, base_node_gdf = hhm_obj.acquire_visualization_res(use_gps_source=True)
 
