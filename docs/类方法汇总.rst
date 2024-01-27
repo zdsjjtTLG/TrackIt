@@ -1,10 +1,69 @@
 类方法汇总
 ===================================
 
-Welcome to test!
-
 1. Net类
 --------------------
+
+1.1. Net类初始化
+````````````````
+
+.. py:class:: Net(link_path:str=None, node_path=None, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,is_check: bool = True)
+
+该接口计算输入 input 和标签 label（包含 1 和 -1） 间的 `hinge embedding loss` 损失。
+
+参数含义如下：
+
+* link_path：link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
+
+* node_path：node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
+
+* link_gdf：若指定了该参数, 则直接从内存中的gdf创建Net线层
+
+* node_gdf：若指定了该参数, 则直接从内存中的gdf创建Net线层
+
+* weight_field: 搜路权重字段
+
+* geo_crs:  地理坐标系
+
+* plane_crs: 平面投影坐标系
+
+* init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 不用指定值
+
+* return:
+
+
+1.2. Net类方法
+````````````````
+
+create_computational_net
+::::::::::::::::::::::::::
+
+.. py:class:: Net.create_computational_net(gps_array_buffer:Polygon = None)
+
+该接口计算输入 input 和标签 label（包含 1 和 -1） 间的 `hinge embedding loss` 损失。
+
+参数含义如下：
+
+* gps_array_buffer：link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
+
+create_computational_net1
+::::::::::::::::::::::::::
+aaaaa
+
+1.3. Net类属性
+````````````````
+
+crs
+::::::::::::::::::::::::::
+
+对于有 :math:`n` 个样本的 mini-batch，该损失函数的数学计算公式如下：
+
+.. math::
+    l_n = \begin{cases}
+        x_n, & \text{if}\; y_n = 1,\\
+        \max \{0, \Delta - x_n\}, & \text{if}\; y_n = -1,
+    \end{cases}
+
 有空更，待完善...
 
 

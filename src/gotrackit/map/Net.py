@@ -24,7 +24,7 @@ net_field = NetField()
 class Net(object):
 
     @function_time_cost
-    def __init__(self, link_path=None, node_path=None, link_gdf: gpd.GeoDataFrame = None,
+    def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
                  geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,
                  is_check: bool = True):
@@ -55,7 +55,7 @@ class Net(object):
             self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path),is_check=is_check)
+            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check)
         else:
             self.__node = Node(node_gdf=node_gdf, is_check=is_check)
         if not init_from_existing:

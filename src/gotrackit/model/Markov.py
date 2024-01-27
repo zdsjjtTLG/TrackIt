@@ -41,7 +41,7 @@ class HiddenMarkov(object):
         self.net = net
         assert search_method in ['all_pairs', 'single'], 'search_method must in [\'all_pairs\', \'single\'] '
         self.search_method = search_method
-        # (from_gps_seq, from_link_id): (from_prj_p, from_prj_dis, from_route_dis)
+        # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
         self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float]] = dict()
         self.__adj_seq_path_dict: dict[tuple[int, int], list[int, int]] = dict()
         self.__ft_transition_dict = dict()
@@ -52,6 +52,7 @@ class HiddenMarkov(object):
         self.__solver = None
         self.index_state_list = None
         self.gps_match_res_gdf = None
+        self.__s2s_route_l = dict()
         self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
 
     def generate_markov_para(self):
@@ -111,6 +112,10 @@ class HiddenMarkov(object):
 
             transition_df[markov_field.DIS_GAP] = np.abs(-transition_df[
                 markov_field.ROUTE_LENGTH] + self.gps_points.get_gps_point_dis((seq_list[i], seq_list[i + 1])))
+
+            self.__s2s_route_l[(seq_list[i], seq_list[i + 1])] = transition_df[
+                [markov_field.FROM_STATE, markov_field.TO_STATE, markov_field.ROUTE_LENGTH]].copy().set_index(
+                [markov_field.FROM_STATE, markov_field.TO_STATE])
 
             # 转成matrix
             transition_mat = transition_df[
