@@ -18,7 +18,6 @@ from .GlobalVal import GpsField, NetField
 from .tools.coord_trans import LngLatTransfer
 
 
-
 con = LngLatTransfer()
 gps_field = GpsField()
 net_field = NetField()
