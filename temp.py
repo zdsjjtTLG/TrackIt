@@ -8,7 +8,6 @@ import datetime
 from src.gotrackit.tools.coord_trans import LngLatTransfer
 con = LngLatTransfer()
 
-
 if __name__ == '__main__':
     link = gpd.read_file(r'./data/input/net/xian/link_a.shp')
     # node = gpd.read_file(r'./data/input/net/xian/node_a.shp')

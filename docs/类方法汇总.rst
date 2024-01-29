@@ -5,29 +5,36 @@
 --------------------
 
 1.1. Net类初始化
-````````````````
+`````````````````````
 
 .. py:class:: Net(link_path:str=None, node_path=None, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,is_check: bool = True)
 
-该接口计算输入 input 和标签 label（包含 1 和 -1） 间的 `hinge embedding loss` 损失。
 
 参数含义如下：
 
-* link_path：link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
+* link_path
+    link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
 
-* node_path：node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
+* node_path
+    node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
 
-* link_gdf：若指定了该参数, 则直接从内存中的gdf创建Net线层
+* link_gdf
+    若指定了该参数, 则直接从内存中的gdf创建Net线层
 
-* node_gdf：若指定了该参数, 则直接从内存中的gdf创建Net线层
+* node_gdf
+    若指定了该参数, 则直接从内存中的gdf创建Net线层
 
-* weight_field: 搜路权重字段
+* weight_field
+    搜路权重字段
 
-* geo_crs:  地理坐标系
+* geo_crs
+    地理坐标系
 
-* plane_crs: 平面投影坐标系
+* plane_crs
+    平面投影坐标系
 
-* init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 不用指定值
+* init_from_existing
+    是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 不用指定值
 
 * return:
 
@@ -36,48 +43,164 @@
 ````````````````
 
 create_computational_net
-::::::::::::::::::::::::::
+:::::::::::::::::::::::::::::::::
 
 .. py:class:: Net.create_computational_net(gps_array_buffer:Polygon = None)
 
-该接口计算输入 input 和标签 label（包含 1 和 -1） 间的 `hinge embedding loss` 损失。
 
 参数含义如下：
 
-* gps_array_buffer：link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
+* gps_array_buffer
+    gps影响范围polygon
 
-create_computational_net1
-::::::::::::::::::::::::::
-aaaaa
 
 1.3. Net类属性
 ````````````````
-
 crs
 ::::::::::::::::::::::::::
 
-对于有 :math:`n` 个样本的 mini-batch，该损失函数的数学计算公式如下：
-
-.. math::
-    l_n = \begin{cases}
-        x_n, & \text{if}\; y_n = 1,\\
-        \max \{0, \Delta - x_n\}, & \text{if}\; y_n = -1,
-    \end{cases}
-
 有空更，待完善...
 
 
-2. HiddenMarkov类
+2. NetReverse类
+--------------------
+
+2.1. NetReverse类初始化
+```````````````````````````
+
+可以将参数分为5组：参数含义如下：
+
+**第一组（总体信息）：**
+
+* flag_name
+    项目名称
+
+* plain_prj
+    平面投影坐标系
+
+* net_out_fldr
+    最终路网的存储目录
+
+**第二组（路径拆分参数）：**
+
+* ignore_head_tail
+    是否忽略路径首尾的无名道路, 这种一般是小区内部道路，默认True
+
+* cut_slice
+    拆分路段时，是否分片处理，内存不够时可以指定为True，默认False
+
+* slice_num
+    拆分路段时，拆分为几个slice处理
+
+* generate_rod
+    是否生成连杆, 只有当参数ignore_head_tail为false时该参数才生效，默认False
+
+* min_rod_length
+    最小连杆长度，m
+
+* restrict_region_gdf
+    限制区域gdf
+
+* save_split_link
+    是否保存拆分路径后的link层文件，默认False
+
+
+**第三组（拓扑关联参数）：**
+
+* modify_minimum_buffer
+    极小间隔节点优化的buffer, m
+
+* save_streets_before_modify_minimum
+    是否保存优化前的结果，默认False
+
+* save_streets_after_modify_minimum
+    是否保存优化后的结果，默认False
+
+* save_tpr_link
+    是否保存优化后且进行方向处理的文件，默认False
+
+
+**第四组（拓扑优化参数）：**
+
+* ignore_dir
+    路段合并时，是否忽略行车方向，默认False
+
+* allow_ring
+    是否允许路段合并后出现环，默认False
+
+* restrict_angle
+    是否启用最大转角限制来约束路段合并，默认True
+
+* restrict_length
+    是否启用最大路段长度限制来约束路段合并，默认True
+
+* accu_l_threshold
+    允许的最长的路段长度，米
+
+* angle_threshold
+    允许的最大的路段内转角，度
+
+* min_length
+    允许的最小的路段长度，米
+
+* save_preliminary
+    是否保留重复路段处理前的文件，默认False
+
+
+**第五组（重叠路段处理参数）：**
+
+
+* is_process_dup_link
+    是否处理重复路段，默认True
+
+* process_dup_link_buffer
+    处理重复路段所使用的buffer长度，米，使用默认值即可
+
+* dup_link_buffer_ratio
+    重叠率检测阈值，使用默认值即可
+
+
+
+2.2. NetReverse类方法
+```````````````````````````
+
+generate_net_from_request
+:::::::::::::::::::::::::::::
+
+请求路径规划计算得到路网
+
+
+
+generate_net_from_pickle
+:::::::::::::::::::::::::::::
+
+从路径源文件计算得到路网
+
+
+
+create_node_from_link
+:::::::::::::::::::::::::::::
+
+从线层创建点层并且添加拓扑关联
+
+
+topology_optimization
+:::::::::::::::::::::::::::::
+
+路段拓扑优化
+
+
+3. HiddenMarkov类
 --------------------
 有空更，待完善...
 
 
 
-3. GpsPointsGdf类
+4. GpsPointsGdf类
 --------------------
 有空更，待完善...
 
 
-4. Viterbi类
+5. Viterbi类
 --------------------
 有空更，待完善...
