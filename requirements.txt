@@ -1,0 +1,10 @@
+geopandas==0.14.1
+geopy==2.4.1
+gdal==3.4.3
+networkx==3.2.1
+shapely==2.0.2
+pandas==2.0.3
+numpy==1.26.2
+pyproj==3.6.1
+keplergl==0.3.2
+pytest

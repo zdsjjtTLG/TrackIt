@@ -11,6 +11,7 @@ gotrackit是一个地图匹配包, 基于隐马尔可夫模型(Hidden Markov Mod
 #### __所需前置依赖__
 
 - geopandas(0.14.1)
+- geopy(2.4.1)
 - gdal(3.4.3)
 - networkx(3.2.1)
 - shapely(2.0.2)
@@ -38,15 +39,13 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 ### 1.2 用户手册
 
-[用户文档链接(旧版本)](https://gotrackitdocs.readthedocs.io/en/latest/)
-
-[用户文档链接(最新版)](https://gotrackit.readthedocs.io/en/latest/)
+[用户文档链接](https://gotrackit.readthedocs.io/en/latest/)
 
 ## 2. 地图匹配问题
 
-![car_gps.png](doc/docs/source/images/car_gps.png)
+![car_gps.png](docs/_static/images/car_gps.png)
 
-![where_car.png](doc/docs/source/images/whereIsCar.png)
+![where_car.png](docs/_static/images/whereIsCar.png)
 
 __如何依据GPS数据推算车辆的实际路径？__
 
@@ -55,21 +54,21 @@ __如何依据GPS数据推算车辆的实际路径？__
 想了解算法过程的可以参考B站视频:
 [基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！](https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2)
 
-![main.png](doc/docs/source/images/single_p.png)
+![main.png](docs/_static/images/single_p.png)
 
-![main.png](./doc/docs/source/images/transition.png)
+![main.png](docs/_static/images/transition.png)
 
-![main.png](./doc/docs/source/images/viterbi.png)
+![main.png](docs/_static/images/viterbi.png)
 
-![main.png](./doc/docs/source/images/trace.png)
+![main.png](docs/_static/images/trace.png)
 
 
 ## 4. 匹配结果可视化
 
 中高频GPS匹配效果:
 
-![main.png](./doc/docs/source/images/m_h_f.gif)
+![main.png](docs/_static/images/m_h_f.gif)
 
 低频GPS匹配效果:
 
-![main.png](./doc/docs/source/images/l_f.gif)
+![main.png](docs/_static/images/l_f.gif)
