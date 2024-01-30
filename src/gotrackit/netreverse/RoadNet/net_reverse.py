@@ -30,6 +30,7 @@ from_node_id_field = net_field.FROM_NODE_FIELD
 def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  save_split_link: bool = False, plain_prj: str = 'EPSG:4326', save_tpr_link: bool = False,
                  save_streets_before_modify_minimum: bool = True, restrict_angle: bool = True,
+                 limit_col_name:str = 'road_name',
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
                  save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False,
@@ -49,6 +50,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param accu_l_threshold: 合并后的link的长度的最大值(m)
     :param angle_threshold: 允许的最大转角(如果两个相邻的可合并link的转角超过这个角度则不允许合并)
     :param min_length: 允许的最小link长度
+    :param limit_col_name: 属性限制字段
     :param restrict_length: 是否启用合并后的长度限制
     :param restrict_angle:  是否启用转角限制
     :param save_preliminary: 是否保存2度节点合并后的路网
@@ -97,7 +99,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     # 5.拓扑优化
     print(rf'##########   {flag_name} - Topology Optimization')
     final_link, final_node, dup_info_dict = optimize_net.optimize(link_gdf=link_gdf, node_gdf=new_node,
-                                                                  ignore_dir=False, limit_col_name='road_name',
+                                                                  ignore_dir=False, limit_col_name=limit_col_name,
                                                                   save_preliminary=save_preliminary,
                                                                   out_fldr=out_fldr,
                                                                   plain_prj=plain_prj,

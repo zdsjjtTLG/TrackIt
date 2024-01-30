@@ -37,7 +37,8 @@ class NetReverse(Reverse):
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
-                 save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,
+                 save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False,
+                 limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
                  save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
@@ -67,6 +68,7 @@ class NetReverse(Reverse):
         self.save_tpr_link = save_tpr_link
 
         # merge
+        self.limit_col_name = limit_col_name
         self.ignore_dir = ignore_dir
         self.allow_ring = allow_ring
         self.restrict_angle = restrict_angle
@@ -121,23 +123,23 @@ class NetReverse(Reverse):
         path_request_obj.get_path(remove_his=remove_his)
 
         pickle_file_name_list = os.listdir(binary_path_fldr)
-        self.generate_net_from_pickle(restrict_region_gdf=self.restrict_region_gdf,
-                                      binary_path_fldr=binary_path_fldr,
+        self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
 
-    def generate_net_from_pickle(self, restrict_region_gdf: gpd.GeoDataFrame = None,
-                                 binary_path_fldr: str = None, pickle_file_name_list: list[str] = None) -> None:
+    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None) -> None:
         """
         从二进制路径文件进行读取, 然后生产路网
         :return:
         """
         attr_name_list = ['road_name']
+        if pickle_file_name_list is None or not pickle_file_name_list:
+            pickle_file_name_list = os.listdir(binary_path_fldr)
         split_path_gdf = parse_path_main_alpha(od_path_fldr=binary_path_fldr,
                                                pickle_file_name_list=pickle_file_name_list,
                                                flag_name=self.flag_name,
                                                is_slice=self.cut_slice,
                                                slice_num=self.slice_num,
-                                               restrict_region_gdf=restrict_region_gdf,
+                                               restrict_region_gdf=self.restrict_region_gdf,
                                                attr_name_list=attr_name_list,
                                                ignore_head_tail=self.ignore_head_tail,
                                                check=False, generate_rod=self.generate_rod,
@@ -185,13 +187,13 @@ class NetReverse(Reverse):
         return link_gdf, node_gdf, node_group_status_gdf
 
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
-                              limit_col_name: str = 'road_name', out_fldr: str = None) -> \
+                              out_fldr: str = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
-
+        assert self.limit_col_name in link_gdf.columns, rf'limit_col_name: {self.limit_col_name}, 该字段不在线层表中...'
         link_gdf, node_gdf, dup_info_dict = optimize(link_gdf=link_gdf, node_gdf=node_gdf,
                                                      ignore_dir=self.ignore_dir,
                                                      allow_ring=self.allow_ring,
-                                                     limit_col_name=limit_col_name,
+                                                     limit_col_name=self.limit_col_name,
                                                      plain_prj=self.plain_prj,
                                                      accu_l_threshold=self.accu_l_threshold,
                                                      angle_threshold=self.angle_threshold,
@@ -226,6 +228,7 @@ class NetReverse(Reverse):
         net_reverse.generate_net(path_gdf=split_path_gdf, out_fldr=self.net_out_fldr,
                                  plain_prj=self.plain_prj,
                                  flag_name=self.flag_name,
+                                 limit_col_name=self.limit_col_name,
                                  restrict_angle=self.restrict_angle,
                                  restrict_length=self.restrict_length,
                                  accu_l_threshold=self.accu_l_threshold,
