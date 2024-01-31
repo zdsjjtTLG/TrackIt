@@ -4,8 +4,6 @@
 # @Team    : ZheChengData
 
 """字段名称常量"""
-import copy
-
 
 class NetField(object):
     """路网字段"""

@@ -167,7 +167,7 @@ class RequestOnTime(object):
             d_loc = ','.join([str(np.around(row[d_x_field], decimals=6)), str(np.around(row[d_y_field], 6))])
             if way_points_field in request_df.columns:
                 way_points = row[way_points_field]
-                if way_points is not None:
+                if way_points not in [None, '', ' ']:
                     logging.info(rf'启用途径点...')
                     is_rnd_strategy = False
                     strategy = '0'

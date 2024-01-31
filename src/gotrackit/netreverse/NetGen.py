@@ -13,9 +13,11 @@ import geopandas as gpd
 from .GlobalVal import NetField
 from .format_od import FormatOD
 from .RoadNet import net_reverse
+from .RoadNet.increment import increment
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
+from .Parse.gd_car_path import parse_path_main
 from .PublicTools.GeoProcess import generate_region
 from .Parse.gd_car_path import parse_path_main_alpha
 from .RoadNet.SaveStreets.streets import generate_node_from_link
@@ -92,39 +94,22 @@ class NetReverse(Reverse):
 
     def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
-                                  region_gdf: gpd.GeoDataFrame = None, od_type='rnd', boundary_buffer: float = 2000,
+                                  region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                                   log_fldr: str = None, save_log_file: bool = False,
                                   min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0) -> None:
-        """请求 -> 二进制存储 -> 路网生产"""
-        assert binary_path_fldr is not None
-
-        assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
-        fmod = FormatOD(plain_crs=self.plain_prj)
-        if od_type == 'rand_od':
-            if region_gdf is None or region_gdf.empty:
-                region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
-
-            od_df = fmod.format_region_rnd_od(region_gdf=region_gdf, flag_name=self.flag_name, od_num=od_num,
-                                              gap_n=gap_n, length_limit=min_od_length,
-                                              boundary_buffer=boundary_buffer)
-            self.__region_gdf = region_gdf
-        elif od_type == 'region_od':
-            od_df = fmod.format_region_od(region_gdf=region_gdf)
-        elif od_type == 'diy_od':
-            if od_df is None or od_df.empty:
-                od_df = pd.read_csv(od_file_path)
-        elif od_type == 'gps_based':
-            raise ValueError('Sorry! This function is under development! 这个函数正在开发中...')
-
-        self.__od_df = od_df
-
-        path_request_obj = CarPath(key_list=key_list, input_file_path=od_file_path, od_df=od_df,
-                                   cache_times=cache_times, ignore_hh=ignore_hh, out_fldr=binary_path_fldr,
-                                   file_flag=self.flag_name, log_fldr=log_fldr, save_log_file=save_log_file)
-        path_request_obj.get_path(remove_his=remove_his)
-
+        """构造OD -> 请求 -> 二进制存储 -> 路网生产"""
+        self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
+                          od_file_path=od_file_path,
+                          od_df=od_df, region_gdf=region_gdf, od_type=od_type,
+                          boundary_buffer=boundary_buffer,
+                          cache_times=cache_times, ignore_hh=ignore_hh,
+                          remove_his=remove_his,
+                          log_fldr=log_fldr, save_log_file=save_log_file,
+                          min_lng=min_lng, min_lat=min_lat,
+                          w=w, h=h, od_num=od_num, gap_n=gap_n,
+                          min_od_length=min_od_length)
         pickle_file_name_list = os.listdir(binary_path_fldr)
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
@@ -137,7 +122,7 @@ class NetReverse(Reverse):
         attr_name_list = ['road_name']
         if pickle_file_name_list is None or not pickle_file_name_list:
             pickle_file_name_list = os.listdir(binary_path_fldr)
-        split_path_gdf = parse_path_main_alpha(od_path_fldr=binary_path_fldr,
+        split_path_gdf = parse_path_main_alpha(binary_path_fldr=binary_path_fldr,
                                                pickle_file_name_list=pickle_file_name_list,
                                                flag_name=self.flag_name,
                                                is_slice=self.cut_slice,
@@ -221,6 +206,89 @@ class NetReverse(Reverse):
         pass
 
     def modify_minimum(self):
+        pass
+
+    def increment_from_pickle(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
+                              binary_path_fldr: str = None, increment_out_fldr: str = None,
+                              cover_ratio_threshold: float = 60.0, cover_angle_threshold: float = 6.5,
+                              save_times: int = 200, ignore_head_tail: bool = True,
+                              save_new_split_link: bool = True, pickle_file_name_list: list = None,
+                              check_path: bool = True, overlap_buffer_size: float = 0.3) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+        依据路径源文件进行增量修改, 输入crs:EPSG:4326, 输出crs:EPSG:4326
+        :param link_gdf: 路网线层
+        :param node_gdf: 路网点层
+        :param save_times: 请求路径文件时单个文件的缓存数目
+        :param binary_path_fldr: 二进制路径文件目录
+        :param pickle_file_name_list: 二进制路径文件名称列表
+        :param increment_out_fldr: 更新后的路网输出目录
+        :param ignore_head_tail: 是否忽略路径首尾的无名道路, 这种一般是小区内部道路
+        :param save_new_split_link: 是否保存新路径拆分后的文件
+        :param check_path: 是否检查新路径
+        :param overlap_buffer_size: 用于判断路段是否重合的buffer_size
+        :param cover_ratio_threshold: 用重合率超过cover_ratio_threshold%就认为是重合(条件较为宽松), 宁愿少加也不多加
+        :param cover_angle_threshold: 角度小于cover_angle_threshold度认为是重合(条件较为宽松), 宁愿少加也不多加
+        :return:
+        """
+        # 将新的轨迹都解析好存储到字段
+        new_path_gdf_dict = parse_path_main(binary_path_fldr=binary_path_fldr,
+                                            check_fldr=increment_out_fldr,
+                                            pickle_file_name_list=pickle_file_name_list,
+                                            out_type='dict', ignore_head_tail=ignore_head_tail,
+                                            check=check_path, generate_rod=False)
+        # 增量修改
+        increment_link, increment_node = increment(link_gdf=link_gdf, node_gdf=node_gdf,
+                                                   path_gdf_dict=new_path_gdf_dict, plain_crs=self.plain_prj,
+                                                   out_fldr=increment_out_fldr, save_times=save_times,
+                                                   save_new_split_link=save_new_split_link,
+                                                   overlap_buffer_size=overlap_buffer_size,
+                                                   cover_angle_threshold=cover_angle_threshold,
+                                                   cover_ratio_threshold=cover_ratio_threshold,
+                                                   net_file_type=self.net_file_type,
+                                                   limit_col_name=self.limit_col_name)
+        return increment_link, increment_node
+
+    def request_path(self, key_list: list[str] = None, binary_path_fldr: str = None,
+                     od_file_path: str = None, od_df: pd.DataFrame = None,
+                     region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
+                     cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
+                     log_fldr: str = None, save_log_file: bool = False,
+                     min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
+                     od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0) -> tuple[bool, list[str]]:
+        """构造OD -> 请求 -> 二进制存储"""
+        assert binary_path_fldr is not None
+
+        assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
+        fmod = FormatOD(plain_crs=self.plain_prj)
+        if od_type == 'rand_od':
+            if region_gdf is None or region_gdf.empty:
+                region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
+
+            od_df = fmod.format_region_rnd_od(region_gdf=region_gdf, flag_name=self.flag_name, od_num=od_num,
+                                              gap_n=gap_n, length_limit=min_od_length,
+                                              boundary_buffer=boundary_buffer)
+            self.__region_gdf = region_gdf
+        elif od_type == 'region_od':
+            od_df = fmod.format_region_od(region_gdf=region_gdf)
+        elif od_type == 'diy_od':
+            if od_df is None or od_df.empty:
+                od_df = pd.read_csv(od_file_path)
+        elif od_type == 'gps_based':
+            raise ValueError('Sorry! This function is under development! 这个函数正在开发中...')
+
+        self.__od_df = od_df
+
+        path_request_obj = CarPath(key_list=key_list, input_file_path=od_file_path, od_df=od_df,
+                                   cache_times=cache_times, ignore_hh=ignore_hh, out_fldr=binary_path_fldr,
+                                   file_flag=self.flag_name, log_fldr=log_fldr, save_log_file=save_log_file)
+
+        # 是否结束请求, 新生产的路网文件
+        if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his)
+
+        return if_end_request, new_file_list
+
+    def increment_from_path_gdf(self):
         pass
 
     def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):

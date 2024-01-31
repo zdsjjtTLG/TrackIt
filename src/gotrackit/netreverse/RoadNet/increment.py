@@ -11,16 +11,14 @@ import os
 import pandas as pd
 import geopandas as gpd
 from itertools import chain
-from shapely.geometry import LineString
+from .save_file import save_file
 from .optimize_net import optimize
-from ..Parse.gd_car_path import parse_path_main
+from shapely.geometry import LineString
 from .Split.SplitPath import split_path
 from ..PublicTools.GeoProcess import calc_link_angle
 from .SaveStreets.streets import generate_node_from_link
 
-
-COVER_RATIO = 60  # 重合率超过60%就认为是重合(条件较为宽松), 宁愿少加也不多加
-COVER_ANGLE = 6.5 # 角度小于6.5度认为是重合(条件较为宽松), 宁愿少加也不多加
+node_id_field = 'node_id'
 direction_field = 'dir'
 link_id_field = 'link_id'
 from_node_id_field = 'from_node'
@@ -28,52 +26,43 @@ to_node_id_field = 'to_node'
 _link_id_field = '_link_id'
 length_field = 'length'
 road_name_field = 'road_name'
+geometry_field = 'geometry'
 
 
-def main_increment(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, prj_name: str,
-                   od_path_fldr: str = None, increment_out_fldr: str = None,
-                   save_times: int = 200, ignore_head_tail: bool = True,
-                   save_new_split_link: bool = True, pickle_file_name_list: list = None,
-                   check_path: bool = True, utm_crs: str = 'EPSG:32650', overlap_buffer_size: float = 0.3):
+def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, plain_crs='EPSG:32649', out_fldr=None,
+              overlap_buffer_size: float = 0.3, save_times=20, save_new_split_link=True,
+              limit_col_name: str = 'road_name', cover_ratio_threshold: float = 60.0,
+              cover_angle_threshold: float = 6.5, net_file_type: str = 'shp') -> \
+        tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
-
-    :param link_gdf: 路网线层
-    :param node_gdf: 路网点层
-    :param prj_name: 工程名称(标志字符)
-    :param save_times: 请求路径文件时单个文件的缓存数目
-    :param od_path_fldr: 二进制路径文件目录
-    :param pickle_file_name_list: 二进制路径文件名称列表
-    :param increment_out_fldr: 更新后的路网输出目录
-    :param ignore_head_tail: 是否忽略路径首尾的无名道路, 这种一般是小区内部道路
-    :param save_new_split_link: 是否保存新路径拆分后的文件
-    :param check_path: 是否检查新路径
-    :param utm_crs: 平面投影坐标系
-    :param overlap_buffer_size: 用于判断路段是否重合的buffer_size
+    input: EPSG:4326, same output crs as input
+    :param link_gdf:
+    :param node_gdf:
+    :param path_gdf_dict:
+    :param plain_crs:
+    :param out_fldr:
+    :param overlap_buffer_size:
+    :param save_times:
+    :param save_new_split_link:
+    :param cover_ratio_threshold:
+    :param cover_angle_threshold:
+    :param net_file_type:
+    :param limit_col_name:
     :return:
     """
-    # 将新的轨迹都解析好存储到字段
-    new_path_gdf_dict = parse_path_main(od_path_fldr=od_path_fldr,
-                                        check_fldr=increment_out_fldr,
-                                        pickle_file_name_list=pickle_file_name_list,
-                                        out_type='dict',ignore_head_tail=ignore_head_tail,
-                                        check=check_path, generate_rod=False)
-    # 增量修改
-    increment(link_gdf=link_gdf, node_gdf=node_gdf, path_gdf_dict=new_path_gdf_dict, utm_crs=utm_crs,
-              out_fldr=increment_out_fldr, save_times=save_times, save_new_split_link=save_new_split_link,
-              overlap_buffer_size=overlap_buffer_size)
+    if len(path_gdf_dict) <= 0:
+        return link_gdf, node_gdf
 
-
-def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, utm_crs='EPSG:32649', out_fldr=None,
-              overlap_buffer_size=0.3, save_times=20, save_new_split_link=True):
-    link_gdf = link_gdf.to_crs(utm_crs)
-    node_gdf = node_gdf.to_crs(utm_crs)
+    link_gdf = link_gdf.to_crs(plain_crs)
+    node_gdf = node_gdf.to_crs(plain_crs)
 
     link_gdf['true_ft'] = link_gdf.apply(
         lambda x: tuple(sorted([x[to_node_id_field], x[from_node_id_field]])), axis=1)
-    link_gdf['link_geo'] = link_gdf['geometry']
+    link_gdf['link_geo'] = link_gdf[geometry_field]
 
     _count = 0
     all_export_split_link = gpd.GeoDataFrame()
+
     for k in path_gdf_dict.keys():
 
         path_gdf = path_gdf_dict[k]
@@ -83,11 +72,11 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, utm_crs='EPSG:32
             modify_net(
                 link_gdf=link_gdf,
                 node_gdf=node_gdf,
-                utm_crs=utm_crs,
+                plain_crs=plain_crs,
                 path_gdf=path_gdf,
-                out_fldr=out_fldr,
-                flag=k,
-                overlap_buffer_size=overlap_buffer_size)
+                limit_col_name=limit_col_name,
+                overlap_buffer_size=overlap_buffer_size,
+                cover_angle_threshold=cover_angle_threshold, cover_ratio_threshold=cover_ratio_threshold)
         _count += 1
         if save_new_split_link:
             export_split_link['od_id'] = k
@@ -109,7 +98,7 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, utm_crs='EPSG:32
 
             to_be_del_node_list = list((set(to_be_del_link_gdf[from_node_id_field]) |
                                         set(to_be_del_link_gdf[to_node_id_field])) - set(to_be_remain_node_list))
-            node_gdf.drop(index=node_gdf[node_gdf['node_id'].isin(to_be_del_node_list)].index, inplace=True, axis=0)
+            node_gdf.drop(index=node_gdf[node_gdf[node_id_field].isin(to_be_del_node_list)].index, inplace=True, axis=0)
             node_gdf = pd.concat([node_gdf, new_node_gdf])
             node_gdf.reset_index(inplace=True, drop=True)
 
@@ -122,7 +111,6 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, utm_crs='EPSG:32
             link_gdf.drop(index=link_gdf[to_be_del_link_index].index, axis=0, inplace=True)
             link_gdf = pd.concat([link_gdf, new_link_gdf])
             link_gdf.reset_index(inplace=True, drop=True)
-
         else:
             link_gdf.loc[link_gdf['true_ft'].isin(double_ft_list), direction_field] = 0
 
@@ -133,32 +121,38 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, utm_crs='EPSG:32
             if export_link_gdf.crs != 'EPSG:4326':
                 export_link_gdf = export_link_gdf.to_crs('EPSG:4326')
                 export_node_gdf = export_node_gdf.to_crs('EPSG:4326')
-            export_link_gdf.to_file(os.path.join(out_fldr, rf'increment_link.shp'), encoding='gbk')
-            export_node_gdf.to_file(os.path.join(out_fldr, rf'increment_node.shp'), encoding='gbk')
-            _count = 0
-            del export_link_gdf
-            del export_node_gdf
+            if out_fldr is not None:
+                save_file(data_item=export_link_gdf, file_type=net_file_type,
+                          out_fldr=out_fldr, file_name='increment_link')
+                save_file(data_item=export_node_gdf, file_type=net_file_type,
+                          out_fldr=out_fldr, file_name='increment_node')
 
-        else:
-            pass
+            if _count == len(path_gdf_dict):
+                if save_new_split_link:
+                    all_export_split_link = gpd.GeoDataFrame(all_export_split_link, geometry=geometry_field,
+                                                             crs='EPSG:4326')
+                    save_file(data_item=all_export_split_link, file_type=net_file_type,
+                              out_fldr=out_fldr, file_name='new_split_path.shp')
+                return export_link_gdf, export_node_gdf
+            else:
+                _count = 0
+                del export_link_gdf
+                del export_node_gdf
 
-    if save_new_split_link:
-        all_export_split_link = gpd.GeoDataFrame(all_export_split_link, geometry='geometry', crs='EPSG:4326')
-        all_export_split_link.to_file(os.path.join(out_fldr, 'new_split_path.shp'), encoding='gbk')
-
-
-def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, utm_crs: str = 'EPSG:32649',
-               path_gdf: gpd.GeoDataFrame = None, overlap_buffer_size: float = 0.2, out_fldr: str = None,
-               flag: str = None) -> (gpd.GeoDataFrame, gpd.GeoDataFrame, list, list, list, gpd.GeoDataFrame):
+def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649',
+               path_gdf: gpd.GeoDataFrame = None, overlap_buffer_size: float = 0.2,
+               cover_ratio_threshold: float = 60.0, cover_angle_threshold: float = 6.5,
+               limit_col_name: str = None) -> (gpd.GeoDataFrame, gpd.GeoDataFrame, list, list, list, gpd.GeoDataFrame):
     """
     合并新路网
     :param link_gdf:
     :param node_gdf:
-    :param utm_crs:
+    :param plain_crs:
     :param path_gdf:
     :param overlap_buffer_size:
-    :param out_fldr:
-    :param flag:
+    :param limit_col_name:
+    :param cover_angle_threshold:
+    :param cover_ratio_threshold:
     :return:
     """
     # 这里的目标有三个, 提取新路径中的部分link和原有路网中的部分link构成reshape_link_gdf, 去生成新的点层和线层
@@ -170,9 +164,9 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
 
     export_split_link = split_path_gdf.copy()
 
-    split_path_gdf = split_path_gdf.to_crs(utm_crs)
-    split_path_gdf['path_buffer_geo'] = split_path_gdf['geometry'].apply(lambda geo: geo.buffer(overlap_buffer_size))
-    split_path_gdf.set_geometry('path_buffer_geo', inplace=True, crs=utm_crs)
+    split_path_gdf = split_path_gdf.to_crs(plain_crs)
+    split_path_gdf['path_buffer_geo'] = split_path_gdf[geometry_field].apply(lambda geo: geo.buffer(overlap_buffer_size))
+    split_path_gdf.set_geometry('path_buffer_geo', inplace=True, crs=plain_crs)
     split_path_gdf[direction_field] = 1
 
     # 2.关联新路径和原有路网
@@ -184,7 +178,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
         print(r'新路径和原路网没有任何交集, 直接新增......')
         reshape_link_gdf = split_path_gdf
         reshape_link_gdf.drop(columns=[_link_id_field, 'path_buffer_geo'], axis=1, inplace=True)
-        reshape_link_gdf.set_geometry('geometry', inplace=True, crs=utm_crs)
+        reshape_link_gdf.set_geometry(geometry_field, inplace=True, crs=plain_crs)
         cor_origin_link_list, double_ft_list = [], []
     else:
         # 计算两者相交的区域面积 、 占比link_buffer的比率
@@ -210,11 +204,12 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
                                          link_geo2=item['geometry']), axis=1)
 
         # 相交率超过阈值 或者 相交率超过阈值 - 30 且角度小于阈值, 条件较为宽松, 宁愿少加也不多加
-        covered_index = (sjoin_gdf['inter_ratio'] >= COVER_RATIO) | ((sjoin_gdf['inter_ratio'] >= COVER_RATIO - 30) &
-                                                                     (sjoin_gdf['angle'] <= COVER_ANGLE) &
-                                                                     (sjoin_gdf['angle'] >= 0)) | (
-                                    (sjoin_gdf['inter_ratio'] >= COVER_RATIO - 30) &
-                                    (sjoin_gdf['angle'] >= 180 - COVER_RATIO))
+        covered_index = (sjoin_gdf['inter_ratio'] >= cover_ratio_threshold) | (
+                    (sjoin_gdf['inter_ratio'] >= cover_ratio_threshold - 30) &
+                    (sjoin_gdf['angle'] <= cover_angle_threshold) &
+                    (sjoin_gdf['angle'] >= 0)) | (
+                                (sjoin_gdf['inter_ratio'] >= cover_ratio_threshold - 30) &
+                                (sjoin_gdf['angle'] >= 180 - cover_angle_threshold))
         be_covered_sjoin_df = sjoin_gdf[covered_index].copy()  # 完全被原有道路覆盖的关联对
         if be_covered_sjoin_df.empty:
             double_ft_list = []
@@ -236,7 +231,8 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
             return None, None, None, None, double_ft_list, export_split_link
         else:
             not_covered_path = list(set(split_path_gdf[_link_id_field]) - set(all_be_covered_path_link_id))
-            print(sjoin_gdf[sjoin_gdf[_link_id_field].isin(not_covered_path)][[link_id_field, _link_id_field, 'inter_ratio', 'angle']])
+            print(sjoin_gdf[sjoin_gdf[_link_id_field].isin(not_covered_path)][[link_id_field, _link_id_field,
+                                                                               'inter_ratio', 'angle']])
             sjoin_gdf.reset_index(inplace=True, drop=True)
             sjoin_gdf[link_id_field] = sjoin_gdf[link_id_field].fillna(-1)
             sjoin_gdf[link_id_field] = sjoin_gdf[link_id_field].astype(int)
@@ -268,7 +264,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
                                                                                     from_node_id_field,
                                                                                     to_node_id_field],
                                                                                 using_from_to=False,
-                                                                                utm_prj=utm_crs,
+                                                                                plain_prj=plain_crs,
                                                                                 ignore_merge_rule=True,
                                                                                 modify_minimum_buffer=0.2,
                                                                                 save_streets_before_modify_minimum=False,
@@ -297,8 +293,8 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
 
     # 做拓扑优化
     new_link_gdf, new_node_gdf, _ = optimize(link_gdf=new_link_gdf, node_gdf=new_node_gdf, ignore_dir=False,
-                                             limit_col_name='road_name',
-                                             allow_ring=False, plain_prj=utm_crs, accu_l_threshold=125,
+                                             limit_col_name=limit_col_name,
+                                             allow_ring=False, plain_prj=plain_crs, accu_l_threshold=125,
                                              angle_threshold=20,
                                              restrict_length=True, restrict_angle=True, save_preliminary=False,
                                              out_fldr=None,

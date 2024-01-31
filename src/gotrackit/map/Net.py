@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
+from ..GlobalVal import NetField
 from shapely.geometry import Polygon
 from shapely.geometry import LineString
-from ..GlobalVal import NetField
 from ..WrapsFunc import function_time_cost
 
 
@@ -72,7 +72,7 @@ class Net(object):
         node_set = set(self.__node.get_node_data().index)
         link_node_set = set(self.__link.get_link_data()[net_field.FROM_NODE_FIELD]) | \
                         set(self.__link.get_link_data()[net_field.TO_NODE_FIELD])
-        assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录...'
+        assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
 
     @function_time_cost
     def init_net(self) -> None:

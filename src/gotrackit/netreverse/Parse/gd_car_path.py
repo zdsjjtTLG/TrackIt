@@ -18,14 +18,14 @@ from ..RoadNet.Split.SplitPath import split_path_main
 from ..PublicTools.IndexAna import find_continuous_repeat_index
 
 
-def parse_path_main_alpha(od_path_fldr: str = None, flag_name: str = None, restrict_region_gdf: gpd.GeoDataFrame = None,
+def parse_path_main_alpha(binary_path_fldr: str = None, flag_name: str = None, restrict_region_gdf: gpd.GeoDataFrame = None,
                           slice_num: int = 1, is_slice: bool = False, attr_name_list: list = None,
                           pickle_file_name_list: list = None, check_fldr: str = None,
                           ignore_head_tail: bool = True, check: bool = False, generate_rod: bool = False,
                           min_rod_length: float = 1.5) -> gpd.GeoDataFrame:
     """
     给定目录, 读取目录下的二进制路径文件(读取一个文件马上解析并且拆分最小路段按照坐标去重复), 解析为gpd.GeoDataFrame(), crs:epsg:4326
-    :param od_path_fldr: 二进制路径文件所在的目录
+    :param binary_path_fldr: 二进制路径文件所在的目录
     :param flag_name: str, 标志字符
     :param restrict_region_gdf: 区域GeoDataFrame
     :param slice_num: 切片数量
@@ -40,13 +40,13 @@ def parse_path_main_alpha(od_path_fldr: str = None, flag_name: str = None, restr
     :return:
     """
     if pickle_file_name_list is None:
-        pickle_file_name_list = os.listdir(od_path_fldr)
+        pickle_file_name_list = os.listdir(binary_path_fldr)
 
     q = 1
     all_split_link_gdf = gpd.GeoDataFrame()
     for file in pickle_file_name_list:
         try:
-            with open(os.path.join(od_path_fldr, file), 'rb') as f:
+            with open(os.path.join(binary_path_fldr, file), 'rb') as f:
                 _ = pickle.load(f)
             print(file)
             path_route_dict = {}
@@ -92,12 +92,12 @@ def parse_path_main_alpha(od_path_fldr: str = None, flag_name: str = None, restr
     return all_split_link_gdf
 
 
-def parse_path_main(od_path_fldr: str = None, out_type: str = 'dict', check_fldr: str = None,
+def parse_path_main(binary_path_fldr: str = None, out_type: str = 'dict', check_fldr: str = None,
                     pickle_file_name_list: list = None, ignore_head_tail: bool = True, check: bool = False,
                     generate_rod: bool = False, min_rod_length:float = 1.5):
     """
     给定目录, 读取目录下的二进制路径文件, 读一个文件就解析一次, 存在内存中, 然后返回(返回字典或者gdf)
-    :param od_path_fldr:
+    :param binary_path_fldr:
     :param check_fldr:
     :param out_type:
     :param pickle_file_name_list:
@@ -112,7 +112,7 @@ def parse_path_main(od_path_fldr: str = None, out_type: str = 'dict', check_fldr
     print(rf'按照指定文件名读取...')
     for file in pickle_file_name_list:
         try:
-            with open(os.path.join(od_path_fldr, file), 'rb') as f:
+            with open(os.path.join(binary_path_fldr, file), 'rb') as f:
                 _ = pickle.load(f)
             print(file)
             for k, v in _.items():
