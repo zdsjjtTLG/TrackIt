@@ -26,7 +26,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
                             ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                             execute_modify: bool = True, auxiliary_judge_field: str = None,
                             out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
-                            save_streets_after_modify_minimum: bool = False
+                            save_streets_after_modify_minimum: bool = False, net_file_type: str = 'shp',
                             ) -> \
         tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
@@ -43,6 +43,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
     :param out_fldr: 输出文件的存储目录
     :param save_streets_before_modify_minimum: 是否保存优化前的结果
     :param save_streets_after_modify_minimum: 是否保留最终结果
+    :param net_file_type: shp or geojson
     :return:
     """
     if save_streets_before_modify_minimum or save_streets_after_modify_minimum:
@@ -69,8 +70,8 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
                            origin_crs=origin_crs, plain_prj=plain_prj, fill_dir=fill_dir)
 
     if save_streets_before_modify_minimum:
-        save_file(data_item=link_gdf, file_type='shp', out_fldr=out_fldr, file_name='LinkBeforeModify')
-        save_file(data_item=node_gdf, file_type='shp', out_fldr=out_fldr, file_name='NodeBeforeModify')
+        save_file(data_item=link_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='LinkBeforeModify')
+        save_file(data_item=node_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='NodeBeforeModify')
 
     # 极小间隔点优化
     node_group_status_gdf = gpd.GeoDataFrame()
@@ -81,9 +82,10 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
                                                                    ignore_merge_rule=ignore_merge_rule)
 
     if save_streets_after_modify_minimum:
-        save_file(data_item=link_gdf, file_type='shp', out_fldr=out_fldr, file_name='LinkAfterModify')
-        save_file(data_item=node_gdf, file_type='shp', out_fldr=out_fldr, file_name='NodeAfterModify')
-        save_file(data_item=node_group_status_gdf, file_name='MergeNodeLabel', out_fldr=out_fldr, file_type='shp')
+        save_file(data_item=link_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='LinkAfterModify')
+        save_file(data_item=node_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='NodeAfterModify')
+        save_file(data_item=node_group_status_gdf, file_name='MergeNodeLabel', out_fldr=out_fldr,
+                  file_type=net_file_type)
 
     return link_gdf, node_gdf, node_group_status_gdf
 

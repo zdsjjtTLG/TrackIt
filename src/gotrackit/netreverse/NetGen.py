@@ -25,11 +25,14 @@ net_field = NetField()
 
 
 class Reverse(object):
-    def __init__(self, flag_name: str = '深圳市', plain_prj: str = None, net_out_fldr: str = None):
+    def __init__(self, flag_name: str = '深圳市', plain_prj: str = None, net_out_fldr: str = None,
+                 net_file_type: str = 'shp'):
         # overall
         self.flag_name = flag_name
         self.plain_prj = plain_prj
         self.net_out_fldr = net_out_fldr
+        assert net_file_type in ['shp', 'geojson']
+        self.net_file_type = net_file_type
 
 
 class NetReverse(Reverse):
@@ -42,7 +45,7 @@ class NetReverse(Reverse):
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
                  save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
-                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None):
+                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp'):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -50,7 +53,7 @@ class NetReverse(Reverse):
         :return:
         """
         # overall
-        super().__init__(flag_name, plain_prj, net_out_fldr)
+        super().__init__(flag_name, plain_prj, net_out_fldr, net_file_type)
 
         # split
         self.ignore_head_tail = ignore_head_tail
@@ -169,9 +172,9 @@ class NetReverse(Reverse):
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
                               out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
-                              save_streets_after_modify_minimum: bool = True) -> \
+                              save_streets_after_modify_minimum: bool = True, net_file_type: str = 'shp') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
-
+        assert net_file_type in ['shp', 'geojson']
         link_gdf, node_gdf, node_group_status_gdf = \
             generate_node_from_link(link_gdf=link_gdf,
                                     update_link_field_list=update_link_field_list,
@@ -182,6 +185,7 @@ class NetReverse(Reverse):
                                     execute_modify=execute_modify,
                                     auxiliary_judge_field=auxiliary_judge_field,
                                     out_fldr=out_fldr,
+                                    net_file_type=net_file_type,
                                     save_streets_after_modify_minimum=save_streets_after_modify_minimum,
                                     save_streets_before_modify_minimum=save_streets_before_modify_minimum)
         return link_gdf, node_gdf, node_group_status_gdf
@@ -206,8 +210,8 @@ class NetReverse(Reverse):
                                                      min_length=self.min_length,
                                                      dup_link_buffer_ratio=self.dup_link_buffer_ratio)
         if out_fldr is not None:
-            save_file(data_item=link_gdf, out_fldr=out_fldr, file_type='shp', file_name='opt_link')
-            save_file(data_item=node_gdf, out_fldr=out_fldr, file_type='shp', file_name='opt_node')
+            save_file(data_item=link_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_link')
+            save_file(data_item=node_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_node')
         return link_gdf, node_gdf, dup_info_dict
 
     def get_od_df(self) -> pd.DataFrame:
@@ -242,5 +246,6 @@ class NetReverse(Reverse):
                                  save_streets_after_modify_minimum=self.save_streets_after_modify_minimum,
                                  is_process_dup_link=self.is_process_dup_link,
                                  process_dup_link_buffer=self.process_dup_link_buffer,
-                                 dup_link_buffer_ratio=self.dup_link_buffer_ratio)
+                                 dup_link_buffer_ratio=self.dup_link_buffer_ratio,
+                                 net_file_type=self.net_file_type)
 

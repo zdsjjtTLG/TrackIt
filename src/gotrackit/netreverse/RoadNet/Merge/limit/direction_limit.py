@@ -94,11 +94,16 @@ def limit_direction(merged_df=None, origin_graph_degree_dict=None, link_df=None)
                             pass
                         else:
                             new_link_seq = [tuple(sorted(new_node_list[i: i + 2])) for i in range(0, len(new_node_list) - 1)]
-                            merged_df = merged_df._append({'link_seq': new_link_seq,
-                                                           'dir_list': [1] * len(new_link_seq)},
-                                                          ignore_index=True)
+                            try:
+                                merged_df = merged_df._append({'link_seq': new_link_seq,
+                                                               'dir_list': [1] * len(new_link_seq)},
+                                                              ignore_index=True)
+                            except:
+                                merged_df.loc[len(merged_df), :] = {'link_seq': new_link_seq,
+                                                                    'dir_list': [1] * len(new_link_seq)}
 
         merged_df['group'] = [x for x in range(1, len(merged_df) + 1)]
+        merged_df['group'] = merged_df['group'].astype(int)
         merged_df.drop(columns=['dir'], inplace=True, axis=1)
 
         # 重设索引

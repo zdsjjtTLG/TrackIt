@@ -30,12 +30,12 @@ from_node_id_field = net_field.FROM_NODE_FIELD
 def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  save_split_link: bool = False, plain_prj: str = 'EPSG:4326', save_tpr_link: bool = False,
                  save_streets_before_modify_minimum: bool = True, restrict_angle: bool = True,
-                 limit_col_name:str = 'road_name',
+                 limit_col_name: str = 'road_name',
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
                  save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
-                 dup_link_buffer_ratio: float = 60.0):
+                 dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp'):
     """
     路网逆向主程序, 输入拆分好且去重的path_gdf(EPSG:4326), output: EPSG:4326
     :param path_gdf:
@@ -58,6 +58,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param process_dup_link_buffer: 处理重叠link时的buffer取值
     :param dup_link_buffer_ratio:
     :param out_fldr: 输出路网的存储目录
+    :param net_file_type: shp or geojson
     :return:
     """
     if save_tpr_link or save_split_link or save_streets_before_modify_minimum or save_streets_after_modify_minimum:
@@ -66,7 +67,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     path_gdf_after_split = path_gdf
 
     if save_split_link:
-        save_file(data_item=path_gdf_after_split, out_fldr=out_fldr, file_name='path_split', file_type='shp')
+        save_file(data_item=path_gdf_after_split, out_fldr=out_fldr, file_name='path_split', file_type=net_file_type)
 
     # 2.生成拓扑关联
     print(rf'##########   {flag_name} - Generate Topological Associations')
@@ -80,6 +81,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                                 fill_dir=1,
                                 modify_minimum_buffer=modify_minimum_buffer,
                                 out_fldr=out_fldr,
+                                net_file_type=net_file_type,
                                 save_streets_before_modify_minimum=save_streets_before_modify_minimum,
                                 save_streets_after_modify_minimum=save_streets_after_modify_minimum)
     del path_gdf_after_split
@@ -93,8 +95,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     link_gdf = merge_double_link(link_gdf=link_gdf)
 
     if save_tpr_link:
-        save_file(data_item=link_gdf, out_fldr=out_fldr, file_name='TprLink', file_type='shp')
-        save_file(data_item=new_node, out_fldr=out_fldr, file_name='TprNode', file_type='shp')
+        save_file(data_item=link_gdf, out_fldr=out_fldr, file_name='TprLink', file_type=net_file_type)
+        save_file(data_item=new_node, out_fldr=out_fldr, file_name='TprNode', file_type=net_file_type)
 
     # 5.拓扑优化
     print(rf'##########   {flag_name} - Topology Optimization')
@@ -113,7 +115,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                                                                   min_length=min_length,
                                                                   dup_link_buffer_ratio=dup_link_buffer_ratio)
 
-    save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type='shp')
-    save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type='shp')
+    save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
+    save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)
     generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
 
