@@ -61,7 +61,6 @@ if __name__ == '__main__':
         # 做一次滑动窗口平均
         # gps_obj.rolling_average(window=2)
 
-
         # 依据当前的GPS数据(源数据)做一个子网络
         sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
 

@@ -47,6 +47,8 @@ class MarkovField(object):
         self.STRAIGHT_LENGTH = 'straight_l'
         self.DIS_GAP = 'dis_gap'
         self.PRJ_L = 'prj_dis'
+        self.PRJ_GEO = 'prj_geo'
+        self.DIS_TO_NEXT = 'dis_to_next'
 
 
 class KeplerConfig(object):

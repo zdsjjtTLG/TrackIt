@@ -30,7 +30,7 @@ def n_equal_points(n, from_loc: tuple = None, to_loc=None,
     line_length = line.length
 
     try:
-        dense_line = line.segmentize(line_length / (1.0 * n))
+        dense_line = segmentize(line=line, n=n)
     except AttributeError:
         raise AttributeError(r'请升级geopandas到最新版本0.14.1')
 
@@ -100,5 +100,39 @@ def calc_link_angle(link_geo1=None, link_geo2=None) -> float:
     return 180 * np.arccos(cos_res) / np.pi
 
 
+def segmentize(line: LineString = None, n: int = None) -> LineString:
+    """
+    将线对象line进行n等分加密
+    :param line: 直线
+    :param n:
+    :return:
+    """
+    coord_list = list(line.coords)
+    s, e = coord_list[0], coord_list[-1]
+    try:
+        k = (e[1] - s[1]) / (e[0] - s[0])
+    except ZeroDivisionError:
+        gap = line.length / n
+        return LineString([s] + [(s[0], s[1] + (i + 1) * gap) for i in range(n - 1)] + [e])
+
+    b = e[1] - k * e[0]
+    gap_x = (e[0] - s[0]) / n
+    return LineString([s] + [(s[0] + (i + 1) * gap_x, k * (s[0] + (i + 1) * gap_x) + b) for i in range(n - 1)] + [e])
+
+
 if __name__ == '__main__':
-    pass
+    import geopandas as gpd
+    import matplotlib.pyplot as plt
+
+    l = LineString([(0,0), (12, 90)])
+    p = gpd.GeoDataFrame({'geometry': [Point(item) for item in l.coords]}, geometry='geometry')
+    p.plot()
+    plt.show()
+
+    l_1 = segmentize(line=l, n=2)
+    print(len(list(l_1.coords)))
+    p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
+    p1.plot()
+    plt.show()
+
+

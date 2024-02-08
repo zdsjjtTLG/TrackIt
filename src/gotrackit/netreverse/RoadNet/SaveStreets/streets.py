@@ -13,6 +13,7 @@ from ..save_file import save_file
 from ...GlobalVal import NetField
 from shapely.geometry import Point
 from shapely.geometry import LineString
+from ....WrapsFunc import function_time_cost
 
 
 net_field = NetField()
@@ -90,6 +91,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
     return link_gdf, node_gdf, node_group_status_gdf
 
 
+@function_time_cost
 def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False,
                   origin_crs: str = 'EPSG:4326') -> gpd.GeoDataFrame:
     """
@@ -135,6 +137,7 @@ def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False
     return node_gdf
 
 
+@function_time_cost
 def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origin_crs='EPSG:4326',
                 plain_prj='EPSG:32650', fill_dir: int = 0) -> gpd.GeoDataFrame:
     """
@@ -196,6 +199,7 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     return link_gdf[link_required_field_list + non_required_col_list + [net_field.GEOMETRY_FIELD]]
 
 
+@function_time_cost
 def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = None,
                    link_gdf: gpd.GeoDataFrame = None, buffer: float = 1.0, auxiliary_judge_field: str = 'road_name',
                    ignore_merge_rule: bool = False) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:

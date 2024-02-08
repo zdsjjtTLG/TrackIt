@@ -775,6 +775,24 @@ GPS数据字段要求如下：
             vc.collect_hmm(hmm_obj)
 
 
+通过hmm_obj.acquire_res()获取的地图匹配的结果表字段含义为：
+
+
+.. csv-table:: 地图匹配结果表字段说明
+    :header: "字段名称", "字段含义", "字段类型"
+    :widths: 15, 15, 40
+
+    "seq","gps点的序列ID","int"
+    "sub_seq","gps点的子序列ID","int"
+    "geometry","gps点的几何对象","geometry"
+    "prj_geo","gps在匹配路段上投影点的几何对象","geometry"
+    "dis_to_pre","gps投影点与前序gps投影点的路径距离","float"
+    "time","gps定位时间","datetime"
+    "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
+    "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
+    "to_node","gps匹配路段的终到节点(表征行车方向起点)","int"
+
+
 相关类的参数和方法可参见：
 
 - :doc:`类方法汇总`

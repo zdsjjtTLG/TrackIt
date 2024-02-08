@@ -8,6 +8,7 @@ import geopandas as gpd
 from itertools import chain
 from ...GlobalVal import NetField
 from shapely.geometry import LineString
+from ....WrapsFunc import function_time_cost
 
 
 net_field = NetField()
@@ -26,6 +27,7 @@ required_field_list = [link_id_field, length_field, direction_field,
                        from_node_id_field, to_node_id_field, geometry_field]
 
 
+@function_time_cost
 def merge_double_link(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     """
     same crs as input
@@ -52,16 +54,19 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     link_gdf.drop(index=dup_link_index, axis=0, inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
 
-    merge_link_gdf = gpd.GeoDataFrame([], columns=list(dup_link_gdf.columns))
+    # merge_link_gdf = gpd.GeoDataFrame([], columns=list(dup_link_gdf.columns))
+    # for ft, df in dup_link_gdf.groupby('ft'):
+    #     # df必然有两条记录
+    #     assert len(df) == 2, 'df记录数有误......'
+    #     df.reset_index(inplace=True, drop=True)
+    #
+    #     attr_dict = {col: df.at[0, col] for col in list(df.columns)}
+    #     attr_dict[direction_field] = 0
+    #     merge_link_gdf.loc[len(merge_link_gdf), :] = attr_dict
 
-    for ft, df in dup_link_gdf.groupby('ft'):
-        # df必然有两条记录
-        assert len(df) == 2, 'df记录数有误......'
-        df.reset_index(inplace=True, drop=True)
-
-        attr_dict = {col: df.at[0, col] for col in list(df.columns)}
-        attr_dict[direction_field] = 0
-        merge_link_gdf.loc[len(merge_link_gdf), :] = attr_dict
+    merge_link_gdf = dup_link_gdf.drop_duplicates(subset=['ft'], keep='first').copy()
+    del dup_link_gdf
+    merge_link_gdf[direction_field] = 0
 
     merge_link_gdf.set_geometry(geometry_field, crs=origin_crs, inplace=True)
     link_gdf = pd.concat([link_gdf, merge_link_gdf])

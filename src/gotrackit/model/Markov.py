@@ -42,7 +42,7 @@ class HiddenMarkov(object):
         assert search_method in ['all_pairs', 'single'], 'search_method must in [\'all_pairs\', \'single\'] '
         self.search_method = search_method
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
-        self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float]] = dict()
+        self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float, float]] = dict()
         self.__adj_seq_path_dict: dict[tuple[int, int], list[int, int]] = dict()
         self.__ft_transition_dict = dict()
         self.__ft_mapping_dict = dict()
@@ -52,6 +52,7 @@ class HiddenMarkov(object):
         self.__solver = None
         self.index_state_list = None
         self.gps_match_res_gdf = None
+        # {(from_seq, to_seq): pd.DataFrame()}
         self.__s2s_route_l = dict()
         self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
 
@@ -264,6 +265,20 @@ class HiddenMarkov(object):
                                                                    net_field.FROM_NODE_FIELD,
                                                                    net_field.TO_NODE_FIELD])
         gps_link_state_df[gps_field.SUB_SEQ_FIELD] = 0
+
+        gps_link_state_df[markov_field.PRJ_GEO] = \
+            gps_link_state_df.apply(lambda item: self.__done_prj_dict[item[gps_field.POINT_SEQ_FIELD]][0], axis=1)
+
+        gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[
+            [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1)
+        gps_link_state_df.fillna(-99, inplace=True)
+        gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[['next_single', 'next_seq']].astype(int)
+        gps_link_state_df[markov_field.DIS_TO_NEXT] = \
+            gps_link_state_df.apply(
+                lambda item: self.__s2s_route_l[(item[gps_field.POINT_SEQ_FIELD], item['next_seq'])].at[
+                    (item[net_field.SINGLE_LINK_ID_FIELD],
+                     item['next_link']), markov_field.ROUTE_LENGTH] if item['next_link'] != -99 else np.nan, axis=1)
+
         del link_state_list
 
         # agent_id, seq
