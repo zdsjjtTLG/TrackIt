@@ -12,19 +12,13 @@ import datetime
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from datetime import timedelta
 from ..map.Net import Net
-
-# from gotrackit.map.Net import Net
-# from shapely.geometry import LineString, Point
-# from gotrackit.WrapsFunc import function_time_cost
-# from gotrackit.GlobalVal import GpsField, NetField
-# from gotrackit.tools.coord_trans import LngLatTransfer
-
-from shapely.geometry import LineString, Point
+from datetime import timedelta
 from ..WrapsFunc import function_time_cost
 from ..GlobalVal import GpsField, NetField
 from ..tools.coord_trans import LngLatTransfer
+from shapely.geometry import LineString, Point
+
 
 gps_field = GpsField()
 net_field = NetField()

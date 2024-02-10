@@ -102,7 +102,7 @@ def calc_link_angle(link_geo1=None, link_geo2=None) -> float:
 
 def segmentize(line: LineString = None, n: int = None) -> LineString:
     """
-    将线对象line进行n等分加密
+    将直线对象line进行n等分加密
     :param line: 直线
     :param n:
     :return:
@@ -117,7 +117,8 @@ def segmentize(line: LineString = None, n: int = None) -> LineString:
 
     b = e[1] - k * e[0]
     gap_x = (e[0] - s[0]) / n
-    return LineString([s] + [(s[0] + (i + 1) * gap_x, k * (s[0] + (i + 1) * gap_x) + b) for i in range(n - 1)] + [e])
+    sample_x_list = [s[0] + (i + 1) * gap_x for i in range(n - 1)]
+    return LineString([s] + [(sample_x, k * sample_x + b) for sample_x in sample_x_list] + [e])
 
 
 if __name__ == '__main__':
@@ -129,7 +130,7 @@ if __name__ == '__main__':
     p.plot()
     plt.show()
 
-    l_1 = segmentize(line=l, n=2)
+    l_1 = segmentize(line=l, n=12)
     print(len(list(l_1.coords)))
     p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
     p1.plot()

@@ -6,7 +6,6 @@
 """viterbi算法求解动态规划"""
 
 import numpy as np
-# from gotrackit.WrapsFunc import function_time_cost
 from ..WrapsFunc import function_time_cost
 
 

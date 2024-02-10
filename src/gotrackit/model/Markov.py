@@ -5,27 +5,21 @@
 
 """Markov Model Class"""
 
+import os.path
 import time
 import datetime
 import warnings
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from datetime import timedelta
-from shapely.geometry import Point
-# from gotrackit.map.Net import Net
-# from gotrackit.map.Net import NOT_CONN_COST
-# from gotrackit.solver.Viterbi import Viterbi
-# from gotrackit.gps.LocGps import GpsPointsGdf
-# from gotrackit.WrapsFunc import function_time_cost
-# from gotrackit.tools.geo_process import n_equal_points
-# from gotrackit.GlobalVal import NetField, GpsField, MarkovField
 from ..map.Net import Net
+from datetime import timedelta
 from ..map.Net import NOT_CONN_COST
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
 from ..WrapsFunc import function_time_cost
 from ..tools.geo_process import n_equal_points
+from shapely.geometry import Point, LineString
 from ..GlobalVal import NetField, GpsField, MarkovField
 
 gps_field = GpsField()
@@ -267,7 +261,8 @@ class HiddenMarkov(object):
         gps_link_state_df[gps_field.SUB_SEQ_FIELD] = 0
 
         gps_link_state_df[markov_field.PRJ_GEO] = \
-            gps_link_state_df.apply(lambda item: self.__done_prj_dict[item[gps_field.POINT_SEQ_FIELD]][0], axis=1)
+            gps_link_state_df.apply(lambda item: self.__done_prj_dict[(item[gps_field.POINT_SEQ_FIELD],
+                                                                       item[net_field.SINGLE_LINK_ID_FIELD])][0], axis=1)
 
         gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[
             [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1)
@@ -277,7 +272,7 @@ class HiddenMarkov(object):
             gps_link_state_df.apply(
                 lambda item: self.__s2s_route_l[(item[gps_field.POINT_SEQ_FIELD], item['next_seq'])].at[
                     (item[net_field.SINGLE_LINK_ID_FIELD],
-                     item['next_link']), markov_field.ROUTE_LENGTH] if item['next_link'] != -99 else np.nan, axis=1)
+                     item['next_single']), markov_field.ROUTE_LENGTH] if item['next_single'] != -99 else np.nan, axis=1)
 
         del link_state_list
 
@@ -425,6 +420,7 @@ class HiddenMarkov(object):
 
             # 匹配路段GDF
             plot_match_link_gdf = self.gps_match_res_gdf.copy()
+            plot_match_link_gdf.drop(columns=[markov_field.PRJ_GEO], axis=1, inplace=True)
             plot_match_link_gdf[gps_field.TYPE_FIELD] = 'link'
             plot_match_link_gdf[net_field.GEOMETRY_FIELD] = plot_match_link_gdf[net_field.LINK_ID_FIELD].apply(
                 lambda x: double_link_geo[x])
@@ -461,11 +457,56 @@ class HiddenMarkov(object):
         else:
             return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf
 
-    def get_final_match_res(self):
+    def acquire_geo_res(self, out_fldr: str = None, flag_name: str = 'flag'):
+        """获取矢量结果文件, 可以在qgis中可视化"""
         if self.gps_match_res_gdf is None:
             self.acquire_res()
 
-        return self.gps_match_res_gdf.copy()
+        # gps
+        gps_layer = self.gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
+                                            gps_field.GEOMETRY_FIELD]].copy()
+        gps_layer = gps_layer.to_crs(self.net.geo_crs)
+
+        # prj_point
+        prj_p_layer = self.gps_match_res_gdf[
+            [gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+             net_field.TO_NODE_FIELD, markov_field.DIS_TO_NEXT, markov_field.PRJ_GEO, gps_field.GEOMETRY_FIELD]].copy()
+        prj_p_layer.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
+
+        prj_p_layer['__geo'] = prj_p_layer.apply(
+            lambda item: LineString((item[gps_field.GEOMETRY_FIELD], item[markov_field.PRJ_GEO])), axis=1)
+
+        # prj_line
+        prj_l_layer = prj_p_layer[['__geo']].copy()
+        prj_l_layer.rename(columns={'__geo': gps_field.GEOMETRY_FIELD}, inplace=True)
+        prj_l_layer = gpd.GeoDataFrame(prj_l_layer, geometry=gps_field.GEOMETRY_FIELD, crs=prj_p_layer.crs)
+
+        prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=prj_p_layer.crs)
+        prj_p_layer.drop(columns=['__geo', gps_field.GEOMETRY_FIELD], axis=1, inplace=True)
+
+        prj_l_layer = prj_l_layer.to_crs(self.net.geo_crs)
+        prj_p_layer = prj_p_layer.to_crs(self.net.geo_crs)
+
+        # match_link
+        match_link_gdf = self.gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
+                                                net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                                                net_field.TO_NODE_FIELD]].copy()
+        match_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                                               net_field.TO_NODE_FIELD], keep='first', inplace=True)
+        match_link_gdf.reset_index(inplace=True, drop=True)
+        match_link_gdf = pd.merge(match_link_gdf,
+                                  self.net.get_link_data()[[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                                                            net_field.TO_NODE_FIELD, net_field.GEOMETRY_FIELD]],
+                                  on=[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+                                      net_field.TO_NODE_FIELD],
+                                  how='left')
+        match_link_gdf = gpd.GeoDataFrame(match_link_gdf, geometry=net_field.GEOMETRY_FIELD, crs=self.net.crs)
+
+        match_link_gdf = match_link_gdf.to_crs(self.net.geo_crs)
+
+        for gdf, name in zip([gps_layer, prj_p_layer, prj_l_layer, match_link_gdf],
+                             ['gps', 'prj_p', 'prj_l', 'match_link']):
+            gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
 
 
 if __name__ == '__main__':
