@@ -11,11 +11,13 @@ from ..WrapsFunc import function_time_cost
 
 class Viterbi(object):
     def __init__(self, observation_list: list[int], t_mat_dict: dict[int, np.ndarray] = None,
-                 o_mat_dict: dict[int, np.ndarray] = None):
+                 o_mat_dict: dict[int, np.ndarray] = None, use_log_p: bool = True):
         """
         :param t_mat_dict: 存储每个观测点到下一观测点(相邻观测点)之间的状态转移概率矩阵
         :param o_mat_dict: 存储每个观测点的观测概率矩阵
+        :param use_log_p: 是否使用对数概率
         """
+        self.use_log_p = use_log_p
         self.o_seq_list = observation_list  # 观测序列值(GPS数据的seq值, 值不一定连续, 但是一定递增)
         self.T = len(observation_list)  # 获取观测点数目
         assert self.T > 1, '至少2个观测点'
@@ -50,7 +52,11 @@ class Viterbi(object):
         # 初始观测概率矩阵
         init_b = self.BMat[self.o_seq_list[0]]
 
-        self.zeta_array_dict[self.o_seq_list[0]] = (1 / init_n) * init_b
+        if self.use_log_p:
+            self.zeta_array_dict[self.o_seq_list[0]] = np.log((1 / init_n) * init_b.astype(float))
+        else:
+            self.zeta_array_dict[self.o_seq_list[0]] = (1 / init_n) * init_b
+
         # print(rf'初始化后:{self.zeta_array_dict[0]}')
 
     @function_time_cost
@@ -64,7 +70,17 @@ class Viterbi(object):
             # self.zeta_array_dict[self.o_seq_list[i]].T * self.AMat[self.o_seq_list[i]] 是一个m * n的矩阵
             # self.BMat[self.o_seq_list[i + 1]]是一个n * 1的矩阵
             # m是i观测点的可选状态数, n是i+1观测点的可选状态数
-            t = self.zeta_array_dict[self.o_seq_list[i]].T * self.AMat[self.o_seq_list[i]] * self.BMat[self.o_seq_list[i + 1]]
+
+            # t = self.zeta_array_dict[self.o_seq_list[i]].T * self.AMat[self.o_seq_list[i]] * self.BMat[self.o_seq_list[i + 1]]
+            # check_t = np.log(t.astype(np.float32))
+            # temp_t = np.log(self.zeta_array_dict[self.o_seq_list[i]].T.astype(np.float32)) + \
+            #          np.log(self.AMat[self.o_seq_list[i]].astype(np.float32)) + \
+            #          np.log(self.BMat[self.o_seq_list[i + 1]].astype(np.float32))
+            # print(temp_t)
+
+            t = self.calc_zeta_p(zeta_now_array=self.zeta_array_dict[self.o_seq_list[i]].T,
+                                 a_now_array=self.AMat[self.o_seq_list[i]],
+                                 b_next_array=self.BMat[self.o_seq_list[i + 1]], use_log=self.use_log_p)
 
             # 找出当前每种状态的最大值, last_state_index是一个 n * 1的矩阵
             last_state_index = np.argmax(t, axis=0)
@@ -90,6 +106,16 @@ class Viterbi(object):
                 state_list.append(last_max_state)
         state_list = state_list[::-1]
         return state_list
+
+    @staticmethod
+    def calc_zeta_p(zeta_now_array: np.ndarray = None,
+                    a_now_array: np.ndarray = None,
+                    b_next_array: np.ndarray = None, use_log: bool = True) -> np.ndarray:
+        if use_log:
+            return zeta_now_array.astype(np.float32) + np.log(a_now_array.astype(np.float32)) + \
+                np.log(b_next_array.astype(np.float32))
+        else:
+            return zeta_now_array * a_now_array * b_next_array
 
 
 if __name__ == '__main__':

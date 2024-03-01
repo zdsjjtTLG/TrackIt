@@ -121,19 +121,51 @@ def segmentize(line: LineString = None, n: int = None) -> LineString:
     return LineString([s] + [(sample_x, k * sample_x + b) for sample_x in sample_x_list] + [e])
 
 
+def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString]]:
+    """
+    # 返回 某point到line的(投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
+    :param p:
+    :param line:
+    :return: (投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
+    """
+
+    distance = line.project(p)
+
+    if distance <= 0.0:
+        prj_p = Point(list(line.coords)[0])
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)]
+    elif distance >= line.length:
+        prj_p = Point(list(line.coords)[-1])
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)]
+    else:
+        coords = list(line.coords)
+        for i, _p in enumerate(coords):
+            xd = line.project(Point(_p))
+            if xd == distance:
+                prj_p = Point(coords[i])
+                return prj_p, prj_p.distance(p), distance, line.length, \
+                    [LineString(coords[:i + 1]), LineString(coords[i:])]
+            if xd > distance:
+                cp = line.interpolate(distance)
+                prj_p = Point((cp.x, cp.y))
+                return prj_p, prj_p.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
+                                                                         LineString([(cp.x, cp.y)] + coords[i:])]
+
+
 if __name__ == '__main__':
-    import geopandas as gpd
-    import matplotlib.pyplot as plt
-
-    l = LineString([(0,0), (12, 90)])
-    p = gpd.GeoDataFrame({'geometry': [Point(item) for item in l.coords]}, geometry='geometry')
-    p.plot()
-    plt.show()
-
-    l_1 = segmentize(line=l, n=12)
-    print(len(list(l_1.coords)))
-    p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
-    p1.plot()
-    plt.show()
+    pass
+    # import geopandas as gpd
+    # import matplotlib.pyplot as plt
+    #
+    # l = LineString([(0,0), (12, 90)])
+    # p = gpd.GeoDataFrame({'geometry': [Point(item) for item in l.coords]}, geometry='geometry')
+    # p.plot()
+    # plt.show()
+    #
+    # l_1 = segmentize(line=l, n=12)
+    # print(len(list(l_1.coords)))
+    # p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
+    # p1.plot()
+    # plt.show()
 
 

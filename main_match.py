@@ -4,13 +4,6 @@
 # @Team    : ZheChengData
 
 import geopandas as gpd
-import pandas as pd
-# from gotrackit.map.Net import Net
-# from gotrackit.gps.LocGps import GpsPointsGdf
-# from gotrackit.model.Markov import HiddenMarkov
-# from gotrackit.GlobalVal import NetField, GpsField
-# from gotrackit.visualization import VisualizationCombination
-
 from src.gotrackit.map.Net import Net
 from src.gotrackit.gps.LocGps import GpsPointsGdf
 from src.gotrackit.model.Markov import HiddenMarkov
@@ -33,11 +26,10 @@ if __name__ == '__main__':
     my_net.init_net()
 
     # 3.读取GPS文件
-    gps_df = gpd.read_file(r'./data/output/gps/test125.geojson')
-    # gps_df = pd.read_csv(r'./data/output/gps/sz_gps.csv')
-    # gps_df.rename(columns={'longitude': gps_field.LNG_FIELD,
-    #                        'latitude': gps_field.LAT_FIELD, }, inplace=True)
+    gps_file = 'test125'
+    gps_df = gpd.read_file(rf'./data/output/gps/{gps_file}.geojson')
     print(gps_df)
+
     # 4.初始化一个匹配结果管理器
     vc = VisualizationCombination(use_gps_source=True)
 
@@ -53,7 +45,7 @@ if __name__ == '__main__':
         gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format="%Y-%m-%d %H:%M:%S", buffer=90.0,
                                geo_crs=geo_crs, plane_crs=plain_crs, max_increment_times=1)
         # 降频处理
-        # gps_obj.lower_frequency(n=2)
+        gps_obj.lower_frequency(n=2)
         # gps_obj.lower_frequency(n=9)
 
         # 做一次滑动窗口平均
@@ -63,13 +55,13 @@ if __name__ == '__main__':
         sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=110.0))
 
         # 初始化一个隐马尔可夫模型
-        hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0, search_method='single')
+        hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)
         hmm_obj.generate_markov_para()
         hmm_obj.solve()
 
         x = hmm_obj.acquire_res()
 
-        hmm_obj.acquire_geo_res(out_fldr=r'./data/output/match_visualization/', flag_name='test')
+        hmm_obj.acquire_geo_res(out_fldr=r'./data/output/match_visualization/', flag_name=gps_file)
 
         print(x[['seq', 'sub_seq', 'origin_seq']])
         print(x.columns)
@@ -78,5 +70,5 @@ if __name__ == '__main__':
         vc.collect_hmm(hmm_obj)
 
     vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/',
-                     file_name='test125')
+                     file_name=gps_file)
 

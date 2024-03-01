@@ -52,12 +52,12 @@ if __name__ == '__main__':
     loc_error_sigma = 30.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
-    k = 16
+    k = 99
     # 开始行车
     for car_id in [rf'xa_car_{i}' for i in range(k, k + 1)]:
         # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route,
-                  agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
+                  agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,save_log=True,
                   loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
                   start_time=datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0),
                   save_gap=save_gap)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    tra_name = 'test126'
+    tra_name = 'test999'
     trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/',
                                               file_name=tra_name)
     gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name=tra_name)

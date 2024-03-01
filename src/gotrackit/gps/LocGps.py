@@ -9,6 +9,7 @@ import datetime
 import pandas as pd
 import geopandas as gpd
 from ..map.Net import Net
+from ..tools.geo_process import prj_inf
 from ..GlobalVal import GpsField, NetField
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Point, Polygon, LineString
@@ -67,6 +68,7 @@ class GpsPointsGdf(object):
                 gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
             set(self.__gps_points_gdf.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
+
     def lower_frequency(self, n: int = 5):
         """
         GPS数据降频
@@ -260,28 +262,30 @@ class GpsPointsGdf(object):
         # 返回 (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         :param gps_point:
         :param line:
-        :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离)
+        :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         """
+        prj_p, p_prj_l, prj_route_l, line_length, _ = prj_inf(p=gps_point, line=line)
+        return prj_p, p_prj_l, prj_route_l, line_length
 
-        distance = line.project(gps_point)
-
-        if distance <= 0.0:
-            prj_p = Point(list(line.coords)[0])
-            return prj_p, prj_p.distance(gps_point), distance, line.length
-        elif distance >= line.length:
-            prj_p = Point(list(line.coords)[-1])
-            return prj_p, prj_p.distance(gps_point), distance, line.length
-        else:
-            coords = list(line.coords)
-            for i, p in enumerate(coords):
-                xd = line.project(Point(p))
-                if xd == distance:
-                    prj_p = Point(coords[i])
-                    return prj_p, prj_p.distance(gps_point), distance, line.length
-                if xd > distance:
-                    cp = line.interpolate(distance)
-                    prj_p = Point((cp.x, cp.y))
-                    return prj_p, prj_p.distance(gps_point), distance, line.length
+        # distance = line.project(gps_point)
+        #
+        # if distance <= 0.0:
+        #     prj_p = Point(list(line.coords)[0])
+        #     return prj_p, prj_p.distance(gps_point), distance, line.length
+        # elif distance >= line.length:
+        #     prj_p = Point(list(line.coords)[-1])
+        #     return prj_p, prj_p.distance(gps_point), distance, line.length
+        # else:
+        #     coords = list(line.coords)
+        #     for i, p in enumerate(coords):
+        #         xd = line.project(Point(p))
+        #         if xd == distance:
+        #             prj_p = Point(coords[i])
+        #             return prj_p, prj_p.distance(gps_point), distance, line.length
+        #         if xd > distance:
+        #             cp = line.interpolate(distance)
+        #             prj_p = Point((cp.x, cp.y))
+        #             return prj_p, prj_p.distance(gps_point), distance, line.length
 
     @property
     def gps_list_length(self) -> int:

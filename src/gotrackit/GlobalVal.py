@@ -35,6 +35,8 @@ class GpsField(object):
         self.TYPE_FIELD = 'type'
         self.NEXT_LINK_FIELD = 'next_link'
         self.GEOMETRY_FIELD = 'geometry'
+        self.FROM_GPS_SEQ = 'from_seq'
+        self.TO_GPS_SEQ = 'to_seq'
 
 
 class MarkovField(object):
@@ -42,6 +44,8 @@ class MarkovField(object):
     def __init__(self):
         self.FROM_STATE = 'from_state'
         self.TO_STATE = 'to_state'
+        self.FROM_STATE_N = 'from_state_node'
+        self.TO_STATE_N = 'to_state_node'
         self.ROUTE_LENGTH = 'route_l'
         self.ROUTE_ITEM = 'route_item'
         self.STRAIGHT_LENGTH = 'straight_l'

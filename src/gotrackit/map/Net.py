@@ -4,21 +4,31 @@
 # @Team    : ZheChengData
 
 """
-路网的信息存储与相关方法
+路网信息存储与相关方法
 """
 
-import numpy as np
 import pandas as pd
+from .Link import Link
+from .Node import Node
 import networkx as nx
 import geopandas as gpd
 from ..GlobalVal import NetField
-from shapely.geometry import Polygon
 from shapely.geometry import LineString
+from ..tools.geo_process import prj_inf
+from ..tools.save_file import save_file
 from ..WrapsFunc import function_time_cost
+from shapely.geometry import Polygon, Point
 
 
 NOT_CONN_COST = 200.0
 net_field = NetField()
+
+link_id_field = net_field.LINK_ID_FIELD
+dir_field = net_field.DIRECTION_FIELD
+from_node_field = net_field.FROM_NODE_FIELD
+to_node_field = net_field.TO_NODE_FIELD
+length_field = net_field.LENGTH_FIELD
+geometry_field = net_field.GEOMETRY_FIELD
 
 
 class Net(object):
@@ -27,7 +37,7 @@ class Net(object):
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
                  geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,
-                 is_check: bool = True):
+                 is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra'):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -37,12 +47,18 @@ class Net(object):
         :param weight_field: 搜路权重字段
         :param geo_crs:  地理坐标系
         :param plane_crs: 平面投影坐标系
+        :param create_single: 是否在初始化的时候创建single层
+        :param search_method:
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
+
         """
         self.geo_crs = geo_crs
+        self.search_method = search_method
         self.plane_crs = plane_crs
         self.weight_field = weight_field
         self.all_pair_path_df = pd.DataFrame()
+        self.__stp_cache = dict()
+        self.__done_path_cost = dict()
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, geo_crs=self.geo_crs,
                                plane_crs=self.plane_crs, is_check=is_check)
@@ -50,14 +66,17 @@ class Net(object):
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, geo_crs=self.geo_crs,
                                plane_crs=self.plane_crs, is_check=is_check)
         if not init_from_existing:
-            self.__link.init_link()
+            if create_single:
+                self.__link.init_link()
         else:
-            self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
+            if create_single:
+                self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check)
+            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, plane_crs=self.plane_crs,
+                               geo_crs=self.geo_crs)
         else:
-            self.__node = Node(node_gdf=node_gdf, is_check=is_check)
+            self.__node = Node(node_gdf=node_gdf, is_check=is_check, plane_crs=self.plane_crs, geo_crs=self.geo_crs)
         if not init_from_existing:
             self.__node.init_node()
         else:
@@ -70,40 +89,74 @@ class Net(object):
     def check(self) -> None:
         """检查点层线层的关联一致性"""
         node_set = set(self.__node.get_node_data().index)
-        link_node_set = set(self.__link.get_link_data()[net_field.FROM_NODE_FIELD]) | \
-                        set(self.__link.get_link_data()[net_field.TO_NODE_FIELD])
+        link_node_set = set(self.__link.get_bilateral_link_data()[net_field.FROM_NODE_FIELD]) | \
+                        set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
 
     @function_time_cost
     def init_net(self) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
 
-    def get_shortest_path_length(self, o_node=1, d_node=2) -> tuple[list, float]:
-        return self.__link.get_shortest_path_length(o_node=o_node, d_node=d_node)
-    @function_time_cost
-    def calc_all_pairs_shortest_path(self) -> None:
-        all_pair_path = nx.all_pairs_shortest_path(self.__link.get_graph())
-        z = dict(all_pair_path)
-        all_pair_path_df = pd.DataFrame(z)
-        all_pair_path_df = pd.DataFrame(all_pair_path_df.stack())
-        all_pair_path_df.rename(columns={0: net_field.NODE_PATH_FIELD}, inplace=True)
-        self.all_pair_path_df = all_pair_path_df
+    def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
+        """
+
+        :param o_node:
+        :param d_node:
+        :return:
+        """
+        return self.get_od_cost(o_node=o_node, d_node=d_node)
 
     def get_od_cost(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
-        try:
-            node_path = self.all_pair_path_df.at[(d_node, o_node), net_field.NODE_PATH_FIELD]
-        except KeyError:
-            return [], NOT_CONN_COST
+        """
 
-        path_cost = [self.get_link_attr_by_ft(attr_name=self.weight_field, from_node=node_path[i],
-                                              to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
-        return node_path, sum(path_cost)
+        :param o_node:
+        :param d_node:
+        :return:
+        """
 
-    def search(self, o_node: int = None, d_node: int = None, search_method: str = None) -> tuple[list, float]:
-        if search_method == 'all_pairs':
-            return self.get_od_cost(o_node=o_node, d_node=d_node)
-        elif search_method == 'single':
-            return self.get_shortest_path_length(o_node=o_node, d_node=d_node)
+        if o_node in self.__stp_cache.keys():
+            try:
+                node_path = self.__stp_cache[o_node][d_node]
+                cost = self.__done_path_cost[o_node][d_node]
+            except KeyError:
+                return [], NOT_CONN_COST
+        else:
+            self.calc_shortest_path(source=o_node, method=self.search_method)
+            try:
+                node_path = self.__stp_cache[o_node][d_node]
+                cost = self.__done_path_cost[o_node][d_node]
+            except KeyError:
+                return [], NOT_CONN_COST
+
+        return node_path, cost
+
+    def get_shortest_path_length(self, o_node=1, d_node=2) -> tuple[list, float]:
+        """
+
+        :param o_node:
+        :param d_node:
+        :return:
+        """
+        return self.__link.get_shortest_path_length(o_node=o_node, d_node=d_node)
+
+    def calc_shortest_path(self, source: int = None, method: str = 'dijkstra') -> None:
+        if source in self.__stp_cache.keys():
+            pass
+        else:
+            try:
+                self.__done_path_cost[source], self.__stp_cache[source] = self._single_source_path(
+                    self.__link.get_graph(), source=source,
+                    method=method, weight_field=self.weight_field)
+            except nx.NetworkXNoPath:
+                pass
+
+    @staticmethod
+    def _single_source_path(g: nx.DiGraph = None, source: int = None, method: str = 'dijkstra',
+                            weight_field: str = None) -> tuple[dict[int, int], dict[int, list]]:
+        if method == 'dijkstra':
+            return nx.single_source_dijkstra(g, source, weight=weight_field)
+        else:
+            return nx.single_source_bellman_ford(g, source, weight=weight_field)
 
     def get_rnd_shortest_path(self) -> list[int]:
         return self.__link.get_rnd_shortest_path()
@@ -120,8 +173,17 @@ class Net(object):
     def get_node_data(self) -> gpd.GeoDataFrame:
         return self.__node.get_node_data()
 
+    def get_node_geo(self, node_id: int = None) -> Point:
+        return self.__node.get_node_geo(node_id)
+
+    def get_bilateral_link_data(self) -> gpd.GeoDataFrame:
+        return self.__link.get_bilateral_link_data()
+
     def get_link_geo(self, link_id: int = None) -> LineString:
         return self.__link.get_link_geo(link_id=link_id)
+
+    def get_link_geo_by_bilateral_link(self, link_id: int = None) -> LineString:
+        return self.__link.get_link_geo_by_bilateral_link(link_id)
 
     def get_link_from_to(self, link_id: int = None) -> tuple[int, int]:
         return self.__link.get_link_from_to(link_id=link_id)
@@ -156,9 +218,21 @@ class Net(object):
         else:
             return False
 
+    def del_nodes(self, node_list: list[int] = None) -> None:
+        self.__node.delete_nodes(node_list)
+
     @property
     def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
         return self.__link.bilateral_unidirectional_mapping
+
+    @property
+    def link_ft_map(self) -> dict[int, tuple[int, int]]:
+        return self.__link.link_ft_map
+
+    @property
+    def available_link_id(self) -> int:
+        return self.__link.available_link_id
+
     def get_ft_node_link_mapping(self):
         return self.__link.get_ft_link_mapping()
 
@@ -180,256 +254,80 @@ class Net(object):
         sub_net = Net(link_gdf=sub_single_link_gdf,
                       node_gdf=sub_node_gdf,
                       weight_field=self.weight_field,
-                      geo_crs=self.geo_crs, plane_crs=self.plane_crs, init_from_existing=True, is_check=False)
+                      geo_crs=self.geo_crs, plane_crs=self.plane_crs, init_from_existing=True, is_check=False,
+                      search_method=self.search_method)
         sub_net.init_net()
         return sub_net
 
-class Link(object):
-    def __init__(self, link_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
-                 weight_field: str = None, is_check: bool = True):
-
-        self.geo_crs = geo_crs
-        self.plane_crs = plane_crs
-        self.link_gdf = link_gdf
-        for col in [net_field.DIRECTION_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]:
-            link_gdf[col] = link_gdf[col].astype(int)
-        self.weight_field = weight_field
-        if is_check:
-            self.check()
-        self.__single_link_gdf = gpd.GeoDataFrame()
-        self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
-        self.__ft_link_mapping:dict[tuple[int, int], int] = dict()
-        self.__graph = nx.DiGraph()
-        self.__one_out_degree_nodes = None
-
-    def check(self):
-        gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
-                   net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
-                   net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
-        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
-        assert len(self.link_gdf[net_field.LINK_ID_FIELD]) == len(self.link_gdf[net_field.LINK_ID_FIELD].unique()), \
-            rf'字段{net_field.LINK_ID_FIELD}不唯一...'
-        assert set(self.link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), \
-            rf'{net_field.DIRECTION_FIELD}字段值只能为0或者1'
-        for col in [net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
-                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
-            assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
-            self.link_gdf[col] = self.link_gdf[col].astype(int)
-        assert self.link_gdf.crs == self.geo_crs, rf'源文件Link:地理坐标系指定有误:实际:{self.link_gdf.crs}, 指定: {self.geo_crs}'
-
-    def init_link(self):
-        """
-        初始化Link, 这里会创建一个single层的link, 并将single_link设置为索引
-        :return:
-        """
-        self.create_single_link(link_gdf=self.link_gdf)
-        self.__single_link_gdf.set_index(net_field.SINGLE_LINK_ID_FIELD, inplace=True)
-        self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
-
-    def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):
-        """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
-        self.__single_link_gdf = single_link_gdf.copy()
-        self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
-                                        single_link_id, link_id, direction, f, t in
-                                        zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.DIRECTION_FIELD],
-                                            self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                            self.__single_link_gdf[net_field.TO_NODE_FIELD])}
-        self.__ft_link_mapping = {(f, t): single_link for f, t, single_link in
-                                  zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.TO_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
-
-    def create_single_link(self, link_gdf:gpd.GeoDataFrame):
-        """
-        基于原来路网创建单向路网, 并且建立映射表
-        :return:
-        """
-        link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
-        neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
-        if neg_link.empty:
-            self.__single_link_gdf = link_gdf.copy()
-        else:
-            neg_link[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]] = neg_link[
-                [net_field.TO_NODE_FIELD, net_field.FROM_NODE_FIELD]]
-            neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
-                lambda line_geo: LineString(list(line_geo.coords)[::-1]))
-            self.__single_link_gdf = pd.concat([link_gdf, neg_link])
-            self.__single_link_gdf.reset_index(inplace=True, drop=True)
-        self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
-        self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
-                                        single_link_id, link_id, direction, f, t in
-                                        zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.DIRECTION_FIELD],
-                                            self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                            self.__single_link_gdf[net_field.TO_NODE_FIELD])}
-        self.__ft_link_mapping = {(f, t): single_link for f, t, single_link in
-                                  zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.TO_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
-
-    def create_graph(self, weight_field: str = None):
-        """
-        创建有向图
-        :return:
-        """
-        edge_list = [(f, t, {weight_field: l}) for f, t, l in
-                     zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                         self.__single_link_gdf[net_field.TO_NODE_FIELD],
-                         self.__single_link_gdf[weight_field])]
-        self.__graph.add_edges_from(edge_list)
-
-    def get_graph(self):
-        return self.__graph
-
-    def get_shortest_path_length(self, o_node=None, d_node=None) -> tuple[list, float]:
-        """
-        获取两个节点之间的最短路径和开销
-        :param o_node:
-        :param d_node:
-        :return: ([12,13, ...], 263.33)
-        """
-        try:
-            node_path = nx.dijkstra_path(self.__graph, o_node, d_node, weight=self.weight_field)
-            cost_list = [self.get_link_attr_by_ft(attr_name=self.weight_field, from_node=node_path[i],
-                                                  to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
-            return node_path, sum(cost_list)
-        except nx.NetworkXNoPath as e:
-            return [], NOT_CONN_COST
-
-    def get_shortest_path(self, o_node=None, d_node=None, weight_field: str = None):
-        used_weight = weight_field
-        if used_weight is None:
-            used_weight = self.weight_field
-        try:
-            node_seq = nx.dijkstra_path(self.__graph, o_node, d_node, weight=used_weight)
-            return node_seq
-        except nx.NetworkXNoPath as e:
-            raise nx.NetworkXNoPath
-
-    @function_time_cost
-    def get_rnd_shortest_path(self) -> list[int]:
-        rnd_node = list(self.get_link_data()[net_field.FROM_NODE_FIELD].sample(n=1))[0]
-        path_dict = nx.single_source_shortest_path(self.__graph, rnd_node)
-        targets = list(path_dict.keys())
-        return path_dict[targets[np.random.randint(len(targets))]]
-
-    def get_link_data(self):
-        return self.__single_link_gdf.copy()
-
-    def get_link_attr_by_ft(self, attr_name: str = None, from_node: int = None, to_node: int = None):
-        """
-        通过(from_node, to_node)索引link属性
-        :param attr_name:
-        :param from_node:
-        :param to_node:
-        :return:
-        """
-        return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], attr_name]
-
-    @DeprecationWarning
-    def one_out_degree_nodes(self) -> list[int]:
-        """只有一个出度的节点集合"""
-        if self.__one_out_degree_nodes is None:
-            in_degree_df = pd.DataFrame(self.__graph.in_degree(), columns=[net_field.NODE_ID_FIELD, 'in_degree'])
-            out_degree_df = pd.DataFrame(self.__graph.out_degree(), columns=[net_field.NODE_ID_FIELD, 'out_degree'])
-            self.__one_out_degree_nodes = list(
-                set(in_degree_df[(in_degree_df['in_degree'] == 0)][net_field.NODE_ID_FIELD]) & \
-                set(out_degree_df[(out_degree_df['out_degree'] == 1)][
-                        net_field.NODE_ID_FIELD]))
-            return self.__one_out_degree_nodes
-
-        return self.__one_out_degree_nodes
-
-    def get_link_geo(self, link_id: int = None) -> LineString:
-        return self.__single_link_gdf.at[link_id, 'geometry']
-
-    def get_link_from_to(self, link_id: int = None) -> tuple[int, int]:
-        return self.__single_link_gdf.at[link_id, net_field.FROM_NODE_FIELD], self.__single_link_gdf.at[
-            link_id, net_field.TO_NODE_FIELD]
-
-    def get_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
-        return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], net_field.GEOMETRY_FIELD]
-
-    def get_ft_link_mapping(self) -> dict[tuple[int, int], int]:
-        return self.__ft_link_mapping
-
-    def to_plane_prj(self) -> None:
-        if self.__single_link_gdf.crs == self.plane_crs:
-            pass
-        else:
-            self.__single_link_gdf = self.__single_link_gdf.to_crs(self.plane_crs)
-
-    def to_geo_prj(self) -> None:
-        if self.__single_link_gdf.crs == self.geo_crs:
-            pass
-        else:
-            self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
     @property
-    def crs(self):
-        return self.__single_link_gdf.crs
+    def graph(self) -> nx.DiGraph:
+        return self.__link.get_graph()
 
-    @property
-    def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
-        return self.__double_single_mapping
-
-
-class Node(object):
-    def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
-                 is_check: bool = True):
-        self.geo_crs = geo_crs
-        self.plane_crs = plane_crs
-        self.__node_gdf = node_gdf
-        if is_check:
-            self.check()
-
-    def check(self):
-        gap_set = {net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD} - set(self.__node_gdf.columns)
-        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
-        assert len(self.__node_gdf[net_field.NODE_ID_FIELD]) == len(self.__node_gdf[net_field.NODE_ID_FIELD].unique()), \
-            rf'字段{net_field.NODE_ID_FIELD}不唯一...'
-        for col in [net_field.NODE_ID_FIELD]:
-            assert len(self.__node_gdf[self.__node_gdf[col].isna()]) == 0, rf'点层Node字段{col}有空值...'
-            self.__node_gdf[col] = self.__node_gdf[col].astype(int)
-        assert self.__node_gdf.crs == self.geo_crs, rf'源文件Node:地理坐标系指定有误:实际:{self.__node_gdf.crs}, 指定: {self.geo_crs}'
-
-    def init_node(self):
-        self.__node_gdf.set_index(net_field.NODE_ID_FIELD, inplace=True)
-
-    def get_node_geo(self, node_id: int = None):
-        return self.__node_gdf.at[node_id, net_field.GEOMETRY_FIELD]
-
-    def get_node_loc(self, node_id: int = None) -> tuple:
-        geo = self.get_node_geo(node_id)
-        return geo.x, geo.y
-
-    def get_node_data(self):
-        return self.__node_gdf.copy()
-
-    @property
-    def crs(self):
-        return self.__node_gdf.crs
-
-    def to_plane_prj(self) -> None:
-        if self.__node_gdf.crs == self.plane_crs:
+    def split_link(self, p: Point or tuple or list = None, target_link: int = None,
+                   manually_specify_node_id: bool = False, new_node_id: int = 100, generate_node: bool = False,
+                   omitted_length_threshold: float = 1.0) -> tuple[bool, Point]:
+        """
+        using one point to split a link: 1.create a new node(if generate_node=True)  2.create a new link
+        :param p:
+        :param target_link:
+        :param manually_specify_node_id: 是否手动指定新节点的node_id
+        :param new_node_id: 新节点的node_id
+        :param generate_node: 是否生成新节点
+        :param omitted_length_threshold:
+        :return:
+        """
+        if isinstance(p, Point):
             pass
         else:
-            self.__node_gdf = self.__node_gdf.to_crs(self.plane_crs)
+            p = Point(p)
 
-    def to_geo_prj(self) -> None:
-        if self.__node_gdf.crs == self.geo_crs:
-            pass
+        # 获取打断点到target link的投影点信息
+        target_link_geo = self.get_link_geo_by_bilateral_link(target_link)
+        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list = prj_inf(p=p, line=target_link_geo)
+
+        if (target_l - prj_route_l) <= omitted_length_threshold or prj_route_l <= omitted_length_threshold:
+            # omitted the short link or only one link after split
+            return False, Point()
         else:
-            self.__node_gdf = self.__node_gdf.to_crs(self.geo_crs)
+            if not manually_specify_node_id:
+                # new node id, and renew the available_node_id
+                new_node_id = self.__node.available_node_id
+            if generate_node:
+                self.__node.append_nodes([new_node_id], [prj_p])
 
+            link_info_before_modify = self.__link.link_series(target_link)
+            self.__link.modify_link_gdf([target_link], [to_node_field, length_field, geometry_field],
+                                        [[new_node_id, split_link_geo_list[0].length, split_link_geo_list[0]]])
 
-if __name__ == '__main__':
-    g = nx.DiGraph()
-    g.add_edges_from([(1, 2), (2, 3), (3, 4)])
-    print(list(nx.dfs_preorder_nodes(g, 4)))
-    print(nx.degree(g))
-    print(dict(g.in_degree()))
-    print(dict(g.out_degree()))
+            # new link
+            new_link_id = self.__link.available_link_id
 
+            # other attr copy
+            other_attr = {col: [link_info_before_modify[col]] for col in link_info_before_modify.index if
+                          col not in [link_id_field, from_node_field, to_node_field, dir_field, length_field,
+                                      geometry_field]}
+
+            self.__link.append_links([new_link_id], [new_node_id], [link_info_before_modify[to_node_field]],
+                                     [int(link_info_before_modify[dir_field])], [split_link_geo_list[1]], **other_attr)
+
+            return True, prj_p
+
+    def modify_link_gdf(self, link_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
+        self.__link.modify_link_gdf(link_id_list=link_id_list, attr_field_list=attr_field_list, val_list=val_list)
+
+    def modify_node_gdf(self, node_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
+        self.__node.modify_node_gdf(node_id_list=node_id_list, attr_field_list=attr_field_list, val_list=val_list)
+
+    def export_net(self, export_crs: str = 'EPSG:4326', out_fldr: str = None, flag_name: str = None,
+                   file_type: str = 'geojson') -> None:
+        link_file_name = '_'.join([flag_name, 'link']) if flag_name is not None or flag_name != '' else 'link'
+        node_file_name = '_'.join([flag_name, 'node']) if flag_name is not None or flag_name != '' else 'node'
+
+        export_link_gdf = self.__link.link_gdf.to_crs(export_crs)
+        export_node_gdf = self.__node.get_node_data().to_crs(export_crs)
+
+        export_link_gdf.reset_index(inplace=True, drop=True)
+        export_node_gdf.reset_index(inplace=True, drop=True)
+
+        save_file(data_item=export_link_gdf, file_type=file_type, file_name=link_file_name, out_fldr=out_fldr)
+        save_file(data_item=export_node_gdf, file_type=file_type, file_name=node_file_name, out_fldr=out_fldr)

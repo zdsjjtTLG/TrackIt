@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 new_reverse.py
+main_get_net_jb.py
 
 # pycharm setting files
 .idea/
@@ -35,6 +36,8 @@ share/python-wheels/
 *.html
 
 data/output/match_visualization/
+data/intput/daily_prj/
+data/intput/net/lane/
 
 MANIFEST
 

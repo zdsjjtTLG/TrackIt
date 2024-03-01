@@ -20,6 +20,7 @@ from .RoadNet.optimize_net import optimize
 from .Parse.gd_car_path import parse_path_main
 from .PublicTools.GeoProcess import generate_region
 from .Parse.gd_car_path import parse_path_main_alpha
+from .RoadNet.Split.SplitPath import split_path_main
 from .RoadNet.SaveStreets.streets import generate_node_from_link
 
 
@@ -147,9 +148,17 @@ class NetReverse(Reverse):
         :param slice_num:
         :param attr_name_list:
         :param cut_slice:
+        :param flag_name
         :return:
         """
-        pass
+        print(rf'##########   {self.flag_name} - Split Path')
+        if 'road_name' not in path_gdf.columns:
+            path_gdf['road_name'] = ''
+        attr_name_list = ['road_name'] if attr_name_list is None or len(attr_name_list) == 1 else attr_name_list
+        split_path_gdf = split_path_main(path_gdf=path_gdf, restrict_region_gdf=restrict_region_gdf,
+                                         slice_num=slice_num, attr_name_list=attr_name_list,
+                                         cut_slice=cut_slice, drop_ft_loc=True)
+        self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
     @staticmethod
     def create_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field_list: list[str] = None,

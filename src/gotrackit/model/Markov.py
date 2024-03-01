@@ -5,10 +5,15 @@
 
 """Markov Model Class"""
 
-import os.path
+
 import time
+import os.path
+
+import networkx as nx
+import swifter
 import datetime
 import warnings
+import itertools
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -26,15 +31,17 @@ gps_field = GpsField()
 net_field = NetField()
 markov_field = MarkovField()
 
+from_link_f, to_link_f = markov_field.FROM_STATE, markov_field.TO_STATE
+from_link_n_f, to_link_n_f = markov_field.FROM_STATE_N, markov_field.TO_STATE_N
+from_gps_f, to_gps_f = gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ
+MIN_P = 1e-10
+
 
 class HiddenMarkov(object):
     """隐马尔可夫模型类"""
-    def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 search_method: str = 'all_pairs'):
+    def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0):
         self.gps_points = gps_points
         self.net = net
-        assert search_method in ['all_pairs', 'single'], 'search_method must in [\'all_pairs\', \'single\'] '
-        self.search_method = search_method
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
         self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float, float]] = dict()
         self.__adj_seq_path_dict: dict[tuple[int, int], list[int, int]] = dict()
@@ -49,20 +56,13 @@ class HiddenMarkov(object):
         # {(from_seq, to_seq): pd.DataFrame()}
         self.__s2s_route_l = dict()
         self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
+        self.path_cost_df = pd.DataFrame()
 
     def generate_markov_para(self):
+
+        # self.__generate_markov_para()
         self.__generate_transition_mat()
         self.__generate_emission_mat()
-
-    def solve(self):
-        # 使用viterbi模型求解
-        self.__solver = Viterbi(observation_list=self.gps_points.used_observation_seq_list,
-                                o_mat_dict=self.__emission_mat_dict,
-                                t_mat_dict=self.__ft_transition_dict)
-        self.__solver.init_model()
-        self.index_state_list = self.__solver.iter_model()
-
-        print(self.index_state_list)
 
     @function_time_cost
     def __generate_transition_mat(self):
@@ -82,9 +82,6 @@ class HiddenMarkov(object):
 
         if len(seq_list) <= 1:
             raise ValueError(r'GPS数据样本点不足2个, 请检查...')
-
-        if self.search_method == 'all_pairs':
-            self.net.calc_all_pairs_shortest_path()
 
         self.gps_points.calc_gps_point_dis()
 
@@ -128,6 +125,7 @@ class HiddenMarkov(object):
 
     @function_time_cost
     def __generate_emission_mat(self):
+
         # 计算每个观测点的生成概率
         emission_p_df = pd.DataFrame(self.__done_prj_dict).T.reset_index(drop=False).rename(
             columns={'level_0': gps_field.POINT_SEQ_FIELD, 'level_1': net_field.SINGLE_LINK_ID_FIELD,
@@ -135,13 +133,31 @@ class HiddenMarkov(object):
             [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]]
         emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
                                   ascending=[True, True], inplace=True)
+        print(emission_p_df.dtypes)
         emission_p_df = emission_p_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
             {markov_field.PRJ_L: np.array}).reset_index(
             drop=False)
+
         self.__emission_mat_dict = {
             int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
                                                                            sigma=self.gps_sigma) for _, row in
             emission_p_df.iterrows()}
+
+    def solve(self, use_lop_p: bool = True):
+        """
+
+        :param use_lop_p: 是否使用对数概率, 避免浮点数精度下溢
+        :return:
+        """
+
+        # 使用viterbi模型求解
+        self.__solver = Viterbi(observation_list=self.gps_points.used_observation_seq_list,
+                                o_mat_dict=self.__emission_mat_dict,
+                                t_mat_dict=self.__ft_transition_dict, use_log_p=use_lop_p)
+        self.__solver.init_model()
+        self.index_state_list = self.__solver.iter_model()
+
+        print(self.index_state_list)
 
     def calc_route_length(self, from_gps_seq: int = None, to_gps_seq: int = None, from_link_id: int = None,
                           to_link_id: int = None) -> float:
@@ -153,22 +169,27 @@ class HiddenMarkov(object):
         :return:
         """
         # prj_p, prj_dis, route_dis
-        if (from_gps_seq, from_link_id) in self.__done_prj_dict.keys():
-            (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = self.__done_prj_dict[
-                (from_gps_seq, from_link_id)]
-        else:
-            (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = self.get_gps_prj_info(
-                target_link_id=from_link_id,
-                gps_seq=from_gps_seq)
-            self.__done_prj_dict.update(
-                {(from_gps_seq, from_link_id): (from_prj_p, from_prj_dis, from_route_dis, from_l_length)})
+        (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = \
+            self.cache_emission_data(gps_seq=from_gps_seq, single_link_id=from_link_id)
 
-        if (to_gps_seq, to_link_id) in self.__done_prj_dict.keys():
-            (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = self.__done_prj_dict[(to_gps_seq, to_link_id)]
-        else:
-            (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = self.get_gps_prj_info(target_link_id=to_link_id,
-                                                                                      gps_seq=to_gps_seq)
-            self.__done_prj_dict.update({(to_gps_seq, to_link_id): (to_prj_p, to_prj_dis, to_route_dis, to_l_length)})
+        (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = \
+            self.cache_emission_data(gps_seq=to_gps_seq, single_link_id=to_link_id)
+
+        # if (from_gps_seq, from_link_id) in self.__done_prj_dict.keys():
+        #     (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = self.__done_prj_dict[
+        #         (from_gps_seq, from_link_id)]
+        # else:
+        #     (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = self.get_gps_prj_info(
+        #         target_link_id=from_link_id,
+        #         gps_seq=from_gps_seq)
+        #     self.__done_prj_dict.update(
+        #         {(from_gps_seq, from_link_id): (from_prj_p, from_prj_dis, from_route_dis, from_l_length)})
+        # if (to_gps_seq, to_link_id) in self.__done_prj_dict.keys():
+        #     (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = self.__done_prj_dict[(to_gps_seq, to_link_id)]
+        # else:
+        #     (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = self.get_gps_prj_info(target_link_id=to_link_id,
+        #                                                                               gps_seq=to_gps_seq)
+        #     self.__done_prj_dict.update({(to_gps_seq, to_link_id): (to_prj_p, to_prj_dis, to_route_dis, to_l_length)})
 
         # 基于投影信息计算路径长度
         from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id), self.net.get_link_from_to(to_link_id)
@@ -192,7 +213,7 @@ class HiddenMarkov(object):
             route_l = from_l_length - from_route_dis + to_route_dis
             return np.absolute(route_l)
 
-        route_item = self.net.search(o_node=from_link_ft[0], d_node=to_link_ft[0], search_method=self.search_method)
+        route_item = self.net.search(o_node=from_link_ft[0], d_node=to_link_ft[0])
         if len(route_item[0]) > 2:
             self.__adj_seq_path_dict[(from_link_id, to_link_id)] = route_item[0]
         if route_item[0]:
@@ -219,6 +240,217 @@ class HiddenMarkov(object):
         else:
             return NOT_CONN_COST
 
+    def cache_emission_data(self, gps_seq: int = None, single_link_id: int = None) -> tuple[Point, float, float, float]:
+        """
+        :param gps_seq:
+        :param single_link_id:
+        :return:
+        """
+        if (gps_seq, single_link_id) in self.__done_prj_dict.keys():
+            # already calculated
+            (prj_p, prj_dis, route_dis, l_length) = self.__done_prj_dict[
+                (gps_seq, single_link_id)]
+        else:
+            # new calc and cache
+            (prj_p, prj_dis, route_dis, l_length) = self.get_gps_prj_info(
+                target_link_id=single_link_id,
+                gps_seq=gps_seq)
+            self.__done_prj_dict.update(
+                {(gps_seq, single_link_id): (prj_p, prj_dis, route_dis, l_length)})
+        return prj_p, prj_dis, route_dis, l_length
+
+
+    # @function_time_cost
+    # def __generate_markov_para(self, use_swifter: bool = False):
+    #     # 依据一辆车的时序gps点和和底层路网生成转移概率矩阵和生成概率矩阵
+    #     # seq, geometry, single_link_id, from_node, to_node, dir, length
+    #     gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net)
+    #
+    #     # {seq1: {'single_link_id': [candidate_link]}, seq2: ...}
+    #     gps_candidate_link_dict = gps_candidate_link.groupby([gps_field.POINT_SEQ_FIELD]).agg(
+    #         {net_field.SINGLE_LINK_ID_FIELD: list}).to_dict(orient='index')
+    #
+    #     if _gap:
+    #         warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
+    #
+    #         # 删除关联不到任何路段的gps点
+    #         self.gps_points.delete_target_gps(target_seq_list=list(_gap))
+    #
+    #     # 一定要排序
+    #     seq_list = sorted(list(gps_candidate_link_dict.keys()))
+    #
+    #     if len(seq_list) <= 1:
+    #         raise ValueError(r'GPS数据样本点不足2个, 请检查...')
+    #
+    #     self.gps_points.calc_gps_point_dis()
+    #
+    #     ft_gps_candidate = \
+    #         {(seq_list[i], seq_list[i + 1]): [
+    #             list(itertools.product(gps_candidate_link_dict[seq_list[i]][net_field.SINGLE_LINK_ID_FIELD],
+    #                                    gps_candidate_link_dict[seq_list[i + 1]][net_field.SINGLE_LINK_ID_FIELD]))]
+    #             for i in range(0, len(seq_list) - 1)}
+    #
+    #     seq_link_df = gps_candidate_link.groupby([gps_field.POINT_SEQ_FIELD]).agg(
+    #         {net_field.SINGLE_LINK_ID_FIELD: list})
+    #     self.__ft_mapping_dict = {
+    #         seq: {i: link for i, link in enumerate(sorted(seq_link_df.at[seq, net_field.SINGLE_LINK_ID_FIELD]))} for seq
+    #         in seq_link_df.index}
+    #
+    #     # print(self.__ft_mapping_dict)
+    #     transit_df = pd.DataFrame(ft_gps_candidate).T.reset_index(drop=False).rename(
+    #         columns={'level_0': from_gps_f, 'level_1': to_gps_f, 0: 'ft_link'})
+    #
+    #     transit_df = transit_df.explode(column='ft_link', ignore_index=True)
+    #
+    #     all_required_source_list = \
+    #         gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD].isin(seq_list[:-1])][
+    #             net_field.FROM_NODE_FIELD].unique()
+    #
+    #     # 提前计算最短路信息
+    #     path_cost_df = pd.DataFrame({'source': all_required_source_list})
+    #     if not use_swifter:
+    #         path_cost_df['path'] = path_cost_df.apply(lambda row:
+    #                                                   self.net._single_source_path(g=self.net.graph,
+    #                                                                                source=row['source'],
+    #                                                                                method=self.net.search_method,
+    #                                                                                weight_field=self.net.weight_field),
+    #                                                   axis=1)
+    #     else:
+    #         path_cost_df['path'] = path_cost_df.swifter.apply(lambda row:
+    #                                                            self.net._single_source_path(g=self.net.graph,
+    #                                                                                         source=row['source'],
+    #                                                                                         method=self.net.search_method,
+    #                                                                                         weight_field=self.net.weight_field),
+    #                                                            axis=1)
+    #
+    #     # 计算发射概率
+    #
+    #     print(path_cost_df)
+    #     path_cost_df.set_index('source', inplace=True)
+    #     self.path_cost_df = path_cost_df
+    #
+    #
+    #     # dis of (gps, prj_gps)
+    #     gps_candidate_link[['prj_p', markov_field.PRJ_L, 'route_dis', 'l_length']] = gps_candidate_link.apply(
+    #         lambda row: self.get_gps_prj_info(target_link_id=row[net_field.SINGLE_LINK_ID_FIELD],
+    #                                           gps_seq=row[gps_field.POINT_SEQ_FIELD]), axis=1, result_type='expand')
+    #
+    #     # 计算done_prj_dict
+    #     self.__done_prj_dict = {(row[gps_field.POINT_SEQ_FIELD], row[net_field.SINGLE_LINK_ID_FIELD]):
+    #                                 (row['prj_p'], row[markov_field.PRJ_L], row['route_dis'], row['l_length']) for
+    #                             _, row in
+    #                             gps_candidate_link.iterrows()}
+    #
+    #
+    #     emission_p_df = gps_candidate_link[
+    #         [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]].copy()
+    #
+    #     emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
+    #                               ascending=[True, True], inplace=True)
+    #
+    #     emission_p_df = \
+    #         emission_p_df.groupby([gps_field.POINT_SEQ_FIELD])[markov_field.PRJ_L].agg(
+    #             lambda x: list(x)).reset_index(drop=False)
+    #     # emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].swifter.apply(lambda row: np.array(row))
+    #     emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].apply(lambda row: np.array(row))
+    #
+    #     self.__emission_mat_dict = {
+    #         int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
+    #                                                                        sigma=self.gps_sigma) for _, row in
+    #         emission_p_df.iterrows()}
+    #
+    #     def ft_link_path_item(from_link, to_link):
+    #         try:
+    #             source_item = path_cost_df.at[from_link, 'path']
+    #             return source_item[1][to_link], source_item[0][to_link]
+    #         except KeyError:
+    #             return [], NOT_CONN_COST
+    #
+    #     # 计算转移概率
+    #     transit_df[markov_field.ROUTE_LENGTH] = \
+    #         transit_df.apply(
+    #             lambda item: self._calc_route_length(from_link_id=item['ft_link'][0],
+    #                                                  to_link_id=item['ft_link'][1],
+    #                                                  from_route_dis=self.__done_prj_dict[
+    #                                                      (item[from_gps_f], item['ft_link'][0])][1],
+    #                                                  to_route_dis=self.__done_prj_dict[
+    #                                                      (item[to_gps_f], item['ft_link'][1])][1],
+    #                                                  from_l_length=self.__done_prj_dict[
+    #                                                      (item[from_gps_f], item['ft_link'][0])][3]
+    #                                                  ), axis=1)
+    #
+    #
+    #     # transit_df[markov_field.ROUTE_LENGTH] = \
+    #     #     transit_df.swifter.apply(
+    #     #         lambda item: self._calc_route_length(from_link_id=item['ft_link'][0],
+    #     #                                              to_link_id=item['ft_link'][1],
+    #     #                                              from_route_dis=self.__done_prj_dict[
+    #     #                                                  (item[from_gps_f], item['ft_link'][0])][1],
+    #     #                                              to_route_dis=self.__done_prj_dict[
+    #     #                                                  (item[to_gps_f], item['ft_link'][1])][1],
+    #     #                                              from_l_length=self.__done_prj_dict[
+    #     #                                                  (item[from_gps_f], item['ft_link'][0])][3]
+    #     #                                              ), axis=1)
+    #     print(transit_df)
+    #
+    # def _calc_route_length(self, from_route_dis: float = None, to_route_dis: float = None,
+    #                        from_l_length: float = None,
+    #                        from_link_id: int = None, to_link_id: int = None) -> float:
+    #     """
+    #     :param from_route_dis: 上一观测时刻的gps点序号
+    #     :param to_route_dis: 当前观测时刻的gps点序号
+    #     :param from_link_id: 上一观测时刻候选link_id
+    #     :param to_link_id: 当前观测时刻候选link_id
+    #     :return:
+    #     """
+    #     # 基于投影信息计算路径长度
+    #     from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id), self.net.get_link_from_to(to_link_id)
+    #
+    #     # same link
+    #     if from_link_id == to_link_id:
+    #         route_l = np.absolute(from_route_dis - to_route_dis)
+    #         return route_l
+    #
+    #     # one same node
+    #     dup_node_list = list(set(from_link_ft) & set(to_link_ft))
+    #     if len(dup_node_list) == 1:
+    #         dup_node = dup_node_list[0]
+    #         if (dup_node == from_link_ft[1]) and (dup_node == to_link_ft[0]):
+    #             route_l = from_l_length - from_route_dis + to_route_dis
+    #             return np.absolute(route_l)
+    #         else:
+    #             return NOT_CONN_COST
+    #     # 正好相反的f-t
+    #     elif len(dup_node_list) == 2:
+    #         route_l = from_l_length - from_route_dis + to_route_dis
+    #         return np.absolute(route_l)
+    #
+    #     try:
+    #         source_item = self.path_cost_df.at[from_link_ft[0], 'path']
+    #         route_item = [source_item[1][to_link_ft[0]], source_item[0][to_link_ft[0]]]
+    #     except KeyError:
+    #         route_item = [], NOT_CONN_COST
+    #
+    #     if len(route_item[0]) > 2:
+    #         self.__adj_seq_path_dict[(from_link_id, to_link_id)] = route_item[0]
+    #     if route_item[0]:
+    #         if route_item[0][1] != from_link_ft[1]:
+    #             return NOT_CONN_COST
+    #         else:
+    #             route_l1 = route_item[1] - from_route_dis
+    #
+    #         if route_item[0][-2] == to_link_ft[1]:
+    #             # abnormal
+    #             return NOT_CONN_COST
+    #         else:
+    #             route_l2 = to_route_dis
+    #
+    #         route_l = np.absolute(route_l1 + route_l2)
+    #         return route_l
+    #     else:
+    #         return NOT_CONN_COST
+    #
+    #
     def get_gps_prj_info(self, gps_seq: int = None, target_link_id: int = None) -> tuple[Point, float, float, float]:
         return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id), seq=gps_seq)
 
@@ -230,13 +462,13 @@ class HiddenMarkov(object):
         :param dis_gap:
         :return:
         """
-        # p = (1 / beta) * np.e ** (- dis_gap / beta)
+        # p = (1 / beta) * np.e ** (- 0.1 * dis_gap / beta)
         p = np.e ** (- 0.1 * dis_gap / beta)
         return p
 
     @staticmethod
     def emission_probability(sigma: float = 1.0, dis: float = 10.0) -> float:
-        # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (dis / sigma) ** 2))
+        # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
         p = np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p
 
@@ -509,7 +741,9 @@ class HiddenMarkov(object):
             gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
 
 
+
 if __name__ == '__main__':
+    pass
     # a = LineString([(0, 0), (0, 1)])
     # z = a.segmentize(1/3 + 0.1 * 1/ 3)
     # print(z)
@@ -519,9 +753,11 @@ if __name__ == '__main__':
     # x.loc[x['a'] >= 2, ['a', 'b']] = [[12, 11], [121,344]]
     # print(x)
     #
-    x = datetime.datetime.now()
-    time.sleep(2)
-    x1 = datetime.datetime.now()
-    print((x1 - x).total_seconds())
+    # x = datetime.datetime.now()
+    # time.sleep(2)
+    # x1 = datetime.datetime.now()
+    # print((x1 - x).total_seconds())
+
+
 
 

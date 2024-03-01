@@ -257,8 +257,6 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         for node_group in nx.connected_components(g):
             # 必然有 >= 2 个元素
             node_group_list = list(node_group)
-            if 6340 in node_group_list:
-                a = 1
             all_group_node_list.extend(node_group_list)
             # 依据联通关系以及路名信息判断是否可以合并
             if ignore_merge_rule:
