@@ -3,11 +3,8 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-
-from src.gotrackit.netreverse.RoadNet.conn import Conn
 from src.gotrackit.map.Net import Net
-from src.gotrackit.netreverse.RoadNet.SaveStreets.streets import modify_minimum
-import geopandas as gpd
+from src.gotrackit.netreverse.RoadNet.conn import Conn
 
 if __name__ == '__main__':
 

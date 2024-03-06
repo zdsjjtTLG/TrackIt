@@ -6,7 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
-new_reverse.py
+example_reverse.py
 main_get_net_jb.py
 
 # pycharm setting files

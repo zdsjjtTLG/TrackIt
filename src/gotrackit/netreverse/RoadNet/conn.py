@@ -116,7 +116,7 @@ class Conn(object):
                     self.done_split_link[l] = 1
 
             # if split_node in [13452, 16202, 28200]:
-            #     self.net.export_net(out_fldr=r'F:\PyPrj\TrackIt\data\input\net\0304', file_type='shp',
+            #     self.net.export_net(out_fldr=r'F:\PyPrj\TrackIt\data\input\net\cq', file_type='shp',
             #                         flag_name='temp')
             flag += 1
 

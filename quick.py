@@ -3,20 +3,20 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-
-from timeit import timeit
-import networkx as nx
 import time
 import numba
-import pandas as pd
-from numba import jit
-from src.gotrackit.WrapsFunc import function_time_cost
 import swifter
 import itertools
+import numpy as np
+import pandas as pd
+from numba import jit
+import networkx as nx
+from timeit import timeit
+from src.gotrackit.WrapsFunc import function_time_cost
 
 a = dict()
 
-import numpy as np
+
 class Test(object):
     def __init__(self):
         self.done_prj = dict()
@@ -60,6 +60,7 @@ def trans():
     # df['link_list'] = df.swifter.apply(lambda item: list(item['iter']), axis=1)
     # df['link_list'] = df.apply(lambda item: list(item['iter']), axis=1)
     print(df)
+
 
 if __name__ == '__main__':
     # n = 2500

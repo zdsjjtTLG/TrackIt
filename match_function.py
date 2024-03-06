@@ -26,8 +26,7 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
           is_lower_f: bool = False, lower_n: int = 2, is_rolling_average: bool = False, window: int = 2,
           gps_buffer: float = 90, use_sub_net: bool = True, buffer_for_sub_net: float = 110,
           beta: float = 20.2, gps_sigma: float = 10.0, flag_name: str = 'test',
-          export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None):
-
+          export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None, html_fldr: str = None):
     print(fr'using {search_method}....')
     # 1.新建一个路网对象, 并且使用平面坐标
     my_net = Net(link_path=link_path,
@@ -87,7 +86,7 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
             vc.collect_hmm(hmm_obj)
 
     if export_html:
-        vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/',
+        vc.visualization(zoom=15, out_fldr=html_fldr,
                          file_name=flag_name)
 
     match_res_df.reset_index(inplace=True, drop=True)
@@ -153,8 +152,21 @@ def t_lane_match():
                encoding='utf_8_sig', index=False)
 
 
-
+def t_cq_match():
+    gps_df = gpd.read_file(rf'./data/output/gps/cq/gps.shp')
+    gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
+                                          result_type='expand')
+    print(gps_df)
+    match(plain_crs='EPSG:32649', geo_crs='EPSG:4326',
+          link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
+          node_path=r'./data/input/net/test/cq/modifiedConn_node.shp', use_sub_net=True, gps_df=gps_df,
+          flag_name='cq_test', export_html=True, export_geo_res=True,
+          geo_res_fldr=r'./data/output/match_visualization/cq',
+          gps_sigma=26,
+          html_fldr=r'./data/output/match_visualization/cq')
 
 
 if __name__ == '__main__':
-    t_lane_match()
+    # t_lane_match()
+
+    t_cq_match()
