@@ -5,8 +5,17 @@
 
 
 import numpy as np
-from shapely.geometry import LineString, Point
+import geopandas as gpd
+import pandas as pd
 
+from ..GlobalVal import NetField
+from .coord_trans import LngLatTransfer
+from shapely.geometry import LineString, Point
+from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
+
+
+net_field = NetField()
+geometry_field = net_field.GEOMETRY_FIELD
 
 def n_equal_points(n, from_loc: tuple = None, to_loc=None,
                    from_point: Point = None, to_point: Point = None, add_noise: bool = False,
@@ -150,6 +159,43 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                 prj_p = Point((cp.x, cp.y))
                 return prj_p, prj_p.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
                                                                          LineString([(cp.x, cp.y)] + coords[i:])]
+
+
+def format_single_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
+    """
+    将geometry列中的Multi对象处理为single对象
+    :param gdf:
+    :param plain_crs
+    :return:
+    """
+    assert geometry_field in gdf.columns
+    origin_crs = gdf.crs
+    con = LngLatTransfer()
+
+    gdf[geometry_field] = gdf.apply(lambda row: con.obj_convert(geo_obj=row[geometry_field], con_type='None'), axis=1)
+    gdf = pd.DataFrame(gdf)
+    gdf[[geometry_field, 'is_multi']] = \
+        gdf.apply(lambda row:
+                  (list(row[geometry_field].geoms), 1)
+                  if isinstance(row[geometry_field], (MultiPolygon, MultiLineString, MultiPoint))
+                  else (row[geometry_field], 0), axis=1, result_type='expand')
+
+    is_multi_index = gdf['is_multi'] == 1
+    multi_gdf = gdf[is_multi_index].copy()
+    gdf.drop(index=gdf[is_multi_index].index, axis=0, inplace=True)
+
+    multi_gdf = multi_gdf.explode(column=[geometry_field], ignore_index=True)
+    multi_gdf.dropna(subset=[geometry_field], axis=0, inplace=True)
+
+    gdf = pd.concat([gdf, multi_gdf])
+    gdf.reset_index(inplace=True, drop=True)
+
+    gdf.drop(columns=['is_multi'], axis=1, inplace=True)
+    gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
+    gdf = gdf.to_crs(plain_crs)
+    gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(0.1)
+    gdf = gdf.to_crs(origin_crs)
+    return gdf
 
 
 if __name__ == '__main__':

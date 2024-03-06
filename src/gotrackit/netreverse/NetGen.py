@@ -10,6 +10,8 @@
 import os.path
 import pandas as pd
 import geopandas as gpd
+from ..map.Net import Net
+from .RoadNet.conn import Conn
 from .GlobalVal import NetField
 from .format_od import FormatOD
 from .RoadNet import net_reverse
@@ -48,7 +50,8 @@ class NetReverse(Reverse):
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
                  save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
-                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp'):
+                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
+                 is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final'):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -88,6 +91,12 @@ class NetReverse(Reverse):
         self.is_process_dup_link = is_process_dup_link
         self.process_dup_link_buffer = process_dup_link_buffer
         self.dup_link_buffer_ratio = dup_link_buffer_ratio
+
+        # conn
+        self.is_modify_conn = is_modify_conn
+        self.conn_buffer = conn_buffer
+        assert conn_period in ['start', 'final']
+        self.conn_period = conn_period
 
         # attrs
         self.__od_df = pd.DataFrame()
@@ -324,5 +333,30 @@ class NetReverse(Reverse):
                                  is_process_dup_link=self.is_process_dup_link,
                                  process_dup_link_buffer=self.process_dup_link_buffer,
                                  dup_link_buffer_ratio=self.dup_link_buffer_ratio,
-                                 net_file_type=self.net_file_type)
+                                 net_file_type=self.net_file_type,
+                                 modify_conn=self.is_modify_conn,
+                                 conn_buffer=self.conn_buffer,
+                                 conn_period=self.conn_period)
 
+    def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
+                    book_mark_name: str = 'test') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+
+        :param link_gdf:
+        :param node_gdf:
+        :param book_mark_name:
+        :return:
+        """
+        geo_crs = link_gdf.crs
+        assert geo_crs == 'EPSG:4326'
+        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, geo_crs=geo_crs, plane_crs=self.plain_prj,
+                  create_single=False)
+        conn = Conn(net=net, check_buffer=self.conn_buffer)
+        conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=True)
+        net.export_net(export_crs=link_gdf.crs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
+                       flag_name='modifiedConn')
+        net.to_geo_prj()
+        link_gdf, node_gdf = net.get_bilateral_link_data(), net.get_node_data()
+        link_gdf.reset_index(inplace=True, drop=True)
+        node_gdf.reset_index(inplace=True, drop=True)
+        return link_gdf, node_gdf

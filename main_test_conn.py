@@ -11,12 +11,11 @@ import geopandas as gpd
 
 if __name__ == '__main__':
 
-
     n = Net(link_path=r'./data/input/net/xian/link.shp',
             node_path=r'./data/input/net/xian/node.shp',
             plane_crs='EPSG:32649', create_single=False)
 
-    conn = Conn(net=n, check_buffer=0.6)
-    conn.check(generate_mark=True, out_fldr=r'./data/output/conn/', file_name='conn-xa')
+    conn = Conn(net=n, check_buffer=0.8)
+    conn.execute(generate_mark=True, out_fldr=r'./data/output/conn/', file_name='conn-xa')
 
-    conn.corrective_conn()
+    n.export_net(out_fldr=r'./data/input/net/xian/', flag_name='conn_done', file_type='shp')

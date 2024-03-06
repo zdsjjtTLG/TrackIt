@@ -5,6 +5,7 @@
 
 
 """路网拓扑优化"""
+import time
 
 import pandas as pd
 import networkx as nx
@@ -13,7 +14,7 @@ from itertools import chain
 from ...GlobalVal import NetField
 from shapely.ops import linemerge
 from geopy.distance import distance
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, MultiLineString
 from .get_merged_link_seq import get_merged_link_seq
 from .limit.same_head_tail_limit import same_ht_limit
 from .limit.same_head_tail_limit import get_head_tail_root
@@ -184,6 +185,11 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
         # 所以先修正
         except NotImplementedError as e:
             print(e)
+
+            to_be_merge_link_gdf.to_csv(r'temp.csv', encoding='utf_8_sig', index=False)
+            to_be_merge_link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
+            to_be_merge_link_gdf.to_file(r'temp.shp')
+
         else:
             new_from_node, new_to_node = assume_from_node, assume_to_node
 

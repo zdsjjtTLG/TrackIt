@@ -8,14 +8,12 @@
 
 import time
 import os.path
-
-import networkx as nx
-import swifter
 import datetime
 import warnings
 import itertools
 import numpy as np
 import pandas as pd
+import networkx as nx
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
@@ -133,7 +131,6 @@ class HiddenMarkov(object):
             [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]]
         emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
                                   ascending=[True, True], inplace=True)
-        print(emission_p_df.dtypes)
         emission_p_df = emission_p_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
             {markov_field.PRJ_L: np.array}).reset_index(
             drop=False)
@@ -192,7 +189,8 @@ class HiddenMarkov(object):
         #     self.__done_prj_dict.update({(to_gps_seq, to_link_id): (to_prj_p, to_prj_dis, to_route_dis, to_l_length)})
 
         # 基于投影信息计算路径长度
-        from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id), self.net.get_link_from_to(to_link_id)
+        from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id, _type='single'), \
+            self.net.get_link_from_to(to_link_id, _type='single')
 
         # same link
         if from_link_id == to_link_id:
@@ -452,7 +450,7 @@ class HiddenMarkov(object):
     #
     #
     def get_gps_prj_info(self, gps_seq: int = None, target_link_id: int = None) -> tuple[Point, float, float, float]:
-        return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id), seq=gps_seq)
+        return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id, _type='single'), seq=gps_seq)
 
     @staticmethod
     def transition_probability(beta: float = 30.2, dis_gap: float or np.ndarray = None):
@@ -467,7 +465,7 @@ class HiddenMarkov(object):
         return p
 
     @staticmethod
-    def emission_probability(sigma: float = 1.0, dis: float = 10.0) -> float:
+    def emission_probability(sigma: float = 1.0, dis: float = 6.0) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
         p = np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p

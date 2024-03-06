@@ -10,9 +10,7 @@ from ...GlobalVal import NetField
 from shapely.geometry import LineString
 from ....WrapsFunc import function_time_cost
 
-
 net_field = NetField()
-
 
 # 线层数据、点层数据必需字段
 length_field = net_field.LENGTH_FIELD

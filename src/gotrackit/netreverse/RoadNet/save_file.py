@@ -11,6 +11,8 @@ import geopandas as gpd
 
 def save_file(data_item: pd.DataFrame or gpd.GeoDataFrame = None, out_fldr: str = None, file_name: str = None,
               file_type: str = None) -> None:
+    if data_item is None or data_item.empty:
+        return None
     assert file_type in ['csv', 'shp', 'geojson']
     if out_fldr is None:
         pass

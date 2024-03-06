@@ -16,7 +16,7 @@ import itertools
 
 a = dict()
 
-
+import numpy as np
 class Test(object):
     def __init__(self):
         self.done_prj = dict()
@@ -30,6 +30,11 @@ class Test(object):
         df['c'] = df.swifter.apply(lambda item: self.add(item['a'], item['b']), axis=1)
         # df['c'] = df.apply(lambda item: self.add(item['a'], item['b']), axis=1)
         print(df)
+
+@function_time_cost
+def test():
+    a = pd.DataFrame({'a': [np.random.randint(1, 50000) for i in range(0, 20000)], 'b': [i for i in range(0, 20000)]})
+    a['c'] = a.apply(lambda x: sorted([x['a'], x['b']]), axis=1)
 
 
 def get_l():
@@ -72,16 +77,19 @@ if __name__ == '__main__':
     #                      net_field.SINGLE_LINK_ID_FIELD].to_list(),
     #                  gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD] == seq_list[i + 1]][
     #                      net_field.SINGLE_LINK_ID_FIELD].to_list()] for i in range(0, len(seq_list) - 1)]
-    import numpy as np
-    df = pd.DataFrame({
-        'A': ['foo', 'bar', 'foo', 'bar', 'foo', 'bar', 'foo', 'foo'],
-        'B': ['one', 'one', 'two', 'three', 'two', 'two', 'one', 'three'],
-        'C': np.random.randn(8),
-        'D': np.random.randn(8)
-    })
+    # import numpy as np
+    # df = pd.DataFrame({
+    #     'A': ['foo', 'bar', 'foo', 'bar', 'foo', 'bar', 'foo', 'foo'],
+    #     'B': ['one', 'one', 'two', 'three', 'two', 'two', 'one', 'three'],
+    #     'C': np.random.randn(8),
+    #     'D': np.random.randn(8)
+    # })
+    #
+    # # 对'A'列进行分组，然后对'C'和'D'列进行聚合，并将结果转换为numpy数组
+    # grouped = df.groupby('A')
+    # agg_result = grouped[['C']].agg(np.array)
+    #
+    # print(agg_result)
 
-    # 对'A'列进行分组，然后对'C'和'D'列进行聚合，并将结果转换为numpy数组
-    grouped = df.groupby('A')
-    agg_result = grouped[['C']].agg(np.array)
 
-    print(agg_result)
+    test()

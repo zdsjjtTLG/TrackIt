@@ -6,10 +6,10 @@
 
 """路网联通性修正"""
 import time
-import swifter
 import geopandas as gpd
 from ...map.Net import Net
 from ..GlobalVal import NetField
+from shapely.geometry import Point
 from ..book_mark import generate_book_mark
 
 net_field = NetField()
@@ -21,11 +21,20 @@ from_node_field = net_field.FROM_NODE_FIELD
 to_node_field = net_field.TO_NODE_FIELD
 node_id_field = net_field.NODE_ID_FIELD
 
+
 class Conn(object):
     def __init__(self, check_buffer: float = 0.3, net: Net = Net):
+        """
+
+        :param check_buffer:
+        :param net:
+        """
         self.net = net
         self.buffer = check_buffer
         self.not_conn_df = None
+
+        # the link status
+        self.done_split_link = dict()
 
     def check(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False):
         # get link data and node data
@@ -35,22 +44,14 @@ class Conn(object):
         node_gdf = self.net.get_node_data()
 
         # node -> buffer
-        node_gdf['buffer'] = node_gdf[geometry_field].apply(lambda geo: geo.buffer(self.buffer))
-        node_gdf.set_geometry('buffer', inplace=True, crs=self.net.plane_crs)
-
-        # sjoin with link and check
-        join_df = gpd.sjoin(node_gdf, link_gdf, how='left')
-        join_df.reset_index(inplace=True, drop=True)
-        a = time.time()
-        join_df['doubt'] = join_df.apply(
-            lambda item: 1 if item[node_id_field] not in [item[from_node_field], item[to_node_field]] else 0, axis=1)
-        print(time.time() - a)
-        time.sleep(100)
-        join_df.drop(index=join_df[join_df['doubt'] == 0].index, inplace=True, axis=0)
-        join_df.reset_index(inplace=True, drop=True)
+        join_df = self.get_doubt_item(node_gdf=node_gdf, link_gdf=link_gdf, buffer=self.buffer)
         self.not_conn_df = join_df
 
+        if self.not_conn_df is None or self.not_conn_df.empty:
+            return None
+
         if generate_mark:
+            assert out_fldr is not None
             node_gdf.set_geometry(geometry_field, inplace=True, crs=self.net.plane_crs)
             node_gdf = node_gdf.to_crs(self.net.geo_crs)
             agg_df = join_df.groupby(node_id_field).agg({link_id_field: list}).reset_index(drop=False)
@@ -59,28 +60,147 @@ class Conn(object):
                 for link_list, node in zip(agg_df[link_id_field], agg_df[node_id_field])}
             generate_book_mark(input_fldr=out_fldr, prj_name=file_name, _mode='replace', name_loc_dict=conn_dict)
 
+    @staticmethod
+    def get_doubt_item(node_gdf: gpd.GeoDataFrame = None, link_gdf: gpd.GeoDataFrame = None, plain_crs: str = None,
+                       buffer: float = 0.6):
+        """
+        node_gdf will be modified inplace
+        :param node_gdf:
+        :param link_gdf:
+        :param plain_crs:
+        :param buffer:
+        :return:
+        """
+        node_gdf['buffer'] = node_gdf[geometry_field].apply(lambda geo: geo.buffer(buffer))
+        node_gdf.set_geometry('buffer', inplace=True, crs=plain_crs)
+        join_df = gpd.sjoin(node_gdf, link_gdf, how='left')
+        join_df.reset_index(inplace=True, drop=True)
+        join_df['doubt'] = join_df.apply(
+            lambda item: 1 if item[node_id_field] not in [item[from_node_field], item[to_node_field]] else 0, axis=1)
+        join_df.drop(index=join_df[join_df['doubt'] == 0].index, inplace=True, axis=0)
+        join_df.reset_index(inplace=True, drop=True)
+        return join_df
+
     def corrective_conn(self):
         """"""
         # 遍历
-        done_split_link = set()
-        for split_node, n_link_gdf in self.not_conn_df.groupby(node_id_field):
-            if len(n_link_gdf) == 1:
-                # one link
-                # just split this link
-                # get the target link
-                target_link_id = list(n_link_gdf[link_id_field])[0]
-                split_node_geo = self.net.get_node_geo(split_node)
+        flag = 0
+        if self.not_conn_df is None or self.not_conn_df.empty:
+            return None
 
-                split_ok, prj_p = self.net.split_link(p=split_node_geo, target_link=target_link_id, generate_node=False,
-                                                      manually_specify_node_id=True, new_node_id=split_node,
-                                                      omitted_length_threshold=0.5)
-                if split_ok:
-                    self.net.modify_node_gdf(node_id_list=[split_node], attr_field_list=[geometry_field],
-                                             val_list=[[prj_p]])
-                    done_split_link.add(target_link_id)
+        for split_node, n_link_gdf in self.not_conn_df.groupby(node_id_field):
+            if 'index_right' in n_link_gdf.columns:
+                n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
+            if split_node not in self.net.get_node_data()[node_id_field]:
+                continue
+            if split_node in [13452, 16202, 28200]:
+                pass
+            if len(n_link_gdf) == 1:
+                target_link = n_link_gdf[link_id_field].to_list()[0]
+                if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
+                    temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
+                        self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.plane_crs)
+
+                    join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data(),
+                                                   buffer=self.buffer)
+
+                    self.done_split_link[target_link] += 1
+                    self._corrective_conn(n_link_gdf=join_gdf, split_node=split_node)
+                    self.done_split_link[target_link] = 1
                 else:
-                    pass
+                    self.split_and_adjust(split_node=split_node, corr_link_gdf=n_link_gdf)
             else:
                 # more than one link
-                pass
+                self._corrective_conn(n_link_gdf=n_link_gdf, split_node=split_node)
+                for l in n_link_gdf[link_id_field]:
+                    self.done_split_link[l] = 1
 
+            # if split_node in [13452, 16202, 28200]:
+            #     self.net.export_net(out_fldr=r'F:\PyPrj\TrackIt\data\input\net\0304', file_type='shp',
+            #                         flag_name='temp')
+            flag += 1
+
+    def _corrective_conn(self, n_link_gdf: gpd.GeoDataFrame = None, split_node: int = None):
+        if n_link_gdf.empty:
+            return None
+
+        for target_link, corr_single_link_gdf in n_link_gdf.groupby(link_id_field):
+
+            corr_single_link_gdf = \
+                gpd.GeoDataFrame(corr_single_link_gdf, crs=self.net.plane_crs, geometry=geometry_field)
+            if node_id_field in corr_single_link_gdf.columns:
+                corr_single_link_gdf.drop(columns=[node_id_field], inplace=True, axis=1)
+            if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
+                temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
+                    self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.plane_crs)
+
+                join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data())
+
+                self.done_split_link[target_link] += 1
+                if join_gdf.empty:
+                    self.done_split_link[target_link] = 1
+                else:
+                    self._corrective_conn(n_link_gdf=join_gdf, split_node=split_node)
+
+            else:
+                self.split_and_adjust(split_node=split_node, corr_link_gdf=corr_single_link_gdf)
+
+    def split_and_adjust(self, split_node: int = None, corr_link_gdf: gpd.GeoDataFrame = None):
+        """
+
+        :param split_node:
+        :param corr_link_gdf: len() = 1
+        :return:
+        """
+        # just split this link and get the target link
+        target_link_id = list(corr_link_gdf[link_id_field])[0]
+        split_node_geo = self.net.get_node_geo(split_node)
+
+        split_ok, prj_p, modified_link, res_type = self.net.split_link(p=split_node_geo,
+                                                                       target_link=target_link_id,
+                                                                       omitted_length_threshold=0.5)
+        if split_ok:
+            self.net.modify_link_gdf(link_id_list=[modified_link[0]], attr_field_list=[to_node_field],
+                                     val_list=[[split_node]])
+            self.net.modify_link_gdf(link_id_list=[modified_link[1]], attr_field_list=[from_node_field],
+                                     val_list=[[split_node]])
+            self.net.renew_link_tail_geo(link_list=[modified_link[0]])
+            self.net.renew_link_head_geo(link_list=[modified_link[1]])
+        else:
+            if res_type == 'head_beyond':
+                to_del_node = self.net.get_link_from_to(target_link_id)[0]
+                self.net.modify_link_gdf(link_id_list=[target_link_id], attr_field_list=[from_node_field],
+                                         val_list=[[split_node]])
+                self.net.renew_link_head_geo(link_list=[target_link_id])
+            else:
+                to_del_node = self.net.get_link_from_to(target_link_id)[1]
+                self.net.modify_link_gdf(link_id_list=[target_link_id], attr_field_list=[to_node_field],
+                                         val_list=[[split_node]])
+                self.net.renew_link_tail_geo(link_list=[target_link_id])
+            self.net.del_nodes(node_list=[to_del_node])
+
+        self.done_split_link[target_link_id] = 1
+
+    def execute(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        # check the conn problem
+        self.check(out_fldr=out_fldr, file_name=file_name, generate_mark=generate_mark)
+
+        # modify conn problem
+        self.corrective_conn()
+
+        # drop dup road
+        self.net.drop_dup_ft_road()
+
+        # merger_double_link
+        self.net.merger_double_link()
+
+        link_gdf, node_gdf = self.net.get_bilateral_link_data(), self.net.get_node_data()
+
+        link_gdf = link_gdf.to_crs(self.net.geo_crs)
+        node_gdf = node_gdf.to_crs(self.net.geo_crs)
+
+        link_gdf.reset_index(inplace=True, drop=True)
+        node_gdf.reset_index(inplace=True, drop=True)
+
+        return link_gdf, node_gdf

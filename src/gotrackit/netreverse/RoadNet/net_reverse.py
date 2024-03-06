@@ -7,7 +7,9 @@
 依据路径规划请求结果逆向路网
 """
 
+from .conn import Conn
 import geopandas as gpd
+from ...map.Net import Net
 from .save_file import save_file
 from ..GlobalVal import NetField
 from ..RoadNet import optimize_net
@@ -35,7 +37,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
                  save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
-                 dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp'):
+                 dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp', modify_conn: bool = True,
+                 conn_buffer: float = 0.8, conn_period: str = 'final'):
     """
     路网逆向主程序, 输入拆分好且去重的path_gdf(EPSG:4326), output: EPSG:4326
     :param path_gdf:
@@ -59,6 +62,9 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param dup_link_buffer_ratio:
     :param out_fldr: 输出路网的存储目录
     :param net_file_type: shp or geojson
+    :param modify_conn: 是否修复联通性
+    :param conn_buffer: 修复联通性的buffer
+    :param conn_period: 在哪个阶段执行联通性修复? 取值 final or start, final表示在拓扑优化之后执行, start表示在拓扑优化之前执行
     :return:
     """
     if save_tpr_link or save_split_link or save_streets_before_modify_minimum or save_streets_after_modify_minimum:
@@ -98,6 +104,14 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
         save_file(data_item=link_gdf, out_fldr=out_fldr, file_name='TprLink', file_type=net_file_type)
         save_file(data_item=new_node, out_fldr=out_fldr, file_name='TprNode', file_type=net_file_type)
 
+    if modify_conn:
+        if conn_period == 'start':
+            print(rf'##########   {flag_name} - Repair Road Network Connectivity Before Topology Optimization')
+            net = Net(link_gdf=link_gdf, node_gdf=new_node, geo_crs=link_gdf.crs, plane_crs=plain_prj,
+                      create_single=False)
+            conn = Conn(net=net, check_buffer=conn_buffer)
+            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name='modifiedConn', generate_mark=True)
+
     # 5.拓扑优化
     print(rf'##########   {flag_name} - Topology Optimization')
     final_link, final_node, dup_info_dict = optimize_net.optimize(link_gdf=link_gdf, node_gdf=new_node,
@@ -114,6 +128,14 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                                                                   allow_ring=False,
                                                                   min_length=min_length,
                                                                   dup_link_buffer_ratio=dup_link_buffer_ratio)
+
+    if modify_conn:
+        if conn_period == 'final':
+            print(rf'##########   {flag_name} - Repair Road Network Connectivity After Topology Optimization')
+            net = Net(link_gdf=final_link, node_gdf=final_node, geo_crs=final_link.crs, plane_crs=plain_prj,
+                      create_single=False)
+            conn = Conn(net=net, check_buffer=conn_buffer)
+            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name='modifiedConn', generate_mark=True)
 
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)

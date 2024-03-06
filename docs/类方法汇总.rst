@@ -36,6 +36,9 @@
 * init_from_existing
     是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 不用指定值
 
+* search_method
+    路径规划所使用的方法,目前支持 'dijkstra' or 'bellman-ford', 默认dijkstra
+
 * return:
 
 
@@ -68,7 +71,7 @@ crs
 2.1. NetReverse类初始化
 ```````````````````````````
 
-.. py:class:: NetReverse(flag_name: str = '深圳市', plain_prj: str = 'EPSG:32650', ignore_head_tail: bool = False, cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp') -> None
+.. py:class:: NetReverse(flag_name: str = '深圳市', plain_prj: str = 'EPSG:32650', ignore_head_tail: bool = False, cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp', is_modify_conn: bool = True, conn_buffer: float = 0.8) -> None
 
 可以将参数分为5组：参数含义如下：
 
@@ -169,6 +172,19 @@ crs
 * dup_link_buffer_ratio
     重叠率检测阈值，使用默认值即可
 
+
+.. _联通性修复参数:
+
+**第六组（联通性修复参数）：**
+
+* is_modify_conn
+    是否检查潜在的联通性问题并且进行修复，默认True
+
+* conn_buffer
+    检查联通性问题时使用的检测半径大小,单位米
+
+* conn_period
+    取值 'final' or 'start', 'final'表示在拓扑优化之后修复联通性, 'start'表示在拓扑优化之前修复联通性
 
 
 2.2. NetReverse类方法
@@ -357,6 +373,24 @@ crs
 
 ----------------------------------------
 
+(5) modify_conn
+:::::::::::::::::::::::::::::
+
+路网联通性修复
+
+
+.. py:class:: NetReverse.modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None)  -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]
+
+单独使用该类方法优化已有路网的联通性，请在初始化NetReverse类时指定 `联通性修复参数`_
+
+* link_gdf
+    有标准字段的路网线层
+
+* node_gdf
+    有标准字段的路网点层
+
+
+
 3. HiddenMarkov类
 --------------------
 有空更，待完善...
@@ -366,6 +400,67 @@ crs
 4. GpsPointsGdf类
 --------------------
 有空更，待完善...
+
+
+4.1. GpsPointsGdf类初始化
+````````````````````````````````````````
+
+.. py:class:: GpsPointsGdf(gps_points_df: pd.DataFrame = None, buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10, time_format: str = '%Y-%m-%d %H:%M:%S', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649')
+
+参数含义如下：
+
+
+* gps_points_df
+    某一辆车的一次出行的gps数据, pd.DataFrame类型, 必须包含agent_id、lng、lat、time字段
+
+* buffer
+    半径大小, 单位米，用于确定GPS点附近buffer范围内的路段, 这部分路段作为候选路段,如果GPS数据定位误差较小,这个值可以指定的小一点,计算效率会高一点
+
+* increment_buffer
+    增量半径大小, 单位米
+
+* max_increment_times
+    最大搜索次数, int类型, 在buffer范围内搜索候选路段, 若存在GPS点无法关联到任何路段, 则会针对这部分的GPS点以increment_buffer为增量半径, 增加buffer的值继续搜索, 直到关联到了候选路段或者达到了max_increment_times
+
+* time_format
+    gps_points_df数据中time时间列的格式，默认%Y-%m-%d %H:%M:%S
+
+* geo_crs
+    几何坐标系，默认EPSG:4326
+
+* plane_crs
+    平面投影坐标系，默认EPSG:32649
+
+
+4.2. GpsPointsGdf类方法
+```````````````````````````
+
+(1) lower_frequency
+::::::::::::::::::::::::::::::::::::::
+
+GPS数据降频，参数含义如下：
+
+* n
+    n间隔采样，int类型
+
+
+(2) rolling_average
+::::::::::::::::::::::::::::::::::::::
+
+GPS数据滑动窗口平均，参数含义如下：
+
+* window
+    int类型，窗口大小，若启用了该方法对GPS数据进行处理，则航向角信息会被忽略
+
+
+
+(3) get_gps_array_buffer
+::::::::::::::::::::::::::::::::::::::
+
+计算GPS序列点形成的路径的总体影响面域，参数含义如下：
+
+* buffer
+    半径大小，单位米，建议这个buffer参数的取值要大于GpsPointsGdf类初始化中的buffer参数值
 
 
 5. Viterbi类

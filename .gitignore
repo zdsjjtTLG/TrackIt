@@ -18,6 +18,7 @@ data/output/
 data/output/match_visualization/
 data/intput/daily_prj/
 data/intput/net/lane/
+data/intput/net/test/
 
 PrivateDoc/
 # Distribution / packaging

@@ -15,6 +15,7 @@ import geopandas as gpd
 from ..GlobalVal import NetField
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point
+from ..netreverse.RoadNet.Tools.process import merge_double_link
 
 
 NOT_CONN_COST = 200.0
@@ -50,6 +51,7 @@ class Link(object):
         self.__ft_link_mapping: dict[tuple[int, int], int] = dict()
 
         self.__graph = nx.DiGraph()
+        self.__ud_graph = nx.Graph()
         self.__one_out_degree_nodes = None
         self.__link_ft_mapping: dict[int, tuple[int, int]] = dict()
 
@@ -134,6 +136,7 @@ class Link(object):
                          self.__single_link_gdf[net_field.TO_NODE_FIELD],
                          self.__single_link_gdf[weight_field])]
         self.__graph.add_edges_from(edge_list)
+        self.__ud_graph = self.__graph.to_undirected()
 
     def get_graph(self):
         return self.__graph
@@ -198,6 +201,39 @@ class Link(object):
     def renew_single_link(self):
         pass
 
+    def drop_dup_ft_road(self):
+        self.link_gdf.sort_values(by=[from_node_field, to_node_field, dir_field], ascending=[True, True, True],
+                                  inplace=True)
+        self.link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], inplace=True, keep='first')
+
+    def renew_head_of_geo(self, target_link: list = None, loc_dict: dict[tuple] or dict[list] = None):
+        """
+        modify the head of the link geo according to loc_dict
+        :param target_link:
+        :param loc_dict:
+        :return:
+        """
+        self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
+            lambda row: LineString([loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:]), axis=1)
+
+    def renew_tail_of_geo(self, target_link: list = None, loc_dict: dict[tuple] or dict[list] = None):
+        """
+        modify the tail of the link geo according to loc_dict
+        :param target_link:
+        :param loc_dict:
+        :return:
+        """
+        self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
+            lambda row: LineString(list(row[geometry_field].coords)[:-1] + [loc_dict[row[link_id_field]]]), axis=1)
+
+    def renew_geo_of_ht(self, target_link: list = None, head_loc_dict: dict[tuple] or dict[list] = None,
+                        tail_loc_dict: dict[tuple] or dict[list] = None):
+
+        self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
+            lambda row: LineString(
+                [head_loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:-1] + tail_loc_dict[
+                    row[link_id_field]]), axis=1)
+
     def get_double_link_data(self):
         pass
 
@@ -214,6 +250,10 @@ class Link(object):
     def modify_link_gdf(self, link_id_list: list[int], attr_field_list:list[str], val_list: list[list] = None):
         self.link_gdf.loc[link_id_list, attr_field_list] = val_list
 
+    def merge_double_link(self):
+        self.link_gdf = merge_double_link(link_gdf=self.link_gdf)
+        self.link_gdf.index = self.link_gdf[link_id_field]
+
     @DeprecationWarning
     def one_out_degree_nodes(self) -> list[int]:
         """只有一个出度的节点集合"""
@@ -228,15 +268,19 @@ class Link(object):
 
         return self.__one_out_degree_nodes
 
-    def get_link_geo(self, link_id: int = None) -> LineString:
-        return self.__single_link_gdf.at[link_id, geometry_field]
+    def get_link_geo(self, link_id: int = None, _type: str = 'single') -> LineString:
+        if _type == 'single':
+            return self.__single_link_gdf.at[link_id, geometry_field]
+        else:
+            return self.link_gdf.at[link_id, geometry_field]
 
-    def get_link_geo_by_bilateral_link(self, link_id: int = None) -> LineString:
-        return self.link_gdf.at[link_id, geometry_field]
-
-    def get_link_from_to(self, link_id: int = None) -> tuple[int, int]:
-        return self.__single_link_gdf.at[link_id, net_field.FROM_NODE_FIELD], self.__single_link_gdf.at[
-            link_id, net_field.TO_NODE_FIELD]
+    def get_link_from_to(self, link_id: int = None, _type='single') -> tuple[int, int]:
+        if _type == 'single':
+            return self.__single_link_gdf.at[link_id, net_field.FROM_NODE_FIELD], self.__single_link_gdf.at[
+                link_id, net_field.TO_NODE_FIELD]
+        else:
+            return self.link_gdf.at[link_id, net_field.FROM_NODE_FIELD], self.link_gdf.at[
+                link_id, net_field.TO_NODE_FIELD]
 
     def get_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
         return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], net_field.GEOMETRY_FIELD]
@@ -290,6 +334,20 @@ class Link(object):
     def get_av_link_id(self) -> list:
         return self.__available_link_id
 
+    def get_link_startswith_nodes(self, node_list: list[int], _type: str = 'single') -> list[int, int]:
+        if _type == 'single':
+            return self.__single_link_gdf[self.__single_link_gdf[from_node_field].isin(node_list)][
+                link_id_field].to_list()
+        else:
+            return self.link_gdf[self.link_gdf[from_node_field].isin(node_list)][link_id_field].to_list()
+
+    def get_link_endswith_nodes(self, node_list: list[int], _type: str = 'single') -> list[int, int]:
+        if _type == 'single':
+            return self.__single_link_gdf[self.__single_link_gdf[to_node_field].isin(node_list)][
+                link_id_field].to_list()
+        else:
+            return self.link_gdf[self.link_gdf[to_node_field].isin(node_list)][link_id_field].to_list()
+
     def update_available_link_id(self, link_list: list[int], _type: str = 'new') -> None:
         if _type == 'new':
             self.__available_link_id = list(set(self.__available_link_id) - set(link_list))
@@ -305,3 +363,7 @@ class Link(object):
     @property
     def link_ft_map(self) -> dict[int, tuple[int, int]]:
         return self.__link_ft_mapping.copy()
+
+    def vertex_degree(self, node: int = None) -> int:
+        """无向图的节点度"""
+        return self.__ud_graph.degree[node]

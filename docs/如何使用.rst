@@ -253,6 +253,12 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
     "198856","POINT (108.84627615033686 34.205495498912406)"
     "199563","POINT (108.84081270761097 34.208564048548254)"
 
+.. note::
+
+   点层表的geometry字段中不允许出现MultiPoint类型，不支持三维坐标。
+
+
+
 (2) 路网-线层
 '''''''''''''
 
@@ -302,6 +308,12 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
     "336493","1","268.77","122487","82793","西三环辅路","LINESTRING (108.84210722600966 34.20202954576994, 108.84186570306134 34.20393847725639, 108.84178453991281 34.204420171642816)"
     "336495","1","229.43","82793","166381","西三环辅路","LINESTRING (108.84178453991281 34.204420171642816, 108.84169935963888 34.205036812701614, 108.84162421311767 34.20542354934598, 108.84139277469502 34.20644679433629)"
     "353811","1","175.06","82793","7449","科技八路辅路","LINESTRING (108.84178453991281 34.204420171642816, 108.8409632885549 34.20423679420731, 108.83996876020116 34.20398312458892)"
+
+
+.. note::
+
+   线层表的geometry字段中不允许出现MultiLineString类型，只允许LineString类型，不支持三维坐标。
+
 
 
 (3) 点层、线层关联关系
@@ -682,6 +694,33 @@ GPS数据字段要求如下：
                                                                                      out_fldr=r'./data/output/create_node/')
 
 
+4.7. 基于已有标准路网, 检查路网的联通性并进行修复
+`````````````````````````````````````````````````
+
+如果你已经有了路网线层和点层(且字段和拓扑关联关系满足本算法包的要求)，你可以使用以下方式来检查路网的联通性
+
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        nv = ng.NetReverse()
+        link_gdf = gpd.read_file(r'./data/output/create_node/link.shp')
+        node_gdf = gpd.read_file(r'./data/output/create_node/node.shp')
+        new_link_gdf, new_node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
+                                                                                     update_link_field_list=['link_id',
+                                                                                                             'from_node',
+                                                                                                             'to_node',
+                                                                                                             'length'],
+                                                                                     plain_prj='EPSG:32651',
+                                                                                     modify_minimum_buffer=0.7,
+                                                                                     execute_modify=True,
+                                                                                     ignore_merge_rule=True,
+                                                                                     out_fldr=r'./data/output/create_node/')
+
+
 
 函数方法的相关参数见 :doc:`类方法汇总`
 
@@ -734,7 +773,7 @@ GPS数据字段要求如下：
         # 同时传入地理坐标系、平面投影坐标系参数
         my_net = Net(link_path=r'data/input/net/xian/link.shp',
                      node_path=r'data/input/net/xian/node.shp',
-                     weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs)
+                     weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs, search_method='dijkstra')
 
         # 路网对象初始化(一定要做)
         my_net.init_net()
@@ -763,7 +802,7 @@ GPS数据字段要求如下：
             sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
 
             # 6. 初始化一个隐马尔可夫模型
-            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0, search_method='single')
+            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)
             hmm_obj.generate_markov_para()  # 计算匹配参数
             hmm_obj.solve()  # 求解
 

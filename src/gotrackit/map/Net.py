@@ -48,7 +48,7 @@ class Net(object):
         :param geo_crs:  地理坐标系
         :param plane_crs: 平面投影坐标系
         :param create_single: 是否在初始化的时候创建single层
-        :param search_method:
+        :param search_method: 路径搜索方法, 'dijkstra' or 'bellman-ford'
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
 
         """
@@ -179,14 +179,11 @@ class Net(object):
     def get_bilateral_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_bilateral_link_data()
 
-    def get_link_geo(self, link_id: int = None) -> LineString:
-        return self.__link.get_link_geo(link_id=link_id)
+    def get_link_geo(self, link_id: int = None, _type: str = 'single') -> LineString:
+        return self.__link.get_link_geo(link_id=link_id, _type=_type)
 
-    def get_link_geo_by_bilateral_link(self, link_id: int = None) -> LineString:
-        return self.__link.get_link_geo_by_bilateral_link(link_id)
-
-    def get_link_from_to(self, link_id: int = None) -> tuple[int, int]:
-        return self.__link.get_link_from_to(link_id=link_id)
+    def get_link_from_to(self, link_id: int = None, _type='bilateral') -> tuple[int, int]:
+        return self.__link.get_link_from_to(link_id=link_id, _type=_type)
 
     def get_line_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
         return self.__link.get_geo_by_ft(from_node, to_node)
@@ -263,60 +260,40 @@ class Net(object):
     def graph(self) -> nx.DiGraph:
         return self.__link.get_graph()
 
-    def split_link(self, p: Point or tuple or list = None, target_link: int = None,
-                   manually_specify_node_id: bool = False, new_node_id: int = 100, generate_node: bool = False,
-                   omitted_length_threshold: float = 1.0) -> tuple[bool, Point]:
-        """
-        using one point to split a link: 1.create a new node(if generate_node=True)  2.create a new link
-        :param p:
-        :param target_link:
-        :param manually_specify_node_id: 是否手动指定新节点的node_id
-        :param new_node_id: 新节点的node_id
-        :param generate_node: 是否生成新节点
-        :param omitted_length_threshold:
-        :return:
-        """
-        if isinstance(p, Point):
-            pass
-        else:
-            p = Point(p)
+    @property
+    def node_degree(self, node: int = None) -> int:
+        return self.__link.vertex_degree(node)
 
-        # 获取打断点到target link的投影点信息
-        target_link_geo = self.get_link_geo_by_bilateral_link(target_link)
-        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list = prj_inf(p=p, line=target_link_geo)
+    def renew_link_head_geo(self, link_list: list[int] = None):
+        self.__link.renew_head_of_geo(target_link=link_list,
+                                      loc_dict={
+                                          link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[0]) for
+                                          link in link_list})
 
-        if (target_l - prj_route_l) <= omitted_length_threshold or prj_route_l <= omitted_length_threshold:
-            # omitted the short link or only one link after split
-            return False, Point()
-        else:
-            if not manually_specify_node_id:
-                # new node id, and renew the available_node_id
-                new_node_id = self.__node.available_node_id
-            if generate_node:
-                self.__node.append_nodes([new_node_id], [prj_p])
+    def renew_link_tail_geo(self, link_list: list[int] = None):
+        self.__link.renew_tail_of_geo(target_link=link_list,
+                                      loc_dict={
+                                          link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[1]) for
+                                          link in link_list})
 
-            link_info_before_modify = self.__link.link_series(target_link)
-            self.__link.modify_link_gdf([target_link], [to_node_field, length_field, geometry_field],
-                                        [[new_node_id, split_link_geo_list[0].length, split_link_geo_list[0]]])
-
-            # new link
-            new_link_id = self.__link.available_link_id
-
-            # other attr copy
-            other_attr = {col: [link_info_before_modify[col]] for col in link_info_before_modify.index if
-                          col not in [link_id_field, from_node_field, to_node_field, dir_field, length_field,
-                                      geometry_field]}
-
-            self.__link.append_links([new_link_id], [new_node_id], [link_info_before_modify[to_node_field]],
-                                     [int(link_info_before_modify[dir_field])], [split_link_geo_list[1]], **other_attr)
-
-            return True, prj_p
+    def renew_link_ht_geo(self, link_list: list[int] = None):
+        self.__link.renew_geo_of_ht(target_link=link_list, head_loc_dict={
+            link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[0]) for
+            link in link_list}, tail_loc_dict={
+            link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[1]) for
+            link in link_list})
 
     def modify_link_gdf(self, link_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
         self.__link.modify_link_gdf(link_id_list=link_id_list, attr_field_list=attr_field_list, val_list=val_list)
 
     def modify_node_gdf(self, node_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
         self.__node.modify_node_gdf(node_id_list=node_id_list, attr_field_list=attr_field_list, val_list=val_list)
+
+    def get_link_startswith_nodes(self, node_list: list[int], _type: str = 'single') -> list[int, int]:
+        return self.__link.get_link_startswith_nodes(node_list=node_list, _type=_type)
+
+    def get_link_endswith_nodes(self, node_list: list[int], _type: str = 'single') -> list[int, int]:
+        return self.__link.get_link_endswith_nodes(node_list=node_list, _type=_type)
 
     def export_net(self, export_crs: str = 'EPSG:4326', out_fldr: str = None, flag_name: str = None,
                    file_type: str = 'geojson') -> None:
@@ -331,3 +308,51 @@ class Net(object):
 
         save_file(data_item=export_link_gdf, file_type=file_type, file_name=link_file_name, out_fldr=out_fldr)
         save_file(data_item=export_node_gdf, file_type=file_type, file_name=node_file_name, out_fldr=out_fldr)
+
+    def split_link(self, p: Point or tuple or list = None, target_link: int = None,
+                   omitted_length_threshold: float = 0.8) -> tuple[bool, Point, list[int], str]:
+        """
+        using one point to split a link: create a new link
+        :param p:
+        :param target_link:
+        :param omitted_length_threshold:
+        :return:
+        """
+        if isinstance(p, Point):
+            pass
+        else:
+            p = Point(p)
+
+        # 获取打断点到target link的投影点信息
+        target_link_geo = self.get_link_geo(target_link, _type='bilateral')
+        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list = prj_inf(p=p, line=target_link_geo)
+
+        if (target_l - prj_route_l) <= omitted_length_threshold:
+            # this means that we should merge the to_node and p
+            return False, Point(), [], 'tail_beyond'
+        elif prj_route_l <= omitted_length_threshold:
+            # this means that we should merge the from_node and p
+            return False, Point(), [], 'head_beyond'
+        else:
+            link_info_before_modify = self.__link.link_series(target_link)
+            self.__link.modify_link_gdf([target_link], [to_node_field, length_field, geometry_field],
+                                        [[-1, split_link_geo_list[0].length, split_link_geo_list[0]]])
+
+            # new link
+            new_link_id = self.__link.available_link_id
+
+            # other attr copy
+            other_attr = {col: [link_info_before_modify[col]] for col in link_info_before_modify.index if
+                          col not in [link_id_field, from_node_field, to_node_field, dir_field, length_field,
+                                      geometry_field]}
+
+            self.__link.append_links([new_link_id], [-1], [link_info_before_modify[to_node_field]],
+                                     [int(link_info_before_modify[dir_field])], [split_link_geo_list[1]], **other_attr)
+
+            return True, prj_p, [target_link, new_link_id], 'split'
+
+    def drop_dup_ft_road(self):
+        self.__link.drop_dup_ft_road()
+
+    def merger_double_link(self):
+        self.__link.merge_double_link()

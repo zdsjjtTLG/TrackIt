@@ -154,7 +154,6 @@ class LngLatTransfer(object):
         return lng, lat
 
     def loc_convert(self, lng, lat, con_type='gc2bd') -> tuple[float, float]:
-        assert con_type in ['gc-bd', 'gc-84', '84-bd', '84-gc', 'bd-84']
         if con_type == 'gc-bd':
             return self.GCJ02_to_BD09(lng, lat)
         elif con_type == 'gc-84':
@@ -165,8 +164,10 @@ class LngLatTransfer(object):
             return self.WGS84_to_GCJ02(lng, lat)
         elif con_type == 'bd-84':
             return self.BD09_to_WGS84(lng, lat)
-        else:
+        elif con_type == 'bd-gc':
             return self.BD09_to_GCJ02(lng, lat)
+        else:
+            return lng, lat
 
     def obj_convert(self, geo_obj: shapely.geometry, con_type: str) -> shapely.geometry:
         if isinstance(geo_obj, (MultiPolygon, MultiLineString, MultiPoint)):
