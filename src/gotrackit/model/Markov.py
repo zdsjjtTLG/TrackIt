@@ -55,6 +55,7 @@ class HiddenMarkov(object):
         self.__s2s_route_l = dict()
         self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
         self.path_cost_df = pd.DataFrame()
+        self.is_warn = False
 
     def generate_markov_para(self):
 
@@ -527,7 +528,9 @@ class HiddenMarkov(object):
             gps_link_state_df.reset_index(inplace=True, drop=True)
 
         # 给每个gps点打上路网link标签, 存在GPS匹配不到路段的情况(比如buffer范围内无候选路段)
-        gps_match_res_gdf = pd.merge(gps_match_res_gdf,
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD,
+                                                        gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD,
+                                                        gps_field.GEOMETRY_FIELD]],
                                      gps_link_state_df, on=gps_field.POINT_SEQ_FIELD, how='right')
         gps_match_res_gdf.loc[gps_match_res_gdf[gps_field.NEXT_LINK_FIELD].isna(), net_field.GEOMETRY_FIELD] = \
             omitted_gps_state_df[net_field.GEOMETRY_FIELD].to_list()
@@ -605,6 +608,7 @@ class HiddenMarkov(object):
                     omitted_gps_points_time.extend(
                         [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
                 else:
+                    self.is_warn = True
                     warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
@@ -637,9 +641,14 @@ class HiddenMarkov(object):
 
             # 匹配路段
             if use_gps_source:
-                plot_gps_gdf = self.gps_points.source_gps
+                plot_gps_gdf = self.gps_points.source_gps[
+                    [gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD,
+                     gps_field.LAT_FIELD, gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD]].copy()
             else:
                 plot_gps_gdf = self.gps_match_res_gdf.copy()
+                plot_gps_gdf = plot_gps_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD,
+                                             gps_field.LAT_FIELD, gps_field.TIME_FIELD,
+                                             gps_field.GEOMETRY_FIELD]].copy()
 
             # GPS点转化为circle polygon
             plot_gps_gdf.drop(columns=[gps_field.LNG_FIELD, gps_field.LAT_FIELD], axis=1, inplace=True)
@@ -737,7 +746,6 @@ class HiddenMarkov(object):
         for gdf, name in zip([gps_layer, prj_p_layer, prj_l_layer, match_link_gdf],
                              ['gps', 'prj_p', 'prj_l', 'match_link']):
             gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
-
 
 
 if __name__ == '__main__':

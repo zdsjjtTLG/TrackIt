@@ -35,6 +35,9 @@ class Link(object):
 
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
+        for col in [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD,
+                    net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]:
+            link_gdf[col] = link_gdf[col].astype(int)
         self.link_gdf = link_gdf.copy()
         self.link_gdf.index = self.link_gdf[link_id_field]
         for col in [net_field.DIRECTION_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,

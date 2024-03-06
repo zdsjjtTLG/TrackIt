@@ -6,6 +6,7 @@
 """博主的测试代码, 相关文件都在本地, 所以不要运行该文件"""
 
 
+import os
 import pandas as pd
 import geopandas as gpd
 from src.gotrackit.map.Net import Net
@@ -14,7 +15,6 @@ from src.gotrackit.gps.LocGps import GpsPointsGdf
 from src.gotrackit.model.Markov import HiddenMarkov
 from src.gotrackit.GlobalVal import NetField, GpsField
 from src.gotrackit.visualization import VisualizationCombination
-
 
 net_field = NetField()
 gps_field = GpsField()
@@ -25,7 +25,7 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
           weight_field='length', gps_df: pd.DataFrame = None, time_format: str = "%Y-%m-%d %H:%M:%S",
           is_lower_f: bool = False, lower_n: int = 2, is_rolling_average: bool = False, window: int = 2,
           gps_buffer: float = 90, use_sub_net: bool = True, buffer_for_sub_net: float = 110,
-          beta: float = 20.2, gps_sigma: float = 10.0, flag_name: str = 'test',
+          beta: float = 20.2, gps_sigma: float = 20.0, flag_name: str = 'test',
           export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None, html_fldr: str = None):
     print(fr'using {search_method}....')
     # 1.新建一个路网对象, 并且使用平面坐标
@@ -36,9 +36,6 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
 
     # 初始化
     my_net.init_net()
-
-    # 4.初始化一个匹配结果管理器
-    vc = VisualizationCombination(use_gps_source=True)
 
     match_res_df = pd.DataFrame()
 
@@ -73,8 +70,17 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
         # 求解参数
         hmm_obj.generate_markov_para()
         hmm_obj.solve()
-
         _match_res_df = hmm_obj.acquire_res()
+        if hmm_obj.is_warn:
+            print(r'重新计算...')
+            gps_obj.rolling_average(window=2)
+            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
+            hmm_obj.generate_markov_para()
+            hmm_obj.solve()
+            _match_res_df = hmm_obj.acquire_res()
+            print(hmm_obj.is_warn)
+        else:
+            print('no warning...')
 
         if export_geo_res:
             hmm_obj.acquire_geo_res(out_fldr=geo_res_fldr,
@@ -83,12 +89,13 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
         match_res_df = pd.concat([match_res_df, _match_res_df])
 
         if export_html:
-            vc.collect_hmm(hmm_obj)
-
-    if export_html:
-        vc.visualization(zoom=15, out_fldr=html_fldr,
-                         file_name=flag_name)
-
+            if export_html:
+                # 4.初始化一个匹配结果管理器
+                vc = VisualizationCombination(use_gps_source=False)
+                vc.collect_hmm(hmm_obj)
+                vc.visualization(zoom=15, out_fldr=html_fldr,
+                                 file_name=file_name)
+                del vc
     match_res_df.reset_index(inplace=True, drop=True)
     return match_res_df
 
@@ -166,7 +173,29 @@ def t_cq_match():
           html_fldr=r'./data/output/match_visualization/cq')
 
 
+def t_sample_match():
+    gps_df = pd.DataFrame()
+    fldr = r'./data/output/gps/sample/'
+    for file in os.listdir(fldr):
+        _ = gpd.read_file(os.path.join(fldr, file))
+        gps_df = pd.concat([gps_df, _])
+    gps_df.reset_index(inplace=True, drop=True)
+    print(gps_df)
+    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_3'].copy()
+
+    match(plain_crs='EPSG:32649', geo_crs='EPSG:4326', link_path=r'./data/input/net/xian/conn_done_link.shp',
+          node_path=r'./data/input/net/xian/conn_done_node.shp', use_sub_net=True, gps_buffer=60,
+          buffer_for_sub_net=170, gps_df=gps_df,
+          is_rolling_average=False, window=2,
+          flag_name='xian_sample', export_html=True, export_geo_res=True,
+          html_fldr=r'./data/output/match_visualization/sample',
+          geo_res_fldr=r'./data/output/match_visualization/sample')
+
+
 if __name__ == '__main__':
+
     # t_lane_match()
 
     t_cq_match()
+
+    # t_sample_match()

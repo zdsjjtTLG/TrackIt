@@ -5,9 +5,8 @@
 
 
 import numpy as np
-import geopandas as gpd
 import pandas as pd
-
+import geopandas as gpd
 from ..GlobalVal import NetField
 from .coord_trans import LngLatTransfer
 from shapely.geometry import LineString, Point
@@ -161,7 +160,7 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                                                                          LineString([(cp.x, cp.y)] + coords[i:])]
 
 
-def format_single_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
+def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
     """
     将geometry列中的Multi对象处理为single对象
     :param gdf:

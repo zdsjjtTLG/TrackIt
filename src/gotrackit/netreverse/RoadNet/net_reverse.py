@@ -110,7 +110,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             net = Net(link_gdf=link_gdf, node_gdf=new_node, geo_crs=link_gdf.crs, plane_crs=plain_prj,
                       create_single=False)
             conn = Conn(net=net, check_buffer=conn_buffer)
-            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name='modifiedConn', generate_mark=True)
+            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
 
     # 5.拓扑优化
     print(rf'##########   {flag_name} - Topology Optimization')
@@ -135,7 +135,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             net = Net(link_gdf=final_link, node_gdf=final_node, geo_crs=final_link.crs, plane_crs=plain_prj,
                       create_single=False)
             conn = Conn(net=net, check_buffer=conn_buffer)
-            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name='modifiedConn', generate_mark=True)
+            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
 
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)

@@ -20,6 +20,7 @@ from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from .Parse.gd_car_path import parse_path_main
+from ..tools.geo_process import clean_link_geo
 from .PublicTools.GeoProcess import generate_region
 from .Parse.gd_car_path import parse_path_main_alpha
 from .RoadNet.Split.SplitPath import split_path_main
@@ -339,12 +340,14 @@ class NetReverse(Reverse):
                                  conn_period=self.conn_period)
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
-                    book_mark_name: str = 'test') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+                    book_mark_name: str = 'test', link_name_field: str = 'road_name') -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
 
         :param link_gdf:
         :param node_gdf:
         :param book_mark_name:
+        :param link_name_field:
         :return:
         """
         geo_crs = link_gdf.crs
@@ -360,3 +363,7 @@ class NetReverse(Reverse):
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
         return link_gdf, node_gdf
+
+    @staticmethod
+    def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
+        return clean_link_geo(gdf=gdf, plain_crs=plain_crs)

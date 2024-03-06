@@ -36,7 +36,7 @@ class Conn(object):
         # the link status
         self.done_split_link = dict()
 
-    def check(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False):
+    def check(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False) -> None:
         # get link data and node data
         self.net.to_plane_prj()
 
@@ -51,7 +51,8 @@ class Conn(object):
             return None
 
         if generate_mark:
-            assert out_fldr is not None
+            if out_fldr is None:
+                return None
             node_gdf.set_geometry(geometry_field, inplace=True, crs=self.net.plane_crs)
             node_gdf = node_gdf.to_crs(self.net.geo_crs)
             agg_df = join_df.groupby(node_id_field).agg({link_id_field: list}).reset_index(drop=False)
@@ -78,6 +79,7 @@ class Conn(object):
         join_df['doubt'] = join_df.apply(
             lambda item: 1 if item[node_id_field] not in [item[from_node_field], item[to_node_field]] else 0, axis=1)
         join_df.drop(index=join_df[join_df['doubt'] == 0].index, inplace=True, axis=0)
+        # 按照link_name再筛选一次, 避免将本来不连通的给修正为联通的, to_do
         join_df.reset_index(inplace=True, drop=True)
         return join_df
 
@@ -93,8 +95,6 @@ class Conn(object):
                 n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
             if split_node not in self.net.get_node_data()[node_id_field]:
                 continue
-            if split_node in [13452, 16202, 28200]:
-                pass
             if len(n_link_gdf) == 1:
                 target_link = n_link_gdf[link_id_field].to_list()[0]
                 if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
@@ -114,10 +114,6 @@ class Conn(object):
                 self._corrective_conn(n_link_gdf=n_link_gdf, split_node=split_node)
                 for l in n_link_gdf[link_id_field]:
                     self.done_split_link[l] = 1
-
-            # if split_node in [13452, 16202, 28200]:
-            #     self.net.export_net(out_fldr=r'F:\PyPrj\TrackIt\data\input\net\cq', file_type='shp',
-            #                         flag_name='temp')
             flag += 1
 
     def _corrective_conn(self, n_link_gdf: gpd.GeoDataFrame = None, split_node: int = None):
@@ -181,7 +177,8 @@ class Conn(object):
 
         self.done_split_link[target_link_id] = 1
 
-    def execute(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False) -> \
+    def execute(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False,
+                link_name_field: str = 'road_name') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         # check the conn problem
         self.check(out_fldr=out_fldr, file_name=file_name, generate_mark=generate_mark)

@@ -706,20 +706,36 @@ GPS数据字段要求如下：
     :linenos:
 
     if __name__ == '__main__':
-        nv = ng.NetReverse()
-        link_gdf = gpd.read_file(r'./data/output/create_node/link.shp')
-        node_gdf = gpd.read_file(r'./data/output/create_node/node.shp')
-        new_link_gdf, new_node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
-                                                                                     update_link_field_list=['link_id',
-                                                                                                             'from_node',
-                                                                                                             'to_node',
-                                                                                                             'length'],
-                                                                                     plain_prj='EPSG:32651',
-                                                                                     modify_minimum_buffer=0.7,
-                                                                                     execute_modify=True,
-                                                                                     ignore_merge_rule=True,
-                                                                                     out_fldr=r'./data/output/create_node/')
+        link_gdf = gpd.read_file(r'./data/input/net/test/sz/FinalLink.shp')
+        node_gdf = gpd.read_file(r'./data/input/net/test/sz/FinalNode.shp')
 
+        nv = ng.NetReverse(net_file_type='shp', conn_buffer=0.8, net_out_fldr=r'./data/input/net/test/sz/')
+        new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, book_mark_name='sz_conn_test')
+
+        print(new_link_gdf)
+        print(new_node_gdf)
+
+在net_out_fldr下会生成联通性修复完成后的路网文件以及xml空间书签文件，将xml文件导入到QGIS可以查看修复的点位情况以便排查是否所有修复都是合理的
+
+
+4.8. 清洗你的路网线层数据
+`````````````````````````````````````````````````
+
+如果你已经有了路网线层数据, 你可能想使用nv.create_node_from_link函数来生产点层以及生产拓扑关联以得到标准的路网数据，但是nv.create_node_from_link可能会报错，因为你的路网线层数据可能包含了Multi类型或者是带有z坐标，你可以使用nv类的静态方法clean_link_geo来消除z坐标以及multi类型
+
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+
+        # 读取数据
+        df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+
+        # 处理geometry
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649')
 
 
 函数方法的相关参数见 :doc:`类方法汇总`
@@ -810,7 +826,14 @@ GPS数据字段要求如下：
             # 'agent_id', 'time', 'heading', 'lng', 'lat', 'geometry', 'seq', 'origin_seq', 'single_link_id', 'link_id', 'dir', 'from_node','to_node', 'sub_seq'
             match_res_df = hmm_obj.acquire_res()
 
-            # 8. 将结果放到可视化收集器里面, 方便可视化输出
+
+            # 8. 输出匹配信息的几何文件
+            # 如果执行了该函数, 会在r'./data/output/match_visualization/'下生成四个geojson文件:
+            # GPS点文件、GPS-目标路段的投影点文件、匹配link文件、GPS点-GPS投影点的线文件
+            hmm_obj.acquire_geo_res(out_fldr=r'./data/output/match_visualization/', flag_name='test')
+
+
+            # 9. 将结果放到可视化收集器里面, 方便可视化输出
             vc.collect_hmm(hmm_obj)
 
 

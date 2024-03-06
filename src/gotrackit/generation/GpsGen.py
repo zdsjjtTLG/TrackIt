@@ -203,12 +203,11 @@ class Car(object):
             logging.Formatter('[%(asctime)s %(levelname)s] %(message)s', datefmt='%m/%d/%Y %H:%M:%S'))
         console_handler.setLevel(logging.INFO)
 
-        file_handler = logging.FileHandler(fr'./car_gps_{self.agent_id}.log', mode='a')
-        file_handler.setFormatter(
-            logging.Formatter('[%(asctime)s %(levelname)s] %(message)s', datefmt='%m/%d/%Y %H:%M:%S'))
-        file_handler.setLevel(logging.INFO)
-
         if self.save_log:
+            file_handler = logging.FileHandler(fr'./car_gps_{self.agent_id}.log', mode='a')
+            file_handler.setFormatter(
+                logging.Formatter('[%(asctime)s %(levelname)s] %(message)s', datefmt='%m/%d/%Y %H:%M:%S'))
+            file_handler.setLevel(logging.INFO)
             logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s',
                                 handlers=[file_handler, console_handler])
         else:

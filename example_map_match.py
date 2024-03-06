@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # 3.读取GPS文件
     gps_file = 'test125'
-    gps_df = gpd.read_file(rf'./data/output/gps/{gps_file}.geojson')
+    gps_df = gpd.read_file(rf'./data/output/gps/sample/{gps_file}.geojson')
     print(gps_df)
 
     # 4.初始化一个匹配结果管理器
