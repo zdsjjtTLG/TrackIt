@@ -5,8 +5,15 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/gotrackit)
 
 
-
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
+
+
+**即将更新**
+- 地图匹配效率提升；
+- 修复概率连乘导致浮点数下溢的BUG；
+- 新增路网联通性修复功能；
+- 路网逆向模块优化。
+
 
 ## 1. 简介
 本地图匹配包基于隐马尔可夫模型(HMM)实现了连续GPS点位的概率建模，利用这个包可以轻松对GPS数据进行地图匹配，本开源包的特点如下:
