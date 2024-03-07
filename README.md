@@ -66,7 +66,10 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 ### 1.2 用户手册
 
-[用户文档链接](https://gotrackit.readthedocs.io/en/latest/)
+[用户手册](https://gotrackit.readthedocs.io/en/latest/)、
+[视频教程1](https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2)、
+[视频教程2](https://www.bilibili.com/video/BV1nC411z7Vg/?share_source=copy_web&vd_source=9b4518c7de4757ad3b99e18456efbaa6)
+
 
 ## 2. 地图匹配问题
 
