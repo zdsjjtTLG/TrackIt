@@ -866,7 +866,7 @@ GPS数据字段要求如下：
     "time","gps定位时间","datetime"
     "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
     "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
-    "to_node","gps匹配路段的终到节点(表征行车方向起点)","int"
+    "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
 
 关于sub_seq：
 

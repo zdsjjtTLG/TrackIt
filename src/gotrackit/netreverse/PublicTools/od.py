@@ -123,3 +123,7 @@ def region_od(region_gdf: gpd.GeoDataFrame = None) -> pd.DataFrame:
 
     od_df[od_id_field] = range(1, len(od_df) + 1)
     return od_df
+
+
+def extract_od_by_gps(gps_gdf: pd.DataFrame or gpd.GeoDataFrame = None):
+    pass
