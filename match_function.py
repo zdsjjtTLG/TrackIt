@@ -194,7 +194,7 @@ def t_sample_match():
 
 if __name__ == '__main__':
 
-    # t_lane_match()
+    t_lane_match()
 
     t_cq_match()
 
