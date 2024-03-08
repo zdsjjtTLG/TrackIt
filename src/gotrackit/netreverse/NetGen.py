@@ -158,7 +158,6 @@ class NetReverse(Reverse):
         :param slice_num:
         :param attr_name_list:
         :param cut_slice:
-        :param flag_name
         :return:
         """
         print(rf'##########   {self.flag_name} - Split Path')
