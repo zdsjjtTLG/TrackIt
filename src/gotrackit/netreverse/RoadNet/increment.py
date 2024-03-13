@@ -285,7 +285,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
 
     shadow_link_gdf = gpd.GeoDataFrame(shadow_edge_list, columns=[from_node_id_field,
                                                                   to_node_id_field],
-                                       geometry=[LineString([(0, 0), (1, 1)])] * len(shadow_edge_list), crs=utm_crs)
+                                       geometry=[LineString([(0, 0), (1, 1)])] * len(shadow_edge_list), crs=plain_crs)
     shadow_link_gdf[direction_field] = 1
     shadow_link_gdf[link_id_field] = [-i for i in range(1, len(shadow_link_gdf) + 1)]
     new_link_gdf = pd.concat([new_link_gdf, shadow_link_gdf])

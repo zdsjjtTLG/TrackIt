@@ -339,7 +339,7 @@ class NetReverse(Reverse):
                                  conn_period=self.conn_period)
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
-                    book_mark_name: str = 'test', link_name_field: str = 'road_name') -> \
+                    book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
 
@@ -347,6 +347,7 @@ class NetReverse(Reverse):
         :param node_gdf:
         :param book_mark_name:
         :param link_name_field:
+        :param generate_mark
         :return:
         """
         geo_crs = link_gdf.crs
@@ -354,7 +355,7 @@ class NetReverse(Reverse):
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, geo_crs=geo_crs, plane_crs=self.plain_prj,
                   create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
-        conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=True)
+        conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=generate_mark)
         net.export_net(export_crs=link_gdf.crs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
                        flag_name='modifiedConn')
         net.to_geo_prj()

@@ -383,3 +383,39 @@ def avoid_duplicate_cols(df=None, update_col_name_list=None) -> None:
         else:
             pass
     df.rename(columns=rename_dict, inplace=True)
+
+
+def get_dup_node(node_gdf: gpd.GeoDataFrame = None, buffer: float = 0.5) -> dict[int, int]:
+    """
+    input crs: 平面
+    :param node_gdf:
+    :param buffer:
+    :return:
+    """
+    buffer_node_gdf = node_gdf.copy()
+
+    buffer_node_gdf[net_field.GEOMETRY_FIELD] = \
+        buffer_node_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: x.buffer(buffer))
+    join_df = gpd.sjoin(node_gdf, buffer_node_gdf)
+
+    join_df.reset_index(inplace=True, drop=True)
+
+    join_df.drop(
+        index=join_df[join_df[net_field.NODE_ID_FIELD + '_left'] == join_df[net_field.NODE_ID_FIELD + '_right']].index,
+        inplace=True, axis=0)
+
+    node_group_status_list = []
+    if join_df.empty:
+        return dict()
+    else:
+        # 建立图
+        g = nx.Graph()
+        g.add_edges_from([(f, t) for f, t in zip(join_df[net_field.NODE_ID_FIELD + '_left'],
+                                                 join_df[net_field.NODE_ID_FIELD + '_right'])])
+
+        # delete_node: remain_node
+        node_map_dict = {}
+        for node_group in nx.connected_components(g):
+            # 必然有 >= 2 个元素
+            node_group_list = list(node_group)
+            node_map_dict.update({origin_node: node_group_list[0] for origin_node in node_group_list[1:]})

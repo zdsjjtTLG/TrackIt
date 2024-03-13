@@ -9,14 +9,14 @@
 2. 去除z坐标
 3. 去除重叠点要素
 """
-import time
 
+import time
 import geopandas as gpd
 import src.gotrackit.netreverse.NetGen as ng
 
 
-if __name__ == '__main__':
 
+def func1():
     # 读取数据
     df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
 
@@ -33,3 +33,22 @@ if __name__ == '__main__':
     group.to_file('./data/input/net/test/cq/group.shp')
 
     nv.modify_conn(link_gdf=l, node_gdf=n)
+
+
+def func2():
+    link = gpd.read_file(r'./data/input/net/test/0308/edge/edge/edge.shp')
+
+    print(link)
+    print(link.crs)
+
+    nv = ng.NetReverse()
+    l, n, _ = nv.create_node_from_link(link_gdf=link,
+                                       update_link_field_list=['link_id', 'from_node', 'to_node', 'dir', 'length'],
+                                       fill_dir=1, out_fldr=r'./data/output/0308/', plain_prj='EPSG:32649')
+    print(l)
+    print(n)
+
+
+if __name__ == '__main__':
+    func2()
+

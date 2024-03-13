@@ -79,6 +79,8 @@ class Conn(object):
         join_df['doubt'] = join_df.apply(
             lambda item: 1 if item[node_id_field] not in [item[from_node_field], item[to_node_field]] else 0, axis=1)
         join_df.drop(index=join_df[join_df['doubt'] == 0].index, inplace=True, axis=0)
+        join_df.dropna(subset=[link_id_field], axis=0, inplace=True)
+        join_df[link_id_field] = join_df[link_id_field].astype(int)
         # 按照link_name再筛选一次, 避免将本来不连通的给修正为联通的, to_do
         join_df.reset_index(inplace=True, drop=True)
         return join_df
