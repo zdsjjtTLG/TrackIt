@@ -3,6 +3,8 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/gotrackit)
 ![GitHub License](https://img.shields.io/github/license/zdsjjtTLG/Trackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/gotrackit)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/gotrackit)
+
 
 
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
