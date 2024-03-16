@@ -31,7 +31,7 @@ required_field_list = [link_id_field, length_field, direction_field,
 
 def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
                      node_gdf: gpd.GeoDataFrame = None, buffer: float = 0.45,
-                     dup_link_buffer_ratio: float = 60.0) -> \
+                     dup_link_buffer_ratio: float = 60.0, modify_minimum_buffer: float = 0.6) -> \
         (gpd.GeoDataFrame, gpd.GeoDataFrame, dict):
     """
     去除重叠link, 输入的必须是平面投影坐标系
@@ -39,6 +39,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
     :param node_gdf:
     :param buffer:
     :param dup_link_buffer_ratio:
+    :param modify_minimum_buffer
     :return:
     """
     plain_crs = link_gdf.crs
@@ -177,7 +178,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
     # 再进行一次极小间隔点优化
     final_link_gdf, final_node_gdf, _ = modify_minimum(plain_prj=final_link_gdf.crs, node_gdf=final_node_gdf,
                                                        link_gdf=final_link_gdf,
-                                                       buffer=0.65, auxiliary_judge_field='road_name',
+                                                       buffer=modify_minimum_buffer, auxiliary_judge_field='road_name',
                                                        ignore_merge_rule=True)
 
     # 去除重复的link

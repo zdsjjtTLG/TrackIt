@@ -356,3 +356,10 @@ class Net(object):
 
     def merger_double_link(self):
         self.__link.merge_double_link()
+
+    def del_short_links(self, l_threshold: float = 0.5) -> None:
+        self.__link.del_short_links(l_threshold=l_threshold)
+        self.del_zero_degree_nodes()
+
+    def del_zero_degree_nodes(self) -> None:
+        self.__node.delete_nodes(node_list=list(self.__node.node_id_set() - self.__link.used_node()))

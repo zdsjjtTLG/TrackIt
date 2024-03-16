@@ -35,7 +35,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  limit_col_name: str = 'road_name',
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
-                 save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False,
+                 save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False, save_done_topo:bool=False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
                  dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp', modify_conn: bool = True,
                  conn_buffer: float = 0.8, conn_period: str = 'final'):
@@ -57,6 +57,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param restrict_length: 是否启用合并后的长度限制
     :param restrict_angle:  是否启用转角限制
     :param save_preliminary: 是否保存2度节点合并后的路网
+    :param save_done_topo: 是否保存拓扑优化之后的路网
     :param is_process_dup_link: 是否处理重叠link
     :param process_dup_link_buffer: 处理重叠link时的buffer取值
     :param dup_link_buffer_ratio:
@@ -69,6 +70,9 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     """
     if save_tpr_link or save_split_link or save_streets_before_modify_minimum or save_streets_after_modify_minimum:
         assert out_fldr is not None
+
+    if modify_minimum_buffer <= conn_buffer:
+        modify_minimum_buffer = conn_buffer + 0.1
 
     path_gdf_after_split = path_gdf
 
@@ -126,8 +130,13 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                                                                   process_dup_link_buffer=process_dup_link_buffer,
                                                                   is_process_dup_link=is_process_dup_link,
                                                                   allow_ring=False,
+                                                                  modify_minimum_buffer=modify_minimum_buffer,
                                                                   min_length=min_length,
                                                                   dup_link_buffer_ratio=dup_link_buffer_ratio)
+
+    if save_done_topo:
+        save_file(data_item=final_link, out_fldr=out_fldr, file_name='DoneTopoLink', file_type=net_file_type)
+        save_file(data_item=final_node, out_fldr=out_fldr, file_name='DoneTopoNode', file_type=net_file_type)
 
     if modify_conn:
         if conn_period == 'final':
@@ -135,9 +144,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             net = Net(link_gdf=final_link, node_gdf=final_node, geo_crs=final_link.crs, plane_crs=plain_prj,
                       create_single=False)
             conn = Conn(net=net, check_buffer=conn_buffer)
-            link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
+            final_link, final_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
 
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)
     generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
-

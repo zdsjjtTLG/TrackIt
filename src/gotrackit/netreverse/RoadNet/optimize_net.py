@@ -17,7 +17,7 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
              accu_l_threshold: float = 500.0, angle_threshold: float = 15.0, restrict_length: bool = True,
              restrict_angle: bool = True, save_preliminary: bool = True, out_fldr: str = None,
              is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.75, min_length: float = 50.0,
-             dup_link_buffer_ratio: float = 60.0) -> \
+             dup_link_buffer_ratio: float = 60.0, modify_minimum_buffer: float = 0.8) -> \
         tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
     """crs input: EPSG:4326
     拓扑优化, 先合并2度节点, 再处理重复link
@@ -37,6 +37,7 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
     :param process_dup_link_buffer: 处理重复link时的buffer(m)
     :param min_length: 路段最小长度
     :param dup_link_buffer_ratio: LinkBuffer重叠率阈值, 推荐60
+    :param modify_minimum_buffer
     :return:
     """
 
@@ -63,11 +64,11 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
         else:
             new_link = new_link.to_crs(plain_prj)
             new_node = new_node.to_crs(plain_prj)
-        # final_link, final_node = delete_dup_links_alpha(link_gdf=new_link, node_gdf=new_node)
         print(r'##########   Remove Overlapping Road Segments')
         final_link, final_node, dup_info_dict = process_dup_link(link_gdf=new_link, node_gdf=new_node,
                                                                  buffer=process_dup_link_buffer,
-                                                                 dup_link_buffer_ratio=dup_link_buffer_ratio)
+                                                                 dup_link_buffer_ratio=dup_link_buffer_ratio,
+                                                                 modify_minimum_buffer=modify_minimum_buffer)
         if final_link.crs == origin_crs:
             pass
         else:

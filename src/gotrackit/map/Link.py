@@ -186,7 +186,6 @@ class Link(object):
     def delete_links(self, link_id_list: list[int] = None) -> gpd.GeoDataFrame:
         del_link_gdf = self.link_gdf.loc[link_id_list, :].copy()
         self.link_gdf.drop(index=link_id_list, inplace=True, axis=0)
-        self.update_available_link_id(link_id_list, _type='del')
         return del_link_gdf
 
     def append_links(self, link_id: list[int], from_node: list[int], to_node: list[int], dir_val: list[int],
@@ -203,6 +202,9 @@ class Link(object):
 
     def renew_single_link(self):
         pass
+
+    def del_short_links(self, l_threshold: float = 0.5) -> None:
+        self.link_gdf.drop(index=self.link_gdf[self.link_gdf[length_field] <= l_threshold].index, inplace=True, axis=0)
 
     def drop_dup_ft_road(self):
         self.link_gdf.sort_values(by=[from_node_field, to_node_field, dir_field], ascending=[True, True, True],
@@ -351,15 +353,6 @@ class Link(object):
         else:
             return self.link_gdf[self.link_gdf[to_node_field].isin(node_list)][link_id_field].to_list()
 
-    def update_available_link_id(self, link_list: list[int], _type: str = 'new') -> None:
-        if _type == 'new':
-            self.__available_link_id = list(set(self.__available_link_id) - set(link_list))
-        elif _type == 'del':
-            self.__available_link_id.extend(link_list)
-            self.__available_link_id = list(set(self.__available_link_id))
-        else:
-            raise ValueError('_type para: only del or new is allowed!')
-
     def link_series(self, link_id: int = None) -> gpd.GeoSeries:
         return self.link_gdf.loc[link_id, :].copy()
 
@@ -370,3 +363,6 @@ class Link(object):
     def vertex_degree(self, node: int = None) -> int:
         """无向图的节点度"""
         return self.__ud_graph.degree[node]
+
+    def used_node(self) -> set[int]:
+        return set(self.link_gdf[from_node_field]) | set(self.link_gdf[to_node_field])

@@ -10,159 +10,201 @@
 import os
 import pickle
 import pandas as pd
+import multiprocessing
 import geopandas as gpd
 from geopy.distance import distance
+from ...WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point
 from ..PublicTools.GeoProcess import point_distance
 from ..RoadNet.Split.SplitPath import split_path_main
 from ..PublicTools.IndexAna import find_continuous_repeat_index
 
 
-def parse_path_main_alpha(binary_path_fldr: str = None, flag_name: str = None, restrict_region_gdf: gpd.GeoDataFrame = None,
-                          slice_num: int = 1, is_slice: bool = False, attr_name_list: list = None,
-                          pickle_file_name_list: list = None, check_fldr: str = None,
-                          ignore_head_tail: bool = True, check: bool = False, generate_rod: bool = False,
-                          min_rod_length: float = 1.5) -> gpd.GeoDataFrame:
-    """
-    给定目录, 读取目录下的二进制路径文件(读取一个文件马上解析并且拆分最小路段按照坐标去重复), 解析为gpd.GeoDataFrame(), crs:epsg:4326
-    :param binary_path_fldr: 二进制路径文件所在的目录
-    :param flag_name: str, 标志字符
-    :param restrict_region_gdf: 区域GeoDataFrame
-    :param slice_num: 切片数量
-    :param is_slice: 是否切片
-    :param attr_name_list:
-    :param pickle_file_name_list:
-    :param ignore_head_tail:
-    :param check:
-    :param check_fldr:
-    :param generate_rod: bool, 是否生成连杆
-    :param min_rod_length
-    :return:
-    """
-    if pickle_file_name_list is None:
-        pickle_file_name_list = os.listdir(binary_path_fldr)
+class ParseGdPath(object):
+    def __init__(self, used_core_num: int = 2, is_multi_core: bool = False, binary_path_fldr: str = None,
+                 flag_name: str = None, restrict_region_gdf: gpd.GeoDataFrame = None,
+                 slice_num: int = 1, is_slice: bool = False, attr_name_list: list = None,
+                 pickle_file_name_list: list = None, check_fldr: str = None,
+                 ignore_head_tail: bool = True, check: bool = False, generate_rod: bool = False,
+                 min_rod_length: float = 1.5):
+        """
 
-    q = 1
-    all_split_link_gdf = gpd.GeoDataFrame()
-    for file in pickle_file_name_list:
-        try:
-            with open(os.path.join(binary_path_fldr, file), 'rb') as f:
-                _ = pickle.load(f)
-            print(file)
-            path_route_dict = {}
-            for k, v in _.items():
-                path_route_dict[q] = v
-                q += 1
+        :param binary_path_fldr: 二进制路径文件所在的目录
+        :param flag_name: str, 标志字符
+        :param restrict_region_gdf: 区域GeoDataFrame
+        :param slice_num: 在单独解析一个路径文件时的切片数量
+        :param is_slice: 在单独解析一个路径文件时是否切片
+        :param attr_name_list:
+        :param pickle_file_name_list:
+        :param ignore_head_tail:
+        :param check:
+        :param check_fldr:
+        :param generate_rod: bool, 是否生成连杆
+        :param min_rod_length
+        """
+        self. used_core_num =  used_core_num
+        self.is_multi_core = is_multi_core
+        self.binary_path_fldr = binary_path_fldr
+        self.flag_name = flag_name
+        self.restrict_region_gdf = restrict_region_gdf
+        self.slice_num = slice_num
+        self.is_slice = is_slice
+        self.attr_name_list = attr_name_list
+        self.pickle_file_name_list = pickle_file_name_list
+        self.check_fldr = check_fldr
+        self.ignore_head_tail = ignore_head_tail
+        self.check: bool = check
+        self.generate_rod = generate_rod
+        self.min_rod_length = min_rod_length
 
-            path_gdf = gpd.GeoDataFrame()
-            print(rf'##########   {flag_name}解析, 一共{len(path_route_dict)}条路径')
-            print(rf'##########   od_id从{min(list(path_route_dict.keys()))}开始')
+    @function_time_cost
+    def parse_path_main_multi(self) -> gpd.GeoDataFrame:
+        all_split_path_gdf = gpd.GeoDataFrame()
+        if self.is_multi_core:
+            c_count = multiprocessing.cpu_count()
+            n = self.used_core_num if self.used_core_num <= c_count else c_count
+            print(rf'启用{n}核...')
+            res_list = []
+            file_name_item = cut_slice(item_list=self.pickle_file_name_list, slice_num=n)
+            pool = multiprocessing.Pool(processes=n)
+            for file_name_list in file_name_item:
+                result = pool.apply_async(self.parse_path_main_alpha, args=(file_name_list, False))
+                res_list.append(result)
+            pool.close()
+            pool.join()
+
+            for _res in res_list:
+                all_split_path_gdf = pd.concat([all_split_path_gdf, _res.get()])
+            del res_list
+            all_split_path_gdf.reset_index(inplace=True, drop=True)
+            all_split_path_gdf.drop_duplicates(subset=['ft_loc'], keep='first', inplace=True)
+            all_split_path_gdf.reset_index(inplace=True, drop=True)
+            return all_split_path_gdf
+        else:
+            return self.parse_path_main_alpha(pickle_file_name_list=self.pickle_file_name_list, drop_ft=True)
+
+    def parse_path_main_alpha(self, pickle_file_name_list: list[str] = None, drop_ft: bool = False) -> gpd.GeoDataFrame:
+        """
+        给定目录, 读取目录下的二进制路径文件(读取一个文件马上解析并且拆分最小路段按照坐标去重复), 解析为gpd.GeoDataFrame(), crs:epsg:4326
+        """
+        if pickle_file_name_list is None:
+            pickle_file_name_list = os.listdir(self.binary_path_fldr)
+
+        q = 1
+        all_split_link_gdf = gpd.GeoDataFrame()
+        for file in pickle_file_name_list:
+            try:
+                with open(os.path.join(self.binary_path_fldr, file), 'rb') as f:
+                    _ = pickle.load(f)
+                print(file)
+                path_route_dict = {}
+                for k, v in _.items():
+                    path_route_dict[q] = v
+                    q += 1
+
+                path_gdf = gpd.GeoDataFrame()
+                print(rf'##########   {self.flag_name}解析, 一共{len(path_route_dict)}条路径')
+                print(rf'##########   od_id从{min(list(path_route_dict.keys()))}开始')
+                for path_id in path_route_dict.keys():
+                    o_loc = None
+                    if self.generate_rod:
+                        o_loc = tuple(map(float, path_route_dict[path_id]['route']['origin'].split(',')))
+                    _path_gdf = parse_path_from_gd(json_data=path_route_dict[path_id],
+                                                   check=self.check,
+                                                   parse_num=10,
+                                                   ignore_head_tail=self.ignore_head_tail,
+                                                   crs='EPSG:4326',
+                                                   flag_name=rf'path_{path_id}',
+                                                   out_fldr=self.check_fldr,
+                                                   generate_rod=self.generate_rod, o_loc=o_loc,
+                                                   min_rod_length=self.min_rod_length)
+                    if _path_gdf.empty:
+                        continue
+                    _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
+                    path_gdf = pd.concat([path_gdf, _path_gdf])
+                path_gdf.set_geometry('geometry', inplace=True)
+                path_gdf.reset_index(inplace=True, drop=True)
+
+                # split
+                print(rf'##########   {self.flag_name} - Split Path')
+                split_path_gdf = split_path_main(path_gdf=path_gdf, restrict_region_gdf=self.restrict_region_gdf,
+                                                 slice_num=self.slice_num, attr_name_list=self.attr_name_list,
+                                                 cut_slice=self.is_slice, drop_ft_loc=False)
+                all_split_link_gdf = pd.concat([all_split_link_gdf, split_path_gdf])
+                all_split_link_gdf.reset_index(inplace=True, drop=True)
+                all_split_link_gdf.drop_duplicates(subset=['ft_loc'], keep='first', inplace=True)
+            except:
+                print(rf'##########   Skip File {file}')
+        all_split_link_gdf.reset_index(inplace=True, drop=True)
+        all_split_link_gdf = gpd.GeoDataFrame(all_split_link_gdf, geometry='geometry', crs='EPSG:4326')
+        if drop_ft:
+            all_split_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+        return all_split_link_gdf
+
+    def parse_path_main(self, out_type: str = 'dict', pickle_file_name_list: list[str] = None):
+        """
+        给定目录, 读取目录下的二进制路径文件, 读一个文件就解析一次, 存在内存中, 然后返回(返回字典或者gdf)
+        :param out_type:
+        :param pickle_file_name_list
+        :return:
+        """
+        path_route_dict = {}
+        q = 1
+        print(rf'按照指定文件名读取...')
+        for file in pickle_file_name_list:
+            try:
+                with open(os.path.join(self.binary_path_fldr, file), 'rb') as f:
+                    _ = pickle.load(f)
+                print(file)
+                for k, v in _.items():
+                    path_route_dict[q] = v
+                    q += 1
+            except:
+                print(rf'{file}不读取......')
+
+        if out_type == 'dict':
+            path_gdf_dict = dict()
             for path_id in path_route_dict.keys():
+                print(path_id)
                 o_loc = None
-                if generate_rod:
-                    o_loc = tuple(map(float, path_route_dict[path_id]['route']['origin'].split(',')))
-                _path_gdf = parse_path_from_gd(json_data=path_route_dict[path_id],
-                                               check=check,
+                if self.generate_rod:
+                    o_loc = tuple(map(float, path_route_dict[path_id]['origin'].split(',')))
+                _new_path_gdf = parse_path_from_gd(json_data=path_route_dict[path_id],
+                                                   check=self.check,
+                                                   parse_num=3,
+                                                   ignore_head_tail=self.ignore_head_tail,
+                                                   crs='EPSG:4326',
+                                                   flag_name=rf'path_{path_id}',
+                                                   out_fldr=self.check_fldr,
+                                                   generate_rod=self.generate_rod, o_loc=o_loc,
+                                                   min_rod_length=self.min_rod_length)
+                if _new_path_gdf.empty:
+                    continue
+                _new_path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
+                path_gdf_dict[path_id] = _new_path_gdf
+            return path_gdf_dict
+        else:
+            path_gdf = gpd.GeoDataFrame()
+            for path_id in path_route_dict.keys():
+                print(path_id)
+                o_loc = None
+                if self.generate_rod:
+                    o_loc = tuple(map(float, path_route_dict[path_id]['origin'].split(',')))
+                _path_gdf = parse_path_from_gd(json_data=path_route_dict,
+                                               check=self.check,
                                                parse_num=10,
-                                               ignore_head_tail=ignore_head_tail,
+                                               ignore_head_tail=self.ignore_head_tail,
                                                crs='EPSG:4326',
                                                flag_name=rf'path_{path_id}',
-                                               out_fldr=check_fldr,
-                                               generate_rod=generate_rod, o_loc=o_loc, min_rod_length=min_rod_length)
+                                               out_fldr=self.check_fldr, generate_rod=self.generate_rod, o_loc=o_loc,
+                                               min_rod_length=self.min_rod_length)
                 if _path_gdf.empty:
                     continue
                 _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
                 path_gdf = pd.concat([path_gdf, _path_gdf])
             path_gdf.set_geometry('geometry', inplace=True)
             path_gdf.reset_index(inplace=True, drop=True)
-
-            # split
-            print(rf'##########   {flag_name} - Split Path')
-            split_path_gdf = split_path_main(path_gdf=path_gdf, restrict_region_gdf=restrict_region_gdf,
-                                             slice_num=slice_num, attr_name_list=attr_name_list,
-                                             cut_slice=is_slice, drop_ft_loc=False)
-            all_split_link_gdf = pd.concat([all_split_link_gdf, split_path_gdf])
-            all_split_link_gdf.reset_index(inplace=True, drop=True)
-            all_split_link_gdf.drop_duplicates(subset=['ft_loc'], keep='first', inplace=True)
-        except:
-            print(rf'##########   Skip File {file}')
-    all_split_link_gdf.reset_index(inplace=True, drop=True)
-    all_split_link_gdf = gpd.GeoDataFrame(all_split_link_gdf, geometry='geometry', crs='EPSG:4326')
-    all_split_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
-    return all_split_link_gdf
-
-
-def parse_path_main(binary_path_fldr: str = None, out_type: str = 'dict', check_fldr: str = None,
-                    pickle_file_name_list: list = None, ignore_head_tail: bool = True, check: bool = False,
-                    generate_rod: bool = False, min_rod_length:float = 1.5):
-    """
-    给定目录, 读取目录下的二进制路径文件, 读一个文件就解析一次, 存在内存中, 然后返回(返回字典或者gdf)
-    :param binary_path_fldr:
-    :param check_fldr:
-    :param out_type:
-    :param pickle_file_name_list:
-    :param ignore_head_tail:
-    :param check:
-    :param generate_rod: bool, 是否生成连杆
-    :param min_rod_length:
-    :return:
-    """
-    path_route_dict = {}
-    q = 1
-    print(rf'按照指定文件名读取...')
-    for file in pickle_file_name_list:
-        try:
-            with open(os.path.join(binary_path_fldr, file), 'rb') as f:
-                _ = pickle.load(f)
-            print(file)
-            for k, v in _.items():
-                path_route_dict[q] = v
-                q += 1
-        except:
-            print(rf'{file}不读取......')
-
-    if out_type == 'dict':
-        path_gdf_dict = dict()
-        for path_id in path_route_dict.keys():
-            print(path_id)
-            o_loc = None
-            if generate_rod:
-                o_loc = tuple(map(float, path_route_dict[path_id]['origin'].split(',')))
-            _new_path_gdf = parse_path_from_gd(json_data=path_route_dict[path_id],
-                                               check=check,
-                                               parse_num=3,
-                                               ignore_head_tail=ignore_head_tail,
-                                               crs='EPSG:4326',
-                                               flag_name=rf'path_{path_id}',
-                                               out_fldr=check_fldr,
-                                               generate_rod=generate_rod, o_loc=o_loc, min_rod_length=min_rod_length)
-            if _new_path_gdf.empty:
-                continue
-            _new_path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
-            path_gdf_dict[path_id] = _new_path_gdf
-        return path_gdf_dict
-    else:
-        path_gdf = gpd.GeoDataFrame()
-        for path_id in path_route_dict.keys():
-            print(path_id)
-            o_loc = None
-            if generate_rod:
-                o_loc = tuple(map(float, path_route_dict[path_id]['origin'].split(',')))
-            _path_gdf = parse_path_from_gd(json_data=path_route_dict,
-                                           check=check,
-                                           parse_num=10,
-                                           ignore_head_tail=ignore_head_tail,
-                                           crs='EPSG:4326',
-                                           flag_name=rf'path_{path_id}',
-                                           out_fldr=check_fldr, generate_rod=generate_rod, o_loc=o_loc,
-                                           min_rod_length=min_rod_length)
-            if _path_gdf.empty:
-                continue
-            _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
-            path_gdf = pd.concat([path_gdf, _path_gdf])
-        path_gdf.set_geometry('geometry', inplace=True)
-        path_gdf.reset_index(inplace=True, drop=True)
-        return path_gdf
+            return path_gdf
 
 
 def parse_path_from_gd(json_data: dict = None, parse_num: int = 1, check: bool = True, out_fldr: str = None,
@@ -334,3 +376,10 @@ def parse_single_path(json_data: dict = None, path_seq: int = 0,
         # scheme(路径方案编号), seq(路段序列), time_cost, toll, road_name, geometry
         # scheme唯一确定一条路径, (scheme, seq)唯一确定一个路段
     return path_gdf
+
+
+def cut_slice(item_list: list[str] = None, slice_num: int = 2) -> list[list]:
+    df = pd.DataFrame({'name': item_list})
+    df['id'] = [i for i in range(len(df))]
+    df['label'] = list(pd.cut(df['id'], bins=slice_num, labels=[i for i in range(0, slice_num)]))
+    return [df[df['label'] == i]['name'].to_list() for i in range(0, slice_num)]

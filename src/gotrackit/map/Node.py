@@ -84,14 +84,9 @@ class Node(object):
             now_node_id = self.__available_node_id.pop()
             return now_node_id
         else:
-            self.init_available_node_id()
-            if self.__available_node_id:
-                now_node_id = self.__available_node_id.pop()
-                return now_node_id
-            else:
-                now_node_id = self.max_node_id
-                self.max_node_id += 1
-                return now_node_id + 1
+            now_node_id = self.max_node_id
+            self.max_node_id += 1
+            return now_node_id + 1
 
     def append_nodes(self, node_id: list[int], geo: list[Point], **kwargs):
         attr_dict = {node_id_field: node_id, geometry_field: geo}
@@ -106,11 +101,5 @@ class Node(object):
         self.__node_gdf.drop(index=node_list, inplace=True, axis=0)
         return del_node_gdf
 
-    def update_available_node_id(self, node_list: list[int], _type: str = 'new'):
-        if _type == 'new':
-            self.__available_node_id = list(set(self.__available_node_id) - set(node_list))
-        elif _type == 'del':
-            self.__available_node_id.extend(node_list)
-            self.__available_node_id = list(set(self.__available_node_id))
-        else:
-            raise ValueError('_type para: only del or new is allowed!')
+    def node_id_set(self) -> set[int]:
+        return set(self.__node_gdf.index)

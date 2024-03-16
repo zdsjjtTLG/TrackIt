@@ -7,6 +7,8 @@
 """生产路网的相关方法"""
 
 
+
+import time
 import os.path
 import pandas as pd
 import geopandas as gpd
@@ -19,13 +21,12 @@ from .RoadNet.increment import increment
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
-from .Parse.gd_car_path import parse_path_main
+from ..WrapsFunc import function_time_cost
+from .Parse.gd_car_path import ParseGdPath
 from ..tools.geo_process import clean_link_geo
 from .PublicTools.GeoProcess import generate_region
-from .Parse.gd_car_path import parse_path_main_alpha
 from .RoadNet.Split.SplitPath import split_path_main
-from .RoadNet.SaveStreets.streets import generate_node_from_link
-
+from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 
 net_field = NetField()
 
@@ -50,9 +51,11 @@ class NetReverse(Reverse):
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
-                 save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
+                 save_preliminary: bool = False, save_done_topo: bool = False,
+                 is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
                  dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
-                 is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final'):
+                 is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
+                 is_multi_core: bool = False, used_core_num: int = 2):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -72,7 +75,8 @@ class NetReverse(Reverse):
         self.restrict_region_gdf = restrict_region_gdf
 
         # create node from link
-        self.modify_minimum_buffer = modify_minimum_buffer
+        self.modify_minimum_buffer = \
+            conn_buffer + 0.1 if modify_minimum_buffer <= conn_buffer else modify_minimum_buffer
         self.save_streets_before_modify_minimum = save_streets_before_modify_minimum
         self.save_streets_after_modify_minimum = save_streets_after_modify_minimum
         self.save_tpr_link = save_tpr_link
@@ -87,6 +91,7 @@ class NetReverse(Reverse):
         self.angle_threshold = angle_threshold
         self.min_length = min_length
         self.save_preliminary = save_preliminary
+        self.save_done_topo = save_done_topo
 
         # process dup
         self.is_process_dup_link = is_process_dup_link
@@ -102,6 +107,10 @@ class NetReverse(Reverse):
         # attrs
         self.__od_df = pd.DataFrame()
         self.__region_gdf = gpd.GeoDataFrame()
+
+        # if uses multi core
+        self.is_multi_core = is_multi_core
+        self.used_core_num = used_core_num
 
     def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
@@ -125,24 +134,35 @@ class NetReverse(Reverse):
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
 
-    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None) -> None:
+    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None,
+                                 use_multi_core: bool = False, n: int = 2) -> None:
         """
         从二进制路径文件进行读取, 然后生产路网
+        :param binary_path_fldr:
+        :param pickle_file_name_list:
+        :param use_multi_core: 是否启用多核
+        :param n: 启用的核数
         :return:
         """
         attr_name_list = ['road_name']
         if pickle_file_name_list is None or not pickle_file_name_list:
             pickle_file_name_list = os.listdir(binary_path_fldr)
-        split_path_gdf = parse_path_main_alpha(binary_path_fldr=binary_path_fldr,
-                                               pickle_file_name_list=pickle_file_name_list,
-                                               flag_name=self.flag_name,
-                                               is_slice=self.cut_slice,
-                                               slice_num=self.slice_num,
-                                               restrict_region_gdf=self.restrict_region_gdf,
-                                               attr_name_list=attr_name_list,
-                                               ignore_head_tail=self.ignore_head_tail,
-                                               check=False, generate_rod=self.generate_rod,
-                                               min_rod_length=self.min_rod_length)
+        pgd = ParseGdPath(binary_path_fldr=binary_path_fldr,
+                          pickle_file_name_list=pickle_file_name_list,
+                          flag_name=self.flag_name,
+                          is_slice=self.cut_slice,
+                          slice_num=self.slice_num,
+                          restrict_region_gdf=self.restrict_region_gdf,
+                          attr_name_list=attr_name_list,
+                          ignore_head_tail=self.ignore_head_tail,
+                          check=False, generate_rod=self.generate_rod,
+                          min_rod_length=self.min_rod_length,
+                          is_multi_core=self.is_multi_core,
+                          used_core_num=self.used_core_num)
+
+        split_path_gdf = pgd.parse_path_main_multi()
+        print(len(split_path_gdf))
+        time.sleep(1200)
 
         self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
@@ -250,11 +270,12 @@ class NetReverse(Reverse):
         :return:
         """
         # 将新的轨迹都解析好存储到字段
-        new_path_gdf_dict = parse_path_main(binary_path_fldr=binary_path_fldr,
-                                            check_fldr=increment_out_fldr,
-                                            pickle_file_name_list=pickle_file_name_list,
-                                            out_type='dict', ignore_head_tail=ignore_head_tail,
-                                            check=check_path, generate_rod=False)
+        pgd = ParseGdPath(binary_path_fldr=binary_path_fldr,
+                          check_fldr=increment_out_fldr,
+                          pickle_file_name_list=pickle_file_name_list,
+                          ignore_head_tail=ignore_head_tail,
+                          check=check_path, generate_rod=False)
+        new_path_gdf_dict = pgd.parse_path_main(out_type='dict', pickle_file_name_list=pickle_file_name_list)
         # 增量修改
         increment_link, increment_node = increment(link_gdf=link_gdf, node_gdf=node_gdf,
                                                    path_gdf_dict=new_path_gdf_dict, plain_crs=self.plain_prj,
@@ -328,6 +349,7 @@ class NetReverse(Reverse):
                                  save_tpr_link=self.save_tpr_link,
                                  modify_minimum_buffer=self.modify_minimum_buffer,
                                  save_preliminary=self.save_preliminary,
+                                 save_done_topo=self.save_done_topo,
                                  save_streets_before_modify_minimum=self.save_streets_before_modify_minimum,
                                  save_streets_after_modify_minimum=self.save_streets_after_modify_minimum,
                                  is_process_dup_link=self.is_process_dup_link,
@@ -352,6 +374,7 @@ class NetReverse(Reverse):
         """
         geo_crs = link_gdf.crs
         assert geo_crs == 'EPSG:4326'
+        link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, geo_crs=geo_crs, plane_crs=self.plain_prj,
                   create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
@@ -362,6 +385,13 @@ class NetReverse(Reverse):
         link_gdf, node_gdf = net.get_bilateral_link_data(), net.get_node_data()
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
+        return link_gdf, node_gdf
+
+    def fix_minimum_gap(self, node_gdf: gpd.GeoDataFrame = None, link_gdf: gpd.GeoDataFrame = None) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.plain_prj, link_gdf=link_gdf, node_gdf=node_gdf,
+                                               buffer=self.modify_minimum_buffer,
+                                               ignore_merge_rule=True)
         return link_gdf, node_gdf
 
     @staticmethod

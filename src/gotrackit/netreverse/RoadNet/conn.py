@@ -93,6 +93,7 @@ class Conn(object):
             return None
 
         for split_node, n_link_gdf in self.not_conn_df.groupby(node_id_field):
+            print(split_node)
             if 'index_right' in n_link_gdf.columns:
                 n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
             if split_node not in self.net.get_node_data()[node_id_field]:
@@ -175,7 +176,11 @@ class Conn(object):
                 self.net.modify_link_gdf(link_id_list=[target_link_id], attr_field_list=[to_node_field],
                                          val_list=[[split_node]])
                 self.net.renew_link_tail_geo(link_list=[target_link_id])
-            self.net.del_nodes(node_list=[to_del_node])
+            try:
+                self.net.del_nodes(node_list=[to_del_node])
+            except KeyError:
+                # this node has already been deleted
+                pass
 
         self.done_split_link[target_link_id] = 1
 

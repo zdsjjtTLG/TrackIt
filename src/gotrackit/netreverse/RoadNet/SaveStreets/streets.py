@@ -319,6 +319,10 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=False)
 
+        link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], keep='first',
+                                 inplace=True)
+        link_gdf.reset_index(inplace=True, drop=True)
+
         node_group_status_df = pd.DataFrame(node_group_status_list, columns=[net_field.NODE_ID_FIELD, 'status'])
         node_group_status_df = pd.merge(node_group_status_df,
                                         node_gdf[[net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD]],
