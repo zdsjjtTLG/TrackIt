@@ -814,8 +814,7 @@ GPS数据字段要求如下：
         # 4.初始化一个匹配结果管理器
         vc = VisualizationCombination(use_gps_source=True)
 
-        for agent_id, gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
-            _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD] == agent_id].copy()
+        for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
             _gps_df.reset_index(inplace=True, drop=True)
 
             # 为该车的该次行程创建一个GpsPointsGd对象

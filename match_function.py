@@ -40,7 +40,7 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
     match_res_df = pd.DataFrame()
 
     # 对每辆车的轨迹进行匹配
-    for agent_id, gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
+    for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
         file_name = '-'.join([flag_name, str(agent_id)])
         print(rf'agent: {agent_id}')
         _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD] == agent_id].copy()
@@ -183,8 +183,8 @@ def t_sample_match():
     print(gps_df)
     # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_3'].copy()
 
-    match(plain_crs='EPSG:32649', geo_crs='EPSG:4326', link_path=r'./data/input/net/xian/conn_done_link.shp',
-          node_path=r'./data/input/net/xian/conn_done_node.shp', use_sub_net=True, gps_buffer=60,
+    match(plain_crs='EPSG:32649', geo_crs='EPSG:4326', link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+          node_path=r'./data/input/net/xian/modifiedConn_node.shp', use_sub_net=True, gps_buffer=60,
           buffer_for_sub_net=170, gps_df=gps_df,
           is_rolling_average=False, window=2,
           flag_name='xian_sample', export_html=True, export_geo_res=True,
@@ -194,8 +194,8 @@ def t_sample_match():
 
 if __name__ == '__main__':
 
-    t_lane_match()
+    # t_lane_match()
 
-    t_cq_match()
+    # t_cq_match()
 
-    # t_sample_match()
+    t_sample_match()

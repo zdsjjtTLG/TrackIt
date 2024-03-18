@@ -79,6 +79,7 @@ class ParseGdPath(object):
             all_split_path_gdf.reset_index(inplace=True, drop=True)
             all_split_path_gdf.drop_duplicates(subset=['ft_loc'], keep='first', inplace=True)
             all_split_path_gdf.reset_index(inplace=True, drop=True)
+            all_split_path_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
             return all_split_path_gdf
         else:
             return self.parse_path_main_alpha(pickle_file_name_list=self.pickle_file_name_list, drop_ft=True)

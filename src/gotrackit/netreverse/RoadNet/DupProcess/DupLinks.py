@@ -59,7 +59,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
     node_degrees_dict = {node: u_g.degree[node] for node in node_gdf[node_id_field]}
 
     link_gdf['link_buffer'] = link_gdf[geometry_field].apply(lambda x: x.buffer(buffer))
-    link_gdf.set_geometry('link_buffer', inplace=True)
+    link_gdf.set_geometry('link_buffer', inplace=True, crs=plain_crs)
 
     right_link_gdf = link_gdf.copy()
     right_link_gdf['right_link_buffer'] = right_link_gdf['link_buffer']
@@ -79,6 +79,8 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
     join_df = join_df[join_df['inter_ratio'] >= dup_link_buffer_ratio / 100].copy()
     join_df.reset_index(inplace=True, drop=True)
     if join_df.empty:
+        link_gdf.drop(columns=['link_buffer'], inplace=True, axis=1)
+        link_gdf.set_geometry(geometry_field, crs=plain_crs, inplace=True)
         final_link_gdf = link_gdf
         final_node_gdf = node_gdf
     else:
@@ -126,7 +128,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
         new_link_gdf = gpd.GeoDataFrame(new_link_gdf, geometry=geometry_field, crs=link_gdf.crs)
 
         # 从原来的link_gdf中删除重叠的link
-        link_gdf.set_geometry(geometry_field, inplace=True)
+        link_gdf.set_geometry(geometry_field, inplace=True, crs=plain_crs)
         link_gdf.drop(columns=['link_buffer'], axis=1, inplace=True)
         link_gdf.drop(index=link_gdf[link_gdf[link_id_field].isin(to_be_del_link_list)].index, axis=0, inplace=True)
         link_gdf.reset_index(inplace=True, drop=True)

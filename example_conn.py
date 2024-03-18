@@ -19,9 +19,9 @@ def xa_test():
 
 
 def t_xa_bug():
-    nv = ng.NetReverse(plain_prj='EPSG:32649',
+    nv = ng.NetReverse(plain_prj='EPSG:32649', flag_name='all_xian',
                        net_out_fldr=r'./data/output/xa_bug/', save_tpr_link=True, save_done_topo=True,
-                       is_multi_core=False,
+                       is_multi_core=True,
                        used_core_num=7)
     nv.generate_net_from_pickle(binary_path_fldr=r'./data/input/net/test/xa_bug/path')
 

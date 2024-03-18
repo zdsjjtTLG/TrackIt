@@ -134,14 +134,11 @@ class NetReverse(Reverse):
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
 
-    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None,
-                                 use_multi_core: bool = False, n: int = 2) -> None:
+    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None) -> None:
         """
         从二进制路径文件进行读取, 然后生产路网
         :param binary_path_fldr:
         :param pickle_file_name_list:
-        :param use_multi_core: 是否启用多核
-        :param n: 启用的核数
         :return:
         """
         attr_name_list = ['road_name']
@@ -161,8 +158,6 @@ class NetReverse(Reverse):
                           used_core_num=self.used_core_num)
 
         split_path_gdf = pgd.parse_path_main_multi()
-        print(len(split_path_gdf))
-        time.sleep(1200)
 
         self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
 

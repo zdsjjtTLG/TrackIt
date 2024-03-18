@@ -243,6 +243,8 @@ class Net(object):
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.plane_crs)
         sub_single_link_gdf = gpd.sjoin(self.get_link_data(), gps_array_buffer_gdf)
+        if sub_single_link_gdf.empty:
+            raise ValueError(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
         sub_single_link_gdf.drop(columns=['index_right'], axis=1, inplace=True)
         sub_single_link_gdf.drop_duplicates(subset=[net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         sub_node_list = list(set(sub_single_link_gdf[net_field.FROM_NODE_FIELD]) | \
