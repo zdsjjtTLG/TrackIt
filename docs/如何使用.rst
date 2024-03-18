@@ -828,6 +828,7 @@ GPS数据字段要求如下：
             # gps_obj.rolling_average(window=2)
 
             # 5.依据当前的GPS数据(源数据)创建一个子网络
+            # 这里的buffer值必须大于上文代码中创建GpsPointsGdf中的buffer值
             sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
 
             # 6. 初始化一个隐马尔可夫模型
