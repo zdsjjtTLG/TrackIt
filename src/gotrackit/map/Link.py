@@ -35,6 +35,10 @@ class Link(object):
 
         self.geo_crs = geo_crs
         self.plane_crs = plane_crs
+        _gap = {link_id_field, dir_field, from_node_field, to_node_field, length_field, geometry_field} - set(
+            link_gdf.columns)
+        if _gap:
+            raise ValueError(rf'缺少必须字段:{_gap}')
         for col in [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD,
                     net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]:
             link_gdf[col] = link_gdf[col].astype(int)
@@ -189,7 +193,7 @@ class Link(object):
         return del_link_gdf
 
     def append_links(self, link_id: list[int], from_node: list[int], to_node: list[int], dir_val: list[int],
-                     geo: list[LineString], **kwargs):
+                     geo: list[LineString], **kwargs) -> None:
         assert set(dir_val).issubset({0, 1})
         length_list = [l.length for l in geo]
         attr_dict = {link_id_field: link_id, from_node_field: from_node, to_node_field: to_node,
@@ -198,6 +202,13 @@ class Link(object):
         attr_dict.update(kwargs)
         self.link_gdf = pd.concat(
             [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)])
+        self.link_gdf.index = self.link_gdf[link_id_field]
+
+    def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
+        assert link_gdf.crs == self.crs
+        assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
+        self.link_gdf = pd.concat(
+            [self.link_gdf, link_gdf])
         self.link_gdf.index = self.link_gdf[link_id_field]
 
     def renew_single_link(self):

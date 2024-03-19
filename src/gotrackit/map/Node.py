@@ -96,6 +96,13 @@ class Node(object):
         self.__node_gdf = pd.concat(
             [self.__node_gdf, _new])
 
+    def append_node_gdf(self, node_gdf: gpd.GeoDataFrame = None) -> None:
+        assert node_gdf.crs == self.crs
+        assert set(node_gdf[node_id_field]) & set(self.__node_gdf[node_id_field]) == set()
+        node_gdf.index = node_gdf[node_id_field]
+        self.__node_gdf = pd.concat(
+            [self.__node_gdf, node_gdf])
+
     def delete_nodes(self, node_list: list[int]) -> gpd.GeoDataFrame:
         del_node_gdf = self.__node_gdf.loc[node_list, :].copy()
         self.__node_gdf.drop(index=node_list, inplace=True, axis=0)

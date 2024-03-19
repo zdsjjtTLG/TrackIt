@@ -7,6 +7,7 @@
 路网信息存储与相关方法
 """
 
+import numpy as np
 import pandas as pd
 from .Link import Link
 from .Node import Node
@@ -18,7 +19,7 @@ from ..tools.geo_process import prj_inf
 from ..tools.save_file import save_file
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Polygon, Point
-
+from ..tools.geo_process import divide_line_by_l
 
 NOT_CONN_COST = 200.0
 net_field = NetField()
@@ -29,7 +30,7 @@ from_node_field = net_field.FROM_NODE_FIELD
 to_node_field = net_field.TO_NODE_FIELD
 length_field = net_field.LENGTH_FIELD
 geometry_field = net_field.GEOMETRY_FIELD
-
+node_id_field = net_field.NODE_ID_FIELD
 
 class Net(object):
 
@@ -365,3 +366,105 @@ class Net(object):
 
     def del_zero_degree_nodes(self) -> None:
         self.__node.delete_nodes(node_list=list(self.__node.node_id_set() - self.__link.used_node()))
+
+    def divide_links(self, divide_l: float = 70.0, min_l: float = 1.0, is_init_link: bool = True,
+                     method: str = 'alpha') -> None:
+        if method == 'alpha':
+            self.divide_links_alpha(divide_l=divide_l, min_l=min_l, is_init_link=is_init_link)
+        else:
+            self.divide_links_beta(divide_l=divide_l, min_l=min_l, is_init_link=is_init_link)
+
+    def divide_links_alpha(self, divide_l: float = 70.0, min_l: float = 1.0, is_init_link: bool = True) -> None:
+        self.to_plane_prj()
+        link_gdf = self.__link.get_bilateral_link_data()
+        target_index = link_gdf[length_field] > divide_l
+        process_link_gdf = link_gdf[target_index].copy()
+        del_links = list(process_link_gdf.index)
+        max_node = self.__node.max_node_id
+        if process_link_gdf.empty:
+            return None
+        else:
+            process_link_gdf[['__divide_l__', '__divide_p__', '__l__']] = process_link_gdf.apply(
+                lambda row: divide_line_by_l(line_geo=row[geometry_field], divide_l=divide_l, l_min=min_l), axis=1,
+                result_type='expand')
+            process_link_gdf.reset_index(inplace=True, drop=True)
+
+            process_link_gdf['__l__'] = process_link_gdf['__l__'] - 1
+            process_link_gdf['__increment__'] = np.cumsum(process_link_gdf['__l__'])
+            process_link_gdf['__increment__'] = process_link_gdf['__increment__'].shift(1).fillna(0).astype(int)
+            process_link_gdf[['__new_ft__', 'new_p']] = process_link_gdf.apply(
+                lambda row: self.generate_new_ft(origin_f=row[from_node_field], origin_t=row[to_node_field],
+                                                 divide_num=row['__l__'],
+                                                 start_node=row['__increment__'] + max_node + 1), axis=1,
+                result_type='expand')
+            new_node_gdf = process_link_gdf[['__divide_p__', 'new_p']].copy()
+            new_node_gdf['p_l'] = new_node_gdf.apply(lambda row: len(row['__divide_p__']), axis=1)
+            new_node_gdf.drop(index=new_node_gdf[new_node_gdf['p_l'] == 0].index, axis=0, inplace=True)
+            new_node_gdf = pd.DataFrame(new_node_gdf)
+            new_node_gdf.drop(columns=['p_l'], axis=1, inplace=True)
+            new_node_gdf = new_node_gdf.explode(column=['__divide_p__', 'new_p'], ignore_index=True)
+            new_node_gdf.rename(columns={'__divide_p__': geometry_field, 'new_p': node_id_field}, inplace=True)
+            new_node_gdf = gpd.GeoDataFrame(new_node_gdf, geometry=geometry_field, crs=self.crs)
+
+            process_link_gdf.drop(columns=['__divide_p__', 'new_p'], axis=1, inplace=True)
+            process_link_gdf = pd.DataFrame(process_link_gdf)
+            new_link_gdf = process_link_gdf.explode(column=['__divide_l__', '__new_ft__'], ignore_index=True)
+            del process_link_gdf
+            new_link_gdf[[from_node_field, to_node_field]] = new_link_gdf.apply(lambda row: row['__new_ft__'], axis=1,
+                                                                                result_type='expand')
+            new_link_gdf.drop(columns=['__increment__', geometry_field, '__new_ft__', '__l__'], axis=1, inplace=True)
+            new_link_gdf.rename(columns={'__divide_l__': geometry_field}, inplace=True)
+            max_link_id = self.__link.max_link_id
+            new_link_gdf['_parent_link'] = new_link_gdf[link_id_field]
+            new_link_gdf[length_field] = new_link_gdf.apply(lambda row: row[geometry_field].length, axis=1)
+            new_link_gdf[link_id_field] = [i + max_link_id for i in range(1, len(new_link_gdf) + 1)]
+            new_link_gdf = gpd.GeoDataFrame(new_link_gdf, geometry=geometry_field, crs=self.crs)
+
+            self.__link.delete_links(link_id_list=del_links)
+            self.__link.append_link_gdf(new_link_gdf)
+            self.__node.append_node_gdf(new_node_gdf)
+            self.__link.init_available_link_id()
+            self.__node.init_available_node_id()
+            if is_init_link:
+                self.check()
+                self.__link.init_link()
+                self.__node.init_node()
+
+    @staticmethod
+    def generate_new_ft(origin_f: int = None, origin_t: int = None,
+                        divide_num: int = 2, start_node: int = None) -> tuple[list, list]:
+        _ = [origin_f] + [start_node + i for i in range(divide_num)] + [origin_t]
+        return [[_[i], _[i + 1]] for i in range(len(_) - 1)], _[1:-1]
+
+    def divide_links_beta(self, divide_l: float = 70.0, min_l: float = 1.0, is_init_link: bool = True):
+        flag = True
+        done_divide_set = set()
+        while flag:
+            candidate_link_set = self.get_greater_than_threshold(l_threshold=divide_l)
+            target_link_set = candidate_link_set - done_divide_set
+            if not target_link_set:
+                break
+            else:
+                target_link = target_link_set.pop()
+                done_divide_set.add(target_link)
+                split_ok, prj_p, modified_link, res_type = self.split_link(
+                    self.__link.get_link_geo(target_link, _type='bilateral').interpolate(divide_l),
+                    target_link, omitted_length_threshold=min_l)
+                if split_ok:
+                    new_node_id = self.__node.available_node_id
+                    self.__node.append_nodes(node_id=[new_node_id], geo=[prj_p])
+                    self.modify_link_gdf(link_id_list=[modified_link[0]], attr_field_list=[to_node_field],
+                                         val_list=[[new_node_id]])
+                    self.modify_link_gdf(link_id_list=[modified_link[1]], attr_field_list=[from_node_field],
+                                         val_list=[[new_node_id]])
+                    self.renew_link_tail_geo(link_list=[modified_link[0]])
+                    self.renew_link_head_geo(link_list=[modified_link[1]])
+
+        if is_init_link:
+            self.check()
+            self.__link.init_link()
+            self.__node.init_node()
+
+    def get_greater_than_threshold(self, l_threshold: float = None) -> set[int]:
+        link_gdf = self.__link.link_gdf
+        return set(link_gdf[link_gdf[length_field] > l_threshold][link_id_field])

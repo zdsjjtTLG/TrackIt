@@ -197,6 +197,44 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') 
     return gdf
 
 
+def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> tuple[
+    list[LineString], list[Point], int]:
+    """
+
+    :param line_geo:
+    :param divide_l:
+    :param l_min:
+    :return:
+    """
+    line_l = line_geo.length
+    n = int(line_l / divide_l)
+    remain_l = line_l % divide_l
+    is_remain = False
+    if remain_l > l_min:
+        is_remain = True
+    p_list = [line_geo.interpolate(i * divide_l) for i in range(1, n + 1)]
+    used_l = line_geo
+    divide_line_list = []
+    divide_point_list = []
+
+    for i, p in enumerate(p_list):
+        if i + 1 == len(p_list):
+            if not is_remain:
+                divide_line_list.append(used_l)
+                break
+        prj_p, _, dis, _, split_line_list = prj_inf(p, used_l)
+        used_l = split_line_list[-1]
+        if i + 1 == len(p_list):
+            if is_remain:
+                divide_line_list.extend(split_line_list)
+                divide_point_list.append(p)
+                break
+        divide_line_list.append(split_line_list[0])
+        divide_point_list.append(p)
+
+    return divide_line_list, divide_point_list, len(divide_line_list)
+
+
 if __name__ == '__main__':
     pass
     # import geopandas as gpd
@@ -212,5 +250,7 @@ if __name__ == '__main__':
     # p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
     # p1.plot()
     # plt.show()
+
+
 
 

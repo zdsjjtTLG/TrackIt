@@ -10,6 +10,7 @@ import geopandas as gpd
 from ...map.Net import Net
 from ..GlobalVal import NetField
 from shapely.geometry import Point
+from shapely.geometry import LineString
 from ..book_mark import generate_book_mark
 
 net_field = NetField()
@@ -20,6 +21,7 @@ geometry_field = net_field.GEOMETRY_FIELD
 from_node_field = net_field.FROM_NODE_FIELD
 to_node_field = net_field.TO_NODE_FIELD
 node_id_field = net_field.NODE_ID_FIELD
+length_field = net_field.LENGTH_FIELD
 
 
 class Conn(object):
