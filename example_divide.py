@@ -3,14 +3,7 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-import geopandas as gpd
 from src.gotrackit.map.Net import Net
-from shapely.geometry import LineString
-from src.gotrackit.gps.LocGps import GpsPointsGdf
-from src.gotrackit.model.Markov import HiddenMarkov
-from src.gotrackit.GlobalVal import NetField, GpsField
-from src.gotrackit.visualization import VisualizationCombination
-
 
 if __name__ == '__main__':
 
