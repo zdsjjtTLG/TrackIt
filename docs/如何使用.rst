@@ -672,16 +672,17 @@ GPS数据字段要求如下：
 如果你已经有了路网线层，缺少拓扑关联关系以及点层，你可以使用以下方式构建点层以及添加线层的拓扑关联
 
 
+
 示例代码如下：
 
 .. code-block:: python
     :linenos:
 
     if __name__ == '__main__':
+        # 对link.shp的要求: 只需要有geometry字段即可, 但是geometry字段的几何对象必须为LineString类型(不允许Z坐标)
         nv = ng.NetReverse()
         link_gdf = gpd.read_file(r'./data/output/create_node/link.shp')
         print(link_gdf)
-        link_gdf.drop(columns=['link_id', 'from_node', 'to_node', 'length'], axis=1, inplace=True)
         new_link_gdf, new_node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
                                                                                      update_link_field_list=['link_id',
                                                                                                              'from_node',

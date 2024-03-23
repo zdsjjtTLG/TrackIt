@@ -92,6 +92,7 @@ def del_consecutive_zero(df: pd.DataFrame = None, col: str = None, n: int = 3) -
 def first_in_index():
     pass
 
+
 if __name__ == '__main__':
     # get_sample_data()
     test_simplify()

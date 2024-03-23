@@ -295,6 +295,8 @@ class NetReverse(Reverse):
 
         assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
         fmod = FormatOD(plain_crs=self.plain_prj)
+        if isinstance(region_gdf, gpd.GeoDataFrame) and not region_gdf.empty:
+            assert region_gdf.crs == 'EPSG:4326', '面域文件必须是EPSG:4326"'
         if od_type == 'rand_od':
             if region_gdf is None or region_gdf.empty:
                 region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)

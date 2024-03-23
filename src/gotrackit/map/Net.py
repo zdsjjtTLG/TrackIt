@@ -279,12 +279,14 @@ class Net(object):
                                           link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[1]) for
                                           link in link_list})
 
-    def renew_link_ht_geo(self, link_list: list[int] = None):
+    def renew_link_ht_geo(self, link_list: list[int] = None, renew_single: bool = True):
         self.__link.renew_geo_of_ht(target_link=link_list, head_loc_dict={
             link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[0]) for
             link in link_list}, tail_loc_dict={
             link: self.get_node_geo(self.get_link_from_to(link, _type='bilateral')[1]) for
             link in link_list})
+        if renew_single:
+            self.__link.init_link()
 
     def modify_link_gdf(self, link_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
         self.__link.modify_link_gdf(link_id_list=link_id_list, attr_field_list=attr_field_list, val_list=val_list)

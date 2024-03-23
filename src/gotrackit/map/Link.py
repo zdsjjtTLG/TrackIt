@@ -247,8 +247,8 @@ class Link(object):
 
         self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
             lambda row: LineString(
-                [head_loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:-1] + tail_loc_dict[
-                    row[link_id_field]]), axis=1)
+                [head_loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:-1] + [tail_loc_dict[
+                    row[link_id_field]]]), axis=1)
 
     def get_double_link_data(self):
         pass
