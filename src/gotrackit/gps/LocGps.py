@@ -23,7 +23,8 @@ class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
-                 time_format: str = '%Y-%m-%d %H:%M:%S', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649'):
+                 time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', geo_crs: str = 'EPSG:4326',
+                 plane_crs: str = 'EPSG:32649'):
         """
 
         :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
@@ -49,9 +50,12 @@ class GpsPointsGdf(object):
             lambda item: Point(item[gps_field.LNG_FIELD], item[gps_field.LAT_FIELD]), axis=1)
         self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD,
                                                  crs=self.geo_crs)
-
-        self.__gps_points_gdf[gps_field.TIME_FIELD] = \
-            pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
+        try:
+            self.__gps_points_gdf[gps_field.TIME_FIELD] = \
+                pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
+        except Exception as e:
+            self.__gps_points_gdf[gps_field.TIME_FIELD] = \
+                pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]

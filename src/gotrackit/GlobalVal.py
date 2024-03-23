@@ -38,6 +38,14 @@ class GpsField(object):
         self.FROM_GPS_SEQ = 'from_seq'
         self.TO_GPS_SEQ = 'to_seq'
 
+        self.GROUP_FIELD = 'group'
+        self.SUB_GROUP_FIELD = 'sub_group'
+        self.NEXT_P = 'next_p'
+        self.NEXT_TIME = 'next_time'
+        self.ADJ_TIME_GAP = 'time_gap'
+        self.ADJ_DIS = 'dis_gap'
+        self.ADJ_SPEED = 'adj_speed'
+
 
 class MarkovField(object):
     """HMM模型字段"""
