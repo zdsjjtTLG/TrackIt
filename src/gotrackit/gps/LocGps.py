@@ -12,19 +12,33 @@ from ..map.Net import Net
 from ..tools.geo_process import prj_inf
 from ..GlobalVal import GpsField, NetField
 from ..WrapsFunc import function_time_cost
+from ..tools.geo_process import segmentize
 from shapely.geometry import Point, Polygon, LineString
-
-
+from datetime import timedelta
 gps_field = GpsField()
 net_field = NetField()
 
+lng_field = gps_field.LNG_FIELD
+lat_field = gps_field.LAT_FIELD
+next_p_field = gps_field.NEXT_P
+time_field = gps_field.TIME_FIELD
+group_field = gps_field.GROUP_FIELD
+sub_group_field = gps_field.SUB_GROUP_FIELD
+next_time_field = gps_field.NEXT_TIME
+agent_field = gps_field.AGENT_ID_FIELD
+geometry_field = gps_field.GEOMETRY_FIELD
+time_gap_field = gps_field.ADJ_TIME_GAP
+dis_gap_field = gps_field.ADJ_DIS
+adj_speed_field = gps_field.ADJ_DIS
+dense_geo_field = gps_field.DENSE_GEO
+n_seg_field = gps_field.N_SEGMENTS
 
 class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', geo_crs: str = 'EPSG:4326',
-                 plane_crs: str = 'EPSG:32649'):
+                 plane_crs: str = 'EPSG:32649', dense_gps: bool = True, dense_interval: float = 25.0):
         """
 
         :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
@@ -34,12 +48,16 @@ class GpsPointsGdf(object):
         :param time_format: 时间列的字符格式
         :param geo_crs: 地理坐标系
         :param plane_crs: 平面投影坐标系
+        :param dense_gps: 是否加密GPS点
+        :param dense_interval: 加密间隔(相邻GPS点的直线距离小于dense_interval即会进行加密)
         """
         self.geo_crs = geo_crs
         self.buffer = buffer
         self.__crs = self.geo_crs
         self.plane_crs = plane_crs
         self.increment_buffer = increment_buffer
+        self.dense_gps = dense_gps
+        self.dense_interval = dense_interval
         self.max_increment_times = 1 if max_increment_times <= 0 else max_increment_times
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
@@ -54,6 +72,7 @@ class GpsPointsGdf(object):
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
         except Exception as e:
+            print(repr(e))
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
@@ -64,6 +83,9 @@ class GpsPointsGdf(object):
         self.to_plane_prj()
         # self.calc_gps_point_dis()
 
+        if dense_gps:
+            self.dense()
+
         # 存储最原始的GPS信息(未经过降噪)
         self.__source_gps_points_gdf = None
 
@@ -72,6 +94,54 @@ class GpsPointsGdf(object):
                 gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
             set(self.__gps_points_gdf.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
+
+    def dense(self):
+
+        # 时间差和距离差
+        self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
+            self.__gps_points_gdf[time_field])
+        self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
+            self.__gps_points_gdf[geometry_field])
+        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
+            lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
+        self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
+            lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
+
+        should_be_dense_gdf = self.__gps_points_gdf[self.__gps_points_gdf[dis_gap_field] > self.dense_interval].copy()
+        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
+                                   inplace=True)
+
+        should_be_dense_gdf[n_seg_field] = should_be_dense_gdf.apply(
+            lambda row: int(row[dis_gap_field] / self.dense_interval) + 1, axis=1)
+
+        should_be_dense_gdf[[dense_geo_field, time_field]] = \
+            should_be_dense_gdf.apply(
+                lambda row: [
+                    list(segmentize(LineString([row[geometry_field], row[next_p_field]]), n=row[n_seg_field]).coords[
+                         1:-1]),
+                    [row[time_field] + timedelta(seconds=i * row[time_gap_field] / row[n_seg_field]) for i in
+                     range(1, row[n_seg_field])]],
+                axis=1, result_type='expand')
+        print(should_be_dense_gdf)
+        should_be_dense_gdf.drop(columns=[geometry_field], axis=1, inplace=True)
+        should_be_dense_gdf = pd.DataFrame(should_be_dense_gdf).explode(column=[time_field, dense_geo_field],
+                                                                        ignore_index=True)
+        should_be_dense_gdf.rename(columns={dense_geo_field: geometry_field}, inplace=True)
+        should_be_dense_gdf[geometry_field] = should_be_dense_gdf.apply(lambda row: Point(row[geometry_field]), axis=1)
+        should_be_dense_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
+                                 inplace=True)
+        should_be_dense_gdf = gpd.GeoDataFrame(should_be_dense_gdf, geometry=geometry_field, crs=self.crs)
+        should_be_dense_gdf = should_be_dense_gdf.to_crs(self.geo_crs)
+        should_be_dense_gdf[[lng_field, lat_field]] = should_be_dense_gdf.apply(
+            lambda row: (row[geometry_field].x, row[geometry_field].y), axis=1, result_type='expand')
+        should_be_dense_gdf = should_be_dense_gdf.to_crs(self.plane_crs)
+
+        self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
+        self.__gps_points_gdf.sort_values(by=time_field, ascending=True, inplace=True)
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
+        self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
+        self.__gps_points_gdf.to_file('aaa.geojson', encoding='gbk', driver='GeoJSON')
 
     def lower_frequency(self, n: int = 5):
         """

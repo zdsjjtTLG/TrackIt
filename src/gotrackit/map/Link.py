@@ -86,6 +86,9 @@ class Link(object):
         self.__single_link_gdf.set_index(net_field.SINGLE_LINK_ID_FIELD, inplace=True)
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
 
+    def renew_length(self):
+        self.link_gdf[length_field] = self.link_gdf.apply(lambda row: row[geometry_field].length, axis=1)
+
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):
         """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
         self.__single_link_gdf = single_link_gdf.copy()

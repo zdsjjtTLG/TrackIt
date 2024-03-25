@@ -15,6 +15,7 @@ from src.gotrackit.gps.LocGps import GpsPointsGdf
 from src.gotrackit.model.Markov import HiddenMarkov
 from src.gotrackit.GlobalVal import NetField, GpsField
 from src.gotrackit.visualization import VisualizationCombination
+from src.gotrackit.MapMatch import MapMatch
 
 net_field = NetField()
 gps_field = GpsField()
@@ -26,13 +27,15 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
           is_lower_f: bool = False, lower_n: int = 2, is_rolling_average: bool = False, window: int = 2,
           gps_buffer: float = 90, use_sub_net: bool = True, buffer_for_sub_net: float = 110,
           beta: float = 20.2, gps_sigma: float = 20.0, flag_name: str = 'test',
-          export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None, html_fldr: str = None):
+          export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None, html_fldr: str = None,
+          rematch: bool = False, not_conn_cost:float=200.0):
     print(fr'using {search_method}....')
     # 1.新建一个路网对象, 并且使用平面坐标
     my_net = Net(link_path=link_path,
                  node_path=node_path,
                  link_gdf=link_gdf, node_gdf=node_gdf,
-                 weight_field=weight_field, geo_crs=geo_crs, plane_crs=plain_crs, search_method=search_method)
+                 weight_field=weight_field, geo_crs=geo_crs, plane_crs=plain_crs, search_method=search_method,
+                 not_conn_cost=not_conn_cost)
 
     # 初始化
     my_net.init_net()
@@ -43,7 +46,6 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
     for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
         file_name = '-'.join([flag_name, str(agent_id)])
         print(rf'agent: {agent_id}')
-        _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD] == agent_id].copy()
         _gps_df.reset_index(inplace=True, drop=True)
         gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=time_format,
                                buffer=gps_buffer,
@@ -62,25 +64,28 @@ def match(plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326', search_meth
             print(rf'using sub net')
             sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=buffer_for_sub_net))
             # 初始化一个隐马尔可夫模型
-            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
+            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma, not_conn_cost=not_conn_cost)
         else:
             print(rf'using whole net')
-            hmm_obj = HiddenMarkov(net=my_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
+            hmm_obj = HiddenMarkov(net=my_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma, not_conn_cost=not_conn_cost)
 
         # 求解参数
         hmm_obj.generate_markov_para()
         hmm_obj.solve()
         _match_res_df = hmm_obj.acquire_res()
         if hmm_obj.is_warn:
-            print(r'重新计算...')
-            gps_obj.rolling_average(window=2)
-            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
-            hmm_obj.generate_markov_para()
-            hmm_obj.solve()
-            _match_res_df = hmm_obj.acquire_res()
-            print(hmm_obj.is_warn)
-        else:
-            print('no warning...')
+            if rematch:
+                print(r'重新计算...')
+                gps_obj.rolling_average(window=2)
+                try:
+                    hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
+                except:
+                    hmm_obj = HiddenMarkov(net=my_net, gps_points=gps_obj, beta=beta, gps_sigma=gps_sigma)
+
+                hmm_obj.generate_markov_para()
+                hmm_obj.solve()
+                _match_res_df = hmm_obj.acquire_res()
+                print(hmm_obj.is_warn)
 
         if export_geo_res:
             hmm_obj.acquire_geo_res(out_fldr=geo_res_fldr,
@@ -184,12 +189,32 @@ def t_sample_match():
     # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_3'].copy()
 
     match(plain_crs='EPSG:32649', geo_crs='EPSG:4326', link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-          node_path=r'./data/input/net/xian/modifiedConn_node.shp', use_sub_net=True, gps_buffer=60,
-          buffer_for_sub_net=170, gps_df=gps_df,
+          node_path=r'./data/input/net/xian/modifiedConn_node.shp', use_sub_net=True, gps_buffer=120,
+          buffer_for_sub_net=300, gps_df=gps_df,
           is_rolling_average=False, window=2,
+          gps_sigma=5, beta=15,
           flag_name='xian_sample', export_html=True, export_geo_res=True,
           html_fldr=r'./data/output/match_visualization/sample',
-          geo_res_fldr=r'./data/output/match_visualization/sample')
+          geo_res_fldr=r'./data/output/match_visualization/sample', not_conn_cost=1200.0)
+
+
+def check_0325():
+    my_net = Net(plane_crs='EPSG:32651', geo_crs='EPSG:4326',
+                 link_path=r'./data/input/net/test/0325/G15_links.shp',
+                 node_path=r'./data/input/net/test/0325/G15_gps_node.shp', not_conn_cost=999.0)
+    my_net.init_net()
+
+    gps_df = pd.read_csv(r'./data/input/net/test/0325/car_gps_test_noheading.csv')
+    gps_df = gps_df.loc[0:260, :].copy()
+    print(gps_df)
+    mpm = MapMatch(net=my_net, plain_crs='EPSG:32651', geo_crs='EPSG:4326', gps_df=gps_df,
+                   is_rolling_average=False, window=2,
+                   flag_name='check_0325', export_html=True, export_geo_res=True,
+                   html_fldr=r'./data/output/match_visualization/sample',
+                   geo_res_fldr=r'./data/output/match_visualization/sample')
+    res_df, label_list = mpm.execute()
+    print(label_list)
+
 
 
 if __name__ == '__main__':
@@ -199,3 +224,4 @@ if __name__ == '__main__':
     # t_cq_match()
 
     t_sample_match()
+    # check_0325()

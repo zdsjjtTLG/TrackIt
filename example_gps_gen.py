@@ -21,8 +21,8 @@ if __name__ == '__main__':
     # 示例为西安的路网, 使用6度带中的32649
     plain_crs = 'EPSG:32649'
     geo_crs = 'EPSG:4326'
-    my_net = Net(link_path=r'data/input/net/xian/conn_done_link.shp',
-                 node_path=r'data/input/net/xian/conn_done_node.shp',
+    my_net = Net(link_path=r'data/input/net/xian/modifiedConn_link.shp',
+                 node_path=r'data/input/net/xian/modifiedConn_node.shp',
                  weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs)
     # 路网对象初始化
     my_net.init_net()
@@ -44,13 +44,13 @@ if __name__ == '__main__':
     speed_miu = 12.0  # 速度期望值
     speed_sigma = 3.6  # 速度标准差
     save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
-    loc_frequency_list = [2, 5, 7]  # 每多少s进行一次GPS定位
+    loc_frequency_list = [100, 100, 100]  # 每多少s进行一次GPS定位
     loc_error_sigma = 30.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
-    k = 1
+    k = 150
     # 开始行车
-    for car_id in [rf'xa_car_{i}' for i in range(k, k + 6)]:
+    for car_id in [rf'xa_car_{i}' for i in range(k, k + 1)]:
         # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route, save_log=False,
                   agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,

@@ -46,6 +46,9 @@ class GpsField(object):
         self.ADJ_DIS = 'dis_gap'
         self.ADJ_SPEED = 'adj_speed'
 
+        self.DENSE_GEO = '__dens_geo__'
+        self.N_SEGMENTS = '__n__'
+
 
 class MarkovField(object):
     """HMM模型字段"""

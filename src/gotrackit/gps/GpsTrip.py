@@ -6,7 +6,7 @@
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from itertools import chain
+from .GpsArray import GpsArray
 from ..GlobalVal import GpsField
 from shapely.geometry import Point
 
@@ -26,37 +26,21 @@ dis_gap_field = gps_field.ADJ_DIS
 adj_speed_field = gps_field.ADJ_DIS
 
 
-class GpsTrip(object):
+class GpsTrip(GpsArray):
     def __init__(self, gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0,
                  min_speed_threshold: float = 2.0, min_distance_threshold: float = 100.0,
                  min_time_gap: float = 80):
 
-        self.plain_crs = plain_crs
+        GpsArray.__init__(self, gps_points_df=gps_df, time_unit=time_unit, time_format=time_format,
+                          plane_crs=plain_crs, geo_crs='EPSG:4326')
+
         self.group_gap_threshold = group_gap_threshold  # s, 相邻GPS的时间超过这个阈值则被切分行程
         self.min_speed_threshold = min_speed_threshold  # m/s, 相邻GPS的速度小于这个阈值
         self.min_distance_threshold = min_distance_threshold  # m, 相邻GPS的直线距离
         self.min_time_gap = min_time_gap  # s, 相邻GPS的时间小于这个阈值
-
-        self.gps_gdf = gps_df.copy()
-        self.check()
-        self.gps_gdf[gps_field.GEOMETRY_FIELD] = self.gps_gdf.apply(
-            lambda item: Point(item[lng_field], item[lat_field]), axis=1)
-        self.gps_gdf = gpd.GeoDataFrame(self.gps_gdf, geometry=geometry_field, crs='EPSG:4326')
-        try:
-            self.gps_gdf[gps_field.TIME_FIELD] = \
-                pd.to_datetime(self.gps_gdf[gps_field.TIME_FIELD], format=time_format)
-        except Exception as e:
-            self.gps_gdf[gps_field.TIME_FIELD] = \
-                pd.to_datetime(self.gps_gdf[gps_field.TIME_FIELD], unit=time_unit)
-
-        self.gps_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
-        self.gps_gdf = self.gps_gdf.to_crs(self.plain_crs)
-
+        self.gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
         self.__clean_gps_gdf = gpd.GeoDataFrame()
-    def check(self):
-        _gap = {agent_field, lng_field, lat_field, time_field} - set(self.gps_gdf.columns)
-        assert _gap == set(), rf'GPS数据缺少{_gap}字段'
 
     def add_main_group(self):
 
@@ -66,7 +50,7 @@ class GpsTrip(object):
             except ZeroDivisionError:
                 return 2.0
 
-        for agent_id, group_gps_gdf in self.gps_gdf.groupby(agent_field):
+        for agent_id, group_gps_gdf in self.gps_points_gdf.groupby(agent_field):
             group_gps_gdf.sort_values(by=time_field, ascending=True, inplace=True)
 
             # 时间差和距离差

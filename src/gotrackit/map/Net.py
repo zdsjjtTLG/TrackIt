@@ -21,7 +21,6 @@ from ..WrapsFunc import function_time_cost
 from shapely.geometry import Polygon, Point
 from ..tools.geo_process import divide_line_by_l
 
-NOT_CONN_COST = 200.0
 net_field = NetField()
 
 link_id_field = net_field.LINK_ID_FIELD
@@ -32,13 +31,15 @@ length_field = net_field.LENGTH_FIELD
 geometry_field = net_field.GEOMETRY_FIELD
 node_id_field = net_field.NODE_ID_FIELD
 
+
 class Net(object):
 
     @function_time_cost
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
                  geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,
-                 is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra'):
+                 is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
+                 not_conn_cost: float = 999.0):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -53,6 +54,7 @@ class Net(object):
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
 
         """
+        self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
         self.search_method = search_method
         self.plane_crs = plane_crs
@@ -66,18 +68,21 @@ class Net(object):
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, geo_crs=self.geo_crs,
                                plane_crs=self.plane_crs, is_check=is_check)
-        if not init_from_existing:
-            if create_single:
-                self.__link.init_link()
-        else:
-            if create_single:
-                self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
 
         if node_gdf is None:
             self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, plane_crs=self.plane_crs,
                                geo_crs=self.geo_crs)
         else:
             self.__node = Node(node_gdf=node_gdf, is_check=is_check, plane_crs=self.plane_crs, geo_crs=self.geo_crs)
+
+        self.to_plane_prj()
+        self.__link.renew_length()
+        if not init_from_existing:
+            if create_single:
+                self.__link.init_link()
+        else:
+            if create_single:
+                self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
         if not init_from_existing:
             self.__node.init_node()
         else:
@@ -85,7 +90,6 @@ class Net(object):
 
         if is_check:
             self.check()
-        self.to_plane_prj()
 
     def check(self) -> None:
         """检查点层线层的关联一致性"""
@@ -120,14 +124,14 @@ class Net(object):
                 node_path = self.__stp_cache[o_node][d_node]
                 cost = self.__done_path_cost[o_node][d_node]
             except KeyError:
-                return [], NOT_CONN_COST
+                return [], self.not_conn_cost
         else:
             self.calc_shortest_path(source=o_node, method=self.search_method)
             try:
                 node_path = self.__stp_cache[o_node][d_node]
                 cost = self.__done_path_cost[o_node][d_node]
             except KeyError:
-                return [], NOT_CONN_COST
+                return [], self.not_conn_cost
 
         return node_path, cost
 

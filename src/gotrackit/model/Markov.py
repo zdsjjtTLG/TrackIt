@@ -17,7 +17,6 @@ import networkx as nx
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
-from ..map.Net import NOT_CONN_COST
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
 from ..WrapsFunc import function_time_cost
@@ -37,7 +36,9 @@ MIN_P = 1e-10
 
 class HiddenMarkov(object):
     """隐马尔可夫模型类"""
-    def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0):
+
+    def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
+                 not_conn_cost: float = 999.0):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -56,6 +57,7 @@ class HiddenMarkov(object):
         self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
         self.path_cost_df = pd.DataFrame()
         self.is_warn = False
+        self.not_conn_cost = not_conn_cost
 
     def generate_markov_para(self):
 
@@ -91,8 +93,9 @@ class HiddenMarkov(object):
             to_link = gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD] == seq_list[i + 1]][
                 net_field.SINGLE_LINK_ID_FIELD].to_list()
 
-            transition_df = pd.DataFrame([[f, t] for f in from_link for t in to_link], columns=[markov_field.FROM_STATE,
-                                                                                                markov_field.TO_STATE])
+            transition_df = pd.DataFrame([[int(f), int(t)] for f in from_link for t in to_link],
+                                         columns=[markov_field.FROM_STATE,
+                                                  markov_field.TO_STATE])
 
             transition_df[markov_field.ROUTE_LENGTH] = \
                 transition_df.apply(
@@ -206,7 +209,7 @@ class HiddenMarkov(object):
                 route_l = from_l_length - from_route_dis + to_route_dis
                 return np.absolute(route_l)
             else:
-                return NOT_CONN_COST
+                return self.not_conn_cost
         # 正好相反的f-t
         elif len(dup_node_list) == 2:
             route_l = from_l_length - from_route_dis + to_route_dis
@@ -224,20 +227,20 @@ class HiddenMarkov(object):
                 #     route_l1 = route_item[1] + from_route_dis
                 # else:
                 #     return NOT_CONN_COST
-                return NOT_CONN_COST
+                return self.not_conn_cost
             else:
                 route_l1 = route_item[1] - from_route_dis
 
             if route_item[0][-2] == to_link_ft[1]:
                 # abnormal
-                return NOT_CONN_COST
+                return self.not_conn_cost
             else:
                 route_l2 = to_route_dis
 
             route_l = np.absolute(route_l1 + route_l2)
             return route_l
         else:
-            return NOT_CONN_COST
+            return self.not_conn_cost
 
     def cache_emission_data(self, gps_seq: int = None, single_link_id: int = None) -> tuple[Point, float, float, float]:
         """
