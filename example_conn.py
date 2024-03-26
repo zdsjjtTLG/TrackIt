@@ -25,7 +25,16 @@ def t_xa_bug():
                        used_core_num=7)
     nv.generate_net_from_pickle(binary_path_fldr=r'./data/input/net/test/xa_bug/path')
 
+def sz_osm():
+    link_gdf = gpd.read_file(r'./data/input/net/test/0326fyx/load/create_node/LinkAfterModify.shp')
+    node_gdf = gpd.read_file(r'./data/input/net/test/0326fyx/load/create_node/NodeAfterModify.shp')
+    nv = ng.NetReverse(plain_prj='EPSG:32650', conn_buffer=0.8, net_out_fldr=r'./data/input/net/test/0326fyx/load/',
+                       flag_name='sz_osm')
+
+    new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, generate_mark=True,
+                                                book_mark_name='sz_osm')
 
 if __name__ == '__main__':
     # xa_test()
-    t_xa_bug()
+    # t_xa_bug()
+    sz_osm()

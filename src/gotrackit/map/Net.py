@@ -175,6 +175,9 @@ class Net(object):
     def get_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_link_data()
 
+    def calc_link_vec(self):
+        self.__link.calc_link_vec()
+
     def get_node_data(self) -> gpd.GeoDataFrame:
         return self.__node.get_node_data()
 

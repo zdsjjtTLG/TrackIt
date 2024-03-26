@@ -49,6 +49,7 @@ class VisualizationCombination(object):
         gps_link_gdf.reset_index(inplace=True, drop=True)
         base_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first', inplace=True)
         base_node_gdf.drop_duplicates(subset=[net_field.NODE_ID_FIELD], keep='first', inplace=True)
+        del base_link_gdf[net_field.LINK_VEC_FIELD]
         base_link_gdf.reset_index(inplace=True, drop=True)
         base_node_gdf.reset_index(inplace=True, drop=True)
 

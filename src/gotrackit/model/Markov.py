@@ -20,9 +20,10 @@ from datetime import timedelta
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
 from ..WrapsFunc import function_time_cost
-from ..tools.geo_process import n_equal_points
 from shapely.geometry import Point, LineString
 from ..GlobalVal import NetField, GpsField, MarkovField
+from ..tools.geo_process import n_equal_points, vector_angle
+
 
 gps_field = GpsField()
 net_field = NetField()
@@ -38,7 +39,7 @@ class HiddenMarkov(object):
     """隐马尔可夫模型类"""
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 not_conn_cost: float = 999.0):
+                 not_conn_cost: float = 999.0, use_heading_inf: bool = True):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -58,6 +59,7 @@ class HiddenMarkov(object):
         self.path_cost_df = pd.DataFrame()
         self.is_warn = False
         self.not_conn_cost = not_conn_cost
+        self.use_heading_inf = use_heading_inf
 
     def generate_markov_para(self):
 
@@ -128,20 +130,42 @@ class HiddenMarkov(object):
     @function_time_cost
     def __generate_emission_mat(self):
 
-        # 计算每个观测点的生成概率
+        # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         emission_p_df = pd.DataFrame(self.__done_prj_dict).T.reset_index(drop=False).rename(
             columns={'level_0': gps_field.POINT_SEQ_FIELD, 'level_1': net_field.SINGLE_LINK_ID_FIELD,
                      1: markov_field.PRJ_L})[
             [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]]
+
+        if self.use_heading_inf:
+            self.gps_points.calc_diff_heading()
+            self.net.calc_link_vec()
+            emission_p_df = pd.merge(emission_p_df, self.gps_points.gps_gdf[[gps_field.POINT_SEQ_FIELD,
+                                                                             gps_field.DIFF_VEC]], how='left',
+                                     on=gps_field.POINT_SEQ_FIELD)
+            _ = self.net.get_link_data()
+            _.reset_index(inplace=True, drop=True)
+            emission_p_df = pd.merge(emission_p_df, _[[net_field.SINGLE_LINK_ID_FIELD,
+                                                       net_field.LINK_VEC_FIELD]],
+                                     how='left',
+                                     on=net_field.SINGLE_LINK_ID_FIELD)
+            emission_p_df[markov_field.HEADING_GAP] = \
+                emission_p_df.apply(
+                    lambda row: vector_angle(v1=row[gps_field.DIFF_VEC], v2=row[net_field.LINK_VEC_FIELD]),
+                    axis=1)
+        else:
+            emission_p_df[markov_field.HEADING_GAP] = 0
+        emission_p_df[markov_field.HEADING_GAP] = emission_p_df[markov_field.HEADING_GAP].astype(object)
         emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
                                   ascending=[True, True], inplace=True)
         emission_p_df = emission_p_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
-            {markov_field.PRJ_L: np.array}).reset_index(
+            {markov_field.PRJ_L: np.array, markov_field.HEADING_GAP: np.array}).reset_index(
             drop=False)
 
         self.__emission_mat_dict = {
             int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
-                                                                           sigma=self.gps_sigma) for _, row in
+                                                                           sigma=self.gps_sigma,
+                                                                           heading_gap=row[markov_field.HEADING_GAP])
+            for _, row in
             emission_p_df.iterrows()}
 
     def solve(self, use_lop_p: bool = True):
@@ -469,9 +493,13 @@ class HiddenMarkov(object):
         return p
 
     @staticmethod
-    def emission_probability(sigma: float = 1.0, dis: float = 6.0) -> float:
+    def emission_probability(sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = 0.0) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
-        p = np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
+        heading_gap = heading_gap.astype(float)
+        heading_gap[heading_gap <= 70] = 1.0
+        heading_gap[heading_gap > 70] = 0.00001
+        print(heading_gap)
+        p = heading_gap * np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p
 
     def acquire_res(self) -> gpd.GeoDataFrame():
@@ -496,7 +524,8 @@ class HiddenMarkov(object):
 
         gps_link_state_df[markov_field.PRJ_GEO] = \
             gps_link_state_df.apply(lambda item: self.__done_prj_dict[(item[gps_field.POINT_SEQ_FIELD],
-                                                                       item[net_field.SINGLE_LINK_ID_FIELD])][0], axis=1)
+                                                                       item[net_field.SINGLE_LINK_ID_FIELD])][0],
+                                    axis=1)
 
         gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[
             [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1)
@@ -543,7 +572,7 @@ class HiddenMarkov(object):
         gps_match_res_gdf.drop(columns=[gps_field.NEXT_LINK_FIELD], axis=1, inplace=True)
         gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry=net_field.GEOMETRY_FIELD,
                                              crs=self.gps_points.crs)
-        self.gps_match_res_gdf = gps_match_res_gdf
+        self.gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
         return gps_match_res_gdf
 
     @function_time_cost

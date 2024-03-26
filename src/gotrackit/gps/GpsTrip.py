@@ -23,7 +23,7 @@ agent_field = gps_field.AGENT_ID_FIELD
 geometry_field = gps_field.GEOMETRY_FIELD
 time_gap_field = gps_field.ADJ_TIME_GAP
 dis_gap_field = gps_field.ADJ_DIS
-adj_speed_field = gps_field.ADJ_DIS
+adj_speed_field = gps_field.ADJ_SPEED
 
 
 class GpsTrip(GpsArray):

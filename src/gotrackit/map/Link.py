@@ -27,6 +27,7 @@ from_node_field = net_field.FROM_NODE_FIELD
 to_node_field = net_field.TO_NODE_FIELD
 length_field = net_field.LENGTH_FIELD
 geometry_field = net_field.GEOMETRY_FIELD
+link_vec_field = net_field.LINK_VEC_FIELD
 
 
 class Link(object):
@@ -61,6 +62,7 @@ class Link(object):
         self.__ud_graph = nx.Graph()
         self.__one_out_degree_nodes = None
         self.__link_ft_mapping: dict[int, tuple[int, int]] = dict()
+        self.done_link_vec = False
 
     def check(self):
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
@@ -234,6 +236,17 @@ class Link(object):
         """
         self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
             lambda row: LineString([loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:]), axis=1)
+
+    def calc_link_vec(self) -> None:
+        if self.done_link_vec:
+            return None
+
+        def get_ht_vec(line: LineString = None) -> np.ndarray:
+            cor = list(line.coords)
+            return np.array(cor[-1]) - np.array(cor[0])
+        self.__single_link_gdf[link_vec_field] = self.__single_link_gdf.apply(
+            lambda row: get_ht_vec(line=row[geometry_field]), axis=1)
+        self.done_link_vec = True
 
     def renew_tail_of_geo(self, target_link: list = None, loc_dict: dict[tuple] or dict[list] = None):
         """

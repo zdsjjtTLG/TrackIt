@@ -5,7 +5,9 @@
 
 """车辆GPS数据的相关方法和属性"""
 
+
 import datetime
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 from ..map.Net import Net
@@ -13,6 +15,7 @@ from ..tools.geo_process import prj_inf
 from ..GlobalVal import GpsField, NetField
 from ..WrapsFunc import function_time_cost
 from ..tools.geo_process import segmentize
+from ..tools.geo_process import angle_base_north
 from shapely.geometry import Point, Polygon, LineString
 from datetime import timedelta
 gps_field = GpsField()
@@ -21,17 +24,18 @@ net_field = NetField()
 lng_field = gps_field.LNG_FIELD
 lat_field = gps_field.LAT_FIELD
 next_p_field = gps_field.NEXT_P
+pre_p_field = gps_field.PRE_P
 time_field = gps_field.TIME_FIELD
-group_field = gps_field.GROUP_FIELD
-sub_group_field = gps_field.SUB_GROUP_FIELD
 next_time_field = gps_field.NEXT_TIME
 agent_field = gps_field.AGENT_ID_FIELD
 geometry_field = gps_field.GEOMETRY_FIELD
 time_gap_field = gps_field.ADJ_TIME_GAP
 dis_gap_field = gps_field.ADJ_DIS
-adj_speed_field = gps_field.ADJ_DIS
+adj_speed_field = gps_field.ADJ_SPEED
 dense_geo_field = gps_field.DENSE_GEO
 n_seg_field = gps_field.N_SEGMENTS
+diff_vec = gps_field.DIFF_VEC
+
 
 class GpsPointsGdf(object):
 
@@ -83,11 +87,10 @@ class GpsPointsGdf(object):
         self.to_plane_prj()
         # self.calc_gps_point_dis()
 
-        if dense_gps:
-            self.dense()
+        # 存储最原始的GPS信息
+        self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
 
-        # 存储最原始的GPS信息(未经过降噪)
-        self.__source_gps_points_gdf = None
+        self.done_diff_heading = False
 
     def check(self):
         assert {gps_field.LNG_FIELD, gps_field.LAT_FIELD,
@@ -108,11 +111,13 @@ class GpsPointsGdf(object):
             lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
 
         should_be_dense_gdf = self.__gps_points_gdf[self.__gps_points_gdf[dis_gap_field] > self.dense_interval].copy()
+        if should_be_dense_gdf.empty:
+            return None
         self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
                                    inplace=True)
 
         should_be_dense_gdf[n_seg_field] = should_be_dense_gdf.apply(
-            lambda row: int(row[dis_gap_field] / self.dense_interval) + 1, axis=1)
+            lambda row: int(0.001 + row[dis_gap_field] / self.dense_interval) + 1, axis=1)
 
         should_be_dense_gdf[[dense_geo_field, time_field]] = \
             should_be_dense_gdf.apply(
@@ -122,7 +127,6 @@ class GpsPointsGdf(object):
                     [row[time_field] + timedelta(seconds=i * row[time_gap_field] / row[n_seg_field]) for i in
                      range(1, row[n_seg_field])]],
                 axis=1, result_type='expand')
-        print(should_be_dense_gdf)
         should_be_dense_gdf.drop(columns=[geometry_field], axis=1, inplace=True)
         should_be_dense_gdf = pd.DataFrame(should_be_dense_gdf).explode(column=[time_field, dense_geo_field],
                                                                         ignore_index=True)
@@ -141,7 +145,6 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
-        self.__gps_points_gdf.to_file('aaa.geojson', encoding='gbk', driver='GeoJSON')
 
     def lower_frequency(self, n: int = 5):
         """
@@ -149,8 +152,6 @@ class GpsPointsGdf(object):
         :param n: 降频倍数
         :return:
         """
-        if self.__source_gps_points_gdf is None:
-            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: x % n)
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'] == 0].copy()
         # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
@@ -165,8 +166,6 @@ class GpsPointsGdf(object):
         :param window: 窗口大小
         :return:
         """
-        if self.__source_gps_points_gdf is None:
-            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
         self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
             lambda t: t.timestamp())
         self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
@@ -236,6 +235,58 @@ class GpsPointsGdf(object):
 
     def get_gps_buffer_gdf(self):
         pass
+
+    def calc_diff_heading(self):
+        if self.done_diff_heading:
+            return None
+
+        self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
+            self.__gps_points_gdf[geometry_field])
+        self.__gps_points_gdf[pre_p_field] = self.__gps_points_gdf[geometry_field].shift(1).fillna(
+            self.__gps_points_gdf[geometry_field])
+
+        self.__gps_points_gdf['next_loc'] = self.__gps_points_gdf.apply(
+            lambda row: np.array([row[next_p_field].x, row[next_p_field].y]), axis=1)
+        self.__gps_points_gdf['pre_loc'] = self.__gps_points_gdf.apply(
+            lambda row: np.array([row[pre_p_field].x, row[pre_p_field].y]), axis=1)
+        self.__gps_points_gdf['loc'] = self.__gps_points_gdf.apply(
+            lambda row: np.array([row[geometry_field].x, row[geometry_field].y]), axis=1)
+        self.__gps_points_gdf[diff_vec] = self.__gps_points_gdf.apply(
+            lambda row: row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc'],
+            axis=1)
+
+        self.__gps_points_gdf.drop(
+            columns=[next_p_field, pre_p_field, 'next_loc', 'pre_loc', 'loc', ], axis=1,
+            inplace=True)
+        self.done_diff_heading = True
+
+    @staticmethod
+    def calc_angle(vec1: np.ndarray = None, vec2: np.ndarray = None):
+        a, b = False, False
+
+        if np.linalg.norm(vec1) == 0:
+            a = True
+        vec1 = vec1 / np.linalg.norm(vec1)
+
+        if np.linalg.norm(vec2) == 0:
+            b = True
+        vec2 = vec2 / np.linalg.norm(vec2)
+
+        c_vec = np.ndarray
+
+        if a and b:
+            return -1
+
+        if a or b:
+            if a:
+                c_vec = vec2
+            elif b:
+                c_vec = vec1
+        else:
+            c_vec = vec1 + vec2
+
+        res = angle_base_north(v=c_vec)
+        return res
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:

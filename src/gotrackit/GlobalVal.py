@@ -20,6 +20,7 @@ class NetField(object):
         self.NODE_ID_FIELD = 'node_id'
         self.NODE_PATH_FIELD = 'node_path'
         self.COST_FIELD = 'cost'
+        self.LINK_VEC_FIELD = 'dir_vec'
 
 class GpsField(object):
     """gps数据字段"""
@@ -41,6 +42,7 @@ class GpsField(object):
         self.GROUP_FIELD = 'group'
         self.SUB_GROUP_FIELD = 'sub_group'
         self.NEXT_P = 'next_p'
+        self.PRE_P = 'pre_p'
         self.NEXT_TIME = 'next_time'
         self.ADJ_TIME_GAP = 'time_gap'
         self.ADJ_DIS = 'dis_gap'
@@ -48,6 +50,8 @@ class GpsField(object):
 
         self.DENSE_GEO = '__dens_geo__'
         self.N_SEGMENTS = '__n__'
+
+        self.DIFF_VEC = 'diff_vec'
 
 
 class MarkovField(object):
@@ -64,6 +68,7 @@ class MarkovField(object):
         self.PRJ_L = 'prj_dis'
         self.PRJ_GEO = 'prj_geo'
         self.DIS_TO_NEXT = 'dis_to_next'
+        self.HEADING_GAP = 'heading_gap'
 
 
 class KeplerConfig(object):

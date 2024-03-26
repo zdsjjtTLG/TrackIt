@@ -235,6 +235,36 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
     return divide_line_list, divide_point_list, len(divide_line_list)
 
 
+def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None):
+    # 计算点积
+    dot_product = np.dot(v1, v2)
+    # 计算两个向量的模
+    norm_v1 = np.linalg.norm(v1)
+    norm_v2 = np.linalg.norm(v2)
+
+    # 避免除以零
+    if norm_v1 == 0 or norm_v2 == 0:
+        return 0
+    # 计算夹角
+    cos_angle = dot_product / (norm_v1 * norm_v2)
+    # 防止因浮点数计算问题导致cos_angle超出范围
+    cos_angle = min(max(cos_angle, -1), 1)
+
+    # 计算角度值，结果以弧度表示
+    angle = np.arccos(cos_angle)
+
+    # 转换为角度制，如果需要转换为度数，乘以180/np.pi
+    return np.degrees(angle)
+
+
+def angle_base_north(v: np.ndarray = None):
+    angle = vector_angle(v, np.array([0, 1]))
+    if v[0] <= 0:
+        return angle
+    else:
+        return 360 - angle
+
+
 if __name__ == '__main__':
     pass
     # import geopandas as gpd
