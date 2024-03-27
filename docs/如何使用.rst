@@ -828,7 +828,7 @@ GPS数据字段要求如下：
 5.2. 代码示例
 `````````````
 
-用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/net/xian>`_
+用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data>`_
 
 .. code-block:: python
     :linenos:
