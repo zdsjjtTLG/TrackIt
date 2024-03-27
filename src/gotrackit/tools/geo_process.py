@@ -15,6 +15,11 @@ from ..WrapsFunc import function_time_cost
 
 net_field = NetField()
 geometry_field = net_field.GEOMETRY_FIELD
+node_id_field = net_field.NODE_ID_FIELD
+link_id_field = net_field.LINK_ID_FIELD
+from_node_field = net_field.FROM_NODE_FIELD
+to_node_field = net_field.TO_NODE_FIELD
+
 
 def n_equal_points(n, from_loc: tuple = None, to_loc=None,
                    from_point: Point = None, to_point: Point = None, add_noise: bool = False,
@@ -129,35 +134,42 @@ def segmentize(line: LineString = None, n: int = None) -> LineString:
     return LineString([s] + [(sample_x, k * sample_x + b) for sample_x in sample_x_list] + [e])
 
 
-def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString]]:
+def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString], np.ndarray]:
     """
     # 返回 某point到line的(投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
     :param p:
     :param line:
-    :return: (投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
+    :return: (投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list, 投影点的方向向量)
     """
 
     distance = line.project(p)
 
     if distance <= 0.0:
-        prj_p = Point(list(line.coords)[0])
-        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)]
+        line_cor = list(line.coords)
+        prj_p = Point(line_cor[0])
+        prj_vec = np.array(line_cor[1]) - np.array(line_cor[0])
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], prj_vec
     elif distance >= line.length:
-        prj_p = Point(list(line.coords)[-1])
-        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)]
+        line_cor = list(line.coords)
+        prj_p = Point(line_cor[-1])
+        prj_vec = np.array(line_cor[-1]) - np.array(line_cor[-2])
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], prj_vec
     else:
         coords = list(line.coords)
         for i, _p in enumerate(coords):
             xd = line.project(Point(_p))
             if xd == distance:
                 prj_p = Point(coords[i])
+                prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
                 return prj_p, prj_p.distance(p), distance, line.length, \
-                    [LineString(coords[:i + 1]), LineString(coords[i:])]
+                    [LineString(coords[:i + 1]), LineString(coords[i:])], prj_vec
             if xd > distance:
                 cp = line.interpolate(distance)
                 prj_p = Point((cp.x, cp.y))
+                prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
                 return prj_p, prj_p.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
-                                                                         LineString([(cp.x, cp.y)] + coords[i:])]
+                                                                         LineString(
+                                                                             [(cp.x, cp.y)] + coords[i:])], prj_vec
 
 
 def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
@@ -197,6 +209,25 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') 
     return gdf
 
 
+def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
+                 node_gdf: gpd.GeoDataFrame or pd.DataFrame = None) -> None:
+    """
+    change link and node inplace
+    :param link_gdf:
+    :param node_gdf:
+    :return:
+    """
+    origin_node = set(node_gdf[node_id_field])
+    node_map = {origin_node: new_node for origin_node, new_node in
+                zip(origin_node, [i for i in range(1, len(origin_node) + 1)])}
+
+    node_gdf[node_id_field] = node_gdf[node_id_field].map(node_map)
+    link_gdf[link_id_field] = [i for i in range(1, len(link_gdf) + 1)]
+    link_gdf[[from_node_field, to_node_field]] = link_gdf.apply(lambda row: (node_map[row[from_node_field]],
+                                                                             node_map[row[to_node_field]]), axis=1,
+                                                                result_type='expand')
+
+
 def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> tuple[
     list[LineString], list[Point], int]:
     """
@@ -222,7 +253,7 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
             if not is_remain:
                 divide_line_list.append(used_l)
                 break
-        prj_p, _, dis, _, split_line_list = prj_inf(p, used_l)
+        prj_p, _, dis, _, split_line_list, _ = prj_inf(p, used_l)
         used_l = split_line_list[-1]
         if i + 1 == len(p_list):
             if is_remain:

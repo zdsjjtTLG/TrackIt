@@ -4,6 +4,7 @@
 # @Team    : ZheChengData
 
 
+import numpy as np
 import pandas as pd
 from .map.Net import Net
 from .gps.LocGps import GpsPointsGdf
@@ -26,7 +27,7 @@ class MapMatch(object):
                  beta: float = 20.2, gps_sigma: float = 20.0, flag_name: str = 'test',
                  export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None,
                  html_fldr: str = None, dense_gps: bool = True, dense_interval: float = 25.0,
-                 use_gps_source: bool = False, use_heading_inf: bool = True):
+                 use_gps_source: bool = False, use_heading_inf: bool = True, heading_para_array: np.ndarray = None):
 
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -51,6 +52,7 @@ class MapMatch(object):
         self.increment_buffer = increment_buffer
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
+        self.heading_para_array = heading_para_array
 
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
         self.gps_sigma = gps_sigma  # 发射概率参数, 概率与之成正比
@@ -103,11 +105,13 @@ class MapMatch(object):
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap))
                 # 初始化一个隐马尔可夫模型
                 hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
-                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf)
+                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
+                                       heading_para_array=self.heading_para_array)
             else:
                 print(rf'using whole net')
                 hmm_obj = HiddenMarkov(net=self.my_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
-                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf)
+                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
+                                       heading_para_array=self.heading_para_array)
 
             # 求解参数
             hmm_obj.generate_markov_para()

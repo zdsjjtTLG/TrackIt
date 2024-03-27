@@ -781,75 +781,31 @@ GPS数据字段要求如下：
 .. code-block:: python
     :linenos:
 
-    # 1. 从gotrackit导入相关模块Net, GpsPointsGdf, HiddenMarkov, VisualizationCombination, 字段名称常量(这一步是固定操作)
+    # 1. 从gotrackit导入相关模块Net, MapMatch
     import geopandas as gpd
     from gotrackit.map.Net import Net
-    from gotrackit.gps.LocGps import GpsPointsGdf
-    from gotrackit.model.Markov import HiddenMarkov
-    from gotrackit.GlobalVal import NetField, GpsField
-    from gotrackit.visualization import VisualizationCombination
-
-    net_field = NetField()
-    gps_field = GpsField()
+    from gotrackit.MapMatch import MapMatch
 
 
     if __name__ == '__main__':
-        # 2. 新建一个路网对象, 并且指定其地理坐标系(shp源文件的crs)以及要使用的投影坐标系
-        # 示例为西安的路网, 使用6度带中的EPSG:32649(这个投影坐标系的指定, 用户需要依据自己的数据所在的城市来自定义修改)
-        plain_crs = 'EPSG:32649'
-        geo_crs = 'EPSG:4326'
 
-        # 这里使用的是西安一个小片区的路网, 我已经提前把路网做好了, 只需指定link层和node层的文件路径(可以去我的GitHub上找到这个数据)
-        # weight_field指明使用link图层中的哪一个字段作为路径搜索的权重字段(必须是浮点数类型的字段)
-        # 同时传入地理坐标系、平面投影坐标系参数
+        # 读取GPS数据(这个数据应该是已经做好了数据清洗、行程切分的GPS数据)
+        gps_df = pd.read_csv(r'路径/你的GPS数据文件.csv')
+        print(gps_df)
+
+        # 构建net, 输入的坐标系必须是经纬度, wgs84 - EPSG:4326
         my_net = Net(link_path=r'data/input/net/xian/link.shp',
-                     node_path=r'data/input/net/xian/node.shp',
-                     weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs, search_method='dijkstra')
-
-        # 路网对象初始化(一定要做)
+                     node_path=r'data/input/net/xian/node.shp')
         my_net.init_net()
 
-        # 3.读取GPS文件(这一步不固定, 用户可以在这之前去做很多的清洗操作)
-        gps_df = gpd.read_file(r'./data/output/gps/test_xa.geojson')
-
-        # 4.初始化一个匹配结果管理器
-        vc = VisualizationCombination(use_gps_source=True)
-
-        for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
-            _gps_df.reset_index(inplace=True, drop=True)
-
-            # 为该车的该次行程创建一个GpsPointsGd对象
-            gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format="%Y-%m-%d %H:%M:%S", buffer=100.0,
-                                   geo_crs=geo_crs, plane_crs=plain_crs, max_increment_times=1)
-
-            # 降频处理(如有需要)
-            gps_obj.lower_frequency(n=2)
-
-            # 做一次滑动窗口平均(如有需要)
-            # gps_obj.rolling_average(window=2)
-
-            # 5.依据当前的GPS数据(源数据)创建一个子网络
-            # 这里的buffer值必须大于上文代码中创建GpsPointsGdf中的buffer值
-            sub_net = my_net.create_computational_net(gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=200.0))
-
-            # 6. 初始化一个隐马尔可夫模型
-            hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=31.2, gps_sigma=10.0)
-            hmm_obj.generate_markov_para()  # 计算匹配参数
-            hmm_obj.solve()  # 求解
-
-            # 7. 获取匹配结果
-            # 'agent_id', 'time', 'heading', 'lng', 'lat', 'geometry', 'seq', 'origin_seq', 'single_link_id', 'link_id', 'dir', 'from_node','to_node', 'sub_seq'
-            match_res_df = hmm_obj.acquire_res()
-
-
-            # 8. 输出匹配信息的几何文件
-            # 如果执行了该函数, 会在r'./data/output/match_visualization/'下生成四个geojson文件:
-            # GPS点文件、GPS-目标路段的投影点文件、匹配link文件、GPS点-GPS投影点的线文件
-            hmm_obj.acquire_geo_res(out_fldr=r'./data/output/match_visualization/', flag_name='test')
-
-
-            # 9. 将结果放到可视化收集器里面, 方便可视化输出
-            vc.collect_hmm(hmm_obj)
+        # 执行地图匹配
+        mpm = MapMatch(net=my_net, gps_df=gps_df,
+                       is_rolling_average=False, flag_name='cq_test',
+                       export_html=True, export_geo_res=True,
+                       html_fldr=r'./data/output/match_visualization/cq',
+                       geo_res_fldr=r'./data/output/match_visualization/cq', dense_gps=False,
+                       use_sub_net=True)
+       match_res_df, warning_agent_list = mpm.execute()
 
 
 通过hmm_obj.acquire_res()获取的地图匹配的结果表字段含义为：

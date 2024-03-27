@@ -5,11 +5,16 @@
 import os
 import geopandas as gpd
 import datetime
+
+import numpy as np
+
 from src.gotrackit.tools.coord_trans import LngLatTransfer
 con = LngLatTransfer()
+from src.gotrackit.model.Markov import HiddenMarkov
+
 
 if __name__ == '__main__':
-    link = gpd.read_file(r'./data/input/net/xian/link_a.shp')
+    # link = gpd.read_file(r'./data/input/net/xian/link_a.shp')
     # node = gpd.read_file(r'./data/input/net/xian/node_a.shp')
     # link = link.to_crs('EPSG:4326')
     # node = node.to_crs('EPSG:4326')
@@ -40,8 +45,9 @@ if __name__ == '__main__':
     #
     #         gdf.to_file(rf'./data/output/{fldr}/{file}', encoding='gbk', driver='GeoJSON')
 
-    x = datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0)
-    print(x)
-
-    for i, a in enumerate([1,2,3,6]):
-        print(i, a)
+    # x = datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0)
+    # print(x)
+    #
+    # for i, a in enumerate([1,2,3,6]):
+    #     print(i, a)
+    pass

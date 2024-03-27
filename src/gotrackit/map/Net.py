@@ -40,7 +40,7 @@ class Net(object):
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
-                 not_conn_cost: float = 999.0, cache_path: bool = True):
+                 not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -61,18 +61,19 @@ class Net(object):
         self.__stp_cache = dict()
         self.__done_path_cost = dict()
         self.cache_path = cache_path
+        self.cache_id = cache_id
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check)
+            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, init_available_node=self.cache_id)
         else:
-            self.__node = Node(node_gdf=node_gdf, is_check=is_check)
+            self.__node = Node(node_gdf=node_gdf, is_check=is_check, init_available_node=self.cache_id)
 
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, is_check=is_check,
-                               planar_crs=self.__node.planar_crs)
+                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id)
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, is_check=is_check,
-                               planar_crs=self.__node.planar_crs)
+                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id)
         self.planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         self.__link.renew_length()
@@ -339,7 +340,7 @@ class Net(object):
 
         # 获取打断点到target link的投影点信息
         target_link_geo = self.get_link_geo(target_link, _type='bilateral')
-        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list = prj_inf(p=p, line=target_link_geo)
+        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list, _ = prj_inf(p=p, line=target_link_geo)
 
         if (target_l - prj_route_l) <= omitted_length_threshold:
             # this means that we should merge the to_node and p

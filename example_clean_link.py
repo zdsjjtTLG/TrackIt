@@ -49,6 +49,18 @@ def func2():
     print(n)
 
 
+def remap_id_of_link_node():
+    l = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    n = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+    print(l[['link_id', 'from_node', 'to_node']])
+    print(n[['node_id']])
+    nv = ng.NetReverse()
+    nv.remapping_link_node_id(l, n)
+    print(l[['link_id', 'from_node', 'to_node']])
+    print(n[['node_id']])
+
+
 if __name__ == '__main__':
-    func2()
+    # func2()
+    remap_id_of_link_node()
 

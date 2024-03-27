@@ -7,6 +7,7 @@
 路网线层存储与相关方法
 """
 
+import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -33,7 +34,8 @@ link_vec_field = net_field.LINK_VEC_FIELD
 
 class Link(object):
     def __init__(self, link_gdf: gpd.GeoDataFrame = None, planar_crs: str = None,
-                 weight_field: str = None, is_check: bool = True, not_conn_cost: float = 999.0):
+                 weight_field: str = None, is_check: bool = True, not_conn_cost: float = 999.0,
+                 init_available_link: bool = True):
 
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
@@ -56,7 +58,8 @@ class Link(object):
         if is_check:
             self.check()
         self.max_link_id = None
-        self.init_available_link_id()
+        if init_available_link:
+            self.init_available_link_id()
         self.__single_link_gdf = gpd.GeoDataFrame()
         self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
         self.__ft_link_mapping: dict[tuple[int, int], int] = dict()
@@ -357,6 +360,8 @@ class Link(object):
     def init_available_link_id(self) -> None:
         max_link = self.link_gdf[link_id_field].max()
         self.max_link_id = max_link
+        if self.max_link_id >= 10000000:
+            return None
         self.__available_link_id = list({i for i in range(1, max_link + 1)} - set(self.link_gdf[link_id_field]))
 
     @property

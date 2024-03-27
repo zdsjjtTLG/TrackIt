@@ -39,11 +39,11 @@ class HiddenMarkov(object):
     """隐马尔可夫模型类"""
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 not_conn_cost: float = 999.0, use_heading_inf: bool = True):
+                 not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
-        self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float, float]] = dict()
+        self.__done_prj_dict: dict[tuple[int, int]: tuple[Point, float, float, float, np.ndarray]] = dict()
         self.__adj_seq_path_dict: dict[tuple[int, int], list[int, int]] = dict()
         self.__ft_transition_dict = dict()
         self.__ft_mapping_dict = dict()
@@ -60,6 +60,9 @@ class HiddenMarkov(object):
         self.is_warn = False
         self.not_conn_cost = not_conn_cost
         self.use_heading_inf = use_heading_inf
+        if heading_para_array is None:
+            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
+        self.angle_slice = 180 / len(self.heading_para_array)
 
     def generate_markov_para(self):
 
@@ -131,24 +134,17 @@ class HiddenMarkov(object):
     def __generate_emission_mat(self):
 
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
+        # 这里的向量是候选路段的投影点的方向向量
         emission_p_df = pd.DataFrame(self.__done_prj_dict).T.reset_index(drop=False).rename(
             columns={'level_0': gps_field.POINT_SEQ_FIELD, 'level_1': net_field.SINGLE_LINK_ID_FIELD,
-                     1: markov_field.PRJ_L})[
-            [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]]
+                     1: markov_field.PRJ_L, 4: net_field.LINK_VEC_FIELD})[
+            [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L, net_field.LINK_VEC_FIELD]]
 
         if self.use_heading_inf:
             self.gps_points.calc_diff_heading()
-            self.net.calc_link_vec()
             emission_p_df = pd.merge(emission_p_df, self.gps_points.gps_gdf[[gps_field.POINT_SEQ_FIELD,
                                                                              gps_field.DIFF_VEC]], how='left',
                                      on=gps_field.POINT_SEQ_FIELD)
-            _ = self.net.get_link_data()
-            _.reset_index(inplace=True, drop=True)
-            emission_p_df = pd.merge(emission_p_df, _[[net_field.SINGLE_LINK_ID_FIELD,
-                                                       net_field.LINK_VEC_FIELD]],
-                                     how='left',
-                                     on=net_field.SINGLE_LINK_ID_FIELD)
-            del _
             emission_p_df[markov_field.HEADING_GAP] = \
                 emission_p_df.apply(
                     lambda row: vector_angle(v1=row[gps_field.DIFF_VEC], v2=row[net_field.LINK_VEC_FIELD]),
@@ -195,10 +191,10 @@ class HiddenMarkov(object):
         :return:
         """
         # prj_p, prj_dis, route_dis
-        (from_prj_p, from_prj_dis, from_route_dis, from_l_length) = \
+        (from_prj_p, from_prj_dis, from_route_dis, from_l_length, from_p_vec) = \
             self.cache_emission_data(gps_seq=from_gps_seq, single_link_id=from_link_id)
 
-        (to_prj_p, to_prj_dis, to_route_dis, to_l_length) = \
+        (to_prj_p, to_prj_dis, to_route_dis, to_l_length, to_p_vec) = \
             self.cache_emission_data(gps_seq=to_gps_seq, single_link_id=to_link_id)
 
         # if (from_gps_seq, from_link_id) in self.__done_prj_dict.keys():
@@ -267,7 +263,8 @@ class HiddenMarkov(object):
         else:
             return self.not_conn_cost
 
-    def cache_emission_data(self, gps_seq: int = None, single_link_id: int = None) -> tuple[Point, float, float, float]:
+    def cache_emission_data(self, gps_seq: int = None, single_link_id: int = None) -> \
+            tuple[Point, float, float, float, np.ndarray]:
         """
         :param gps_seq:
         :param single_link_id:
@@ -275,16 +272,16 @@ class HiddenMarkov(object):
         """
         if (gps_seq, single_link_id) in self.__done_prj_dict.keys():
             # already calculated
-            (prj_p, prj_dis, route_dis, l_length) = self.__done_prj_dict[
+            (prj_p, prj_dis, route_dis, l_length, p_vec) = self.__done_prj_dict[
                 (gps_seq, single_link_id)]
         else:
             # new calc and cache
-            (prj_p, prj_dis, route_dis, l_length) = self.get_gps_prj_info(
+            (prj_p, prj_dis, route_dis, l_length, p_vec) = self.get_gps_prj_info(
                 target_link_id=single_link_id,
                 gps_seq=gps_seq)
             self.__done_prj_dict.update(
-                {(gps_seq, single_link_id): (prj_p, prj_dis, route_dis, l_length)})
-        return prj_p, prj_dis, route_dis, l_length
+                {(gps_seq, single_link_id): (prj_p, prj_dis, route_dis, l_length, p_vec)})
+        return prj_p, prj_dis, route_dis, l_length, p_vec
 
 
     # @function_time_cost
@@ -478,7 +475,8 @@ class HiddenMarkov(object):
     #         return NOT_CONN_COST
     #
     #
-    def get_gps_prj_info(self, gps_seq: int = None, target_link_id: int = None) -> tuple[Point, float, float, float]:
+    def get_gps_prj_info(self, gps_seq: int = None, target_link_id: int = None) -> \
+            tuple[Point, float, float, float, np.ndarray]:
         return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id, _type='single'), seq=gps_seq)
 
     @staticmethod
@@ -493,13 +491,10 @@ class HiddenMarkov(object):
         p = np.e ** (- 0.1 * dis_gap / beta)
         return p
 
-    @staticmethod
-    def emission_probability(sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = 0.0) -> float:
+    def emission_probability(self, sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = None) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
-        heading_gap = heading_gap.astype(float)
-        heading_gap[heading_gap <= 70] = 1.0
-        heading_gap[heading_gap > 70] = 0.00001
-        # print(heading_gap)
+        heading_gap = self.heading_para_array[(heading_gap / self.angle_slice).astype(int)]
+        print(heading_gap)
         p = heading_gap * np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p
 

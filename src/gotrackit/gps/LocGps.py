@@ -367,15 +367,15 @@ class GpsPointsGdf(object):
         else:
             return self.__source_gps_points_gdf.copy()
 
-    def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float]:
+    def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float, np.ndarray]:
         """
         计算当前gps点实例在指定线对象上的投影信息
         :param line:
         :param seq:
         :return:
         """
-        (prj_p, prj_dis, route_dis, l_length) = self._get_prj_inf(self.get_point(seq)[1], line)
-        return prj_p, prj_dis, route_dis, l_length
+        (prj_p, prj_dis, route_dis, l_length, p_vec) = self._get_prj_inf(self.get_point(seq)[1], line)
+        return prj_p, prj_dis, route_dis, l_length, p_vec
 
     def delete_target_gps(self, target_seq_list: list[int]) -> None:
         self.__gps_points_gdf.drop(
@@ -383,15 +383,15 @@ class GpsPointsGdf(object):
             inplace=True, axis=0)
 
     @staticmethod
-    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float]:
+    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float, np.ndarray]:
         """
         # 返回 (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         :param gps_point:
         :param line:
         :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         """
-        prj_p, p_prj_l, prj_route_l, line_length, _ = prj_inf(p=gps_point, line=line)
-        return prj_p, p_prj_l, prj_route_l, line_length
+        prj_p, p_prj_l, prj_route_l, line_length, _, prj_vec = prj_inf(p=gps_point, line=line)
+        return prj_p, p_prj_l, prj_route_l, line_length, prj_vec
 
         # distance = line.project(gps_point)
         #

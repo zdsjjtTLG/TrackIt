@@ -55,7 +55,7 @@ class Conn(object):
         if generate_mark:
             if out_fldr is None:
                 return None
-            node_gdf.set_geometry(geometry_field, inplace=True, crs=self.net.plane_crs)
+            node_gdf.set_geometry(geometry_field, inplace=True, crs=self.net.planar_crs)
             node_gdf = node_gdf.to_crs(self.net.geo_crs)
             agg_df = join_df.groupby(node_id_field).agg({link_id_field: list}).reset_index(drop=False)
             conn_dict = {str(node) + '-' + ','.join(list(map(str, link_list))): (
@@ -104,7 +104,7 @@ class Conn(object):
                 target_link = n_link_gdf[link_id_field].to_list()[0]
                 if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
                     temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
-                        self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.plane_crs)
+                        self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
                     join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data(),
                                                    buffer=self.buffer)
@@ -128,12 +128,12 @@ class Conn(object):
         for target_link, corr_single_link_gdf in n_link_gdf.groupby(link_id_field):
 
             corr_single_link_gdf = \
-                gpd.GeoDataFrame(corr_single_link_gdf, crs=self.net.plane_crs, geometry=geometry_field)
+                gpd.GeoDataFrame(corr_single_link_gdf, crs=self.net.planar_crs, geometry=geometry_field)
             if node_id_field in corr_single_link_gdf.columns:
                 corr_single_link_gdf.drop(columns=[node_id_field], inplace=True, axis=1)
             if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
                 temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
-                    self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.plane_crs)
+                    self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
                 join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data())
 

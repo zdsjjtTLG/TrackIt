@@ -23,9 +23,9 @@ from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from ..WrapsFunc import function_time_cost
 from .Parse.gd_car_path import ParseGdPath
-from ..tools.geo_process import clean_link_geo
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
+from ..tools.geo_process import clean_link_geo, remapping_id
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 
 net_field = NetField()
@@ -372,8 +372,7 @@ class NetReverse(Reverse):
         geo_crs = link_gdf.crs
         assert geo_crs == 'EPSG:4326'
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
-        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, geo_crs=geo_crs, plane_crs=self.plain_prj,
-                  create_single=False)
+        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=generate_mark)
         net.export_net(export_crs=link_gdf.crs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
@@ -394,3 +393,12 @@ class NetReverse(Reverse):
     @staticmethod
     def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
         return clean_link_geo(gdf=gdf, plain_crs=plain_crs)
+
+    @staticmethod
+    def remapping_link_node_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame, node_gdf: gpd.GeoDataFrame or pd.DataFrame):
+        """
+        :param link_gdf:
+        :param node_gdf:
+        :return:
+        """
+        remapping_id(link_gdf=link_gdf, node_gdf=node_gdf)

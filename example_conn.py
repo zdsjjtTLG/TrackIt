@@ -34,6 +34,7 @@ def sz_osm():
     new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, generate_mark=True,
                                                 book_mark_name='sz_osm')
 
+
 if __name__ == '__main__':
     # xa_test()
     # t_xa_bug()

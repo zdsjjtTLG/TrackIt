@@ -7,6 +7,7 @@
 路网点层信息存储与相关方法
 """
 
+import warnings
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
@@ -23,7 +24,7 @@ geometry_field = net_field.GEOMETRY_FIELD
 
 
 class Node(object):
-    def __init__(self, node_gdf: gpd.GeoDataFrame = None, is_check: bool = True):
+    def __init__(self, node_gdf: gpd.GeoDataFrame = None, is_check: bool = True, init_available_node: bool = True):
         self.geo_crs = geo_crs
         self.planar_crs = node_gdf.crs
         self.__node_gdf = node_gdf.copy()
@@ -32,7 +33,8 @@ class Node(object):
         if is_check:
             self.planar_crs = judge_plain_crs_based_on_node(node_gdf=self.__node_gdf)
             self.check()
-        self.init_available_node_id()
+        if init_available_node:
+            self.init_available_node_id()
 
     def check(self):
         assert self.__node_gdf.crs == self.geo_crs, rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs}'
@@ -80,6 +82,8 @@ class Node(object):
     def init_available_node_id(self) -> None:
         max_node = self.__node_gdf[node_id_field].max()
         self.max_node_id = max_node
+        if self.max_node_id >= 10000000:
+            return None
         self.__available_node_id = list({i for i in range(1, max_node + 1)} - set(self.__node_gdf[node_id_field]))
 
     @property
