@@ -167,6 +167,8 @@ class GpsPointsGdf(object):
         :param window: 窗口大小
         :return:
         """
+        if len(self.__gps_points_gdf) <= window:
+            return None
         self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
             lambda t: t.timestamp())
         self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(

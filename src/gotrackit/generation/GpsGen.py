@@ -244,8 +244,7 @@ class Car(object):
                 speed = np.abs(self.speed - np.random.randint(0, 5))
                 speed = 0.01 if speed < 0.01 else speed
             else:
-                speed = self.speed
-
+                speed = np.abs(self.speed)
             while True:
                 # 计算当前时间和车辆所处的位置
                 now_time = self.start_time + timedelta(seconds=self.__time_tic * self.time_step)

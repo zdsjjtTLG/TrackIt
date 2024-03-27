@@ -28,8 +28,8 @@ if __name__ == '__main__':
     ######   将数据处理为标准格式    ######
 
     my_net = Net(link_path=r'./data/input/net/test/0317/link1.geojson',
-                 node_path=r'./data/input/net/test/0317/node1.geojson',
-                 plane_crs='EPSG:32651')
+                 node_path=r'./data/input/net/test/0317/node1.geojson')
+    print(my_net.geo_crs, my_net.planar_crs)
 
     # 执行划分路网
     # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分

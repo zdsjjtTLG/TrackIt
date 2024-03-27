@@ -17,10 +17,7 @@ gps_field = GpsField()
 
 
 if __name__ == '__main__':
-    # 1.新建一个路网对象, 并且指定其地理坐标系(shp源文件的crs)以及要使用的投影坐标系
-    # 示例为西安的路网, 使用6度带中的32649
-    plain_crs = 'EPSG:32649'
-    geo_crs = 'EPSG:4326'
+    # 1.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_path=r'data/input/net/xian/modifiedConn_link.shp',
                  node_path=r'data/input/net/xian/modifiedConn_node.shp',
                  weight_field='length')
@@ -66,7 +63,7 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    tra_name = '0327sample'
+    tra_name = '0329sample'
     trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/sample/',
                                               file_name=tra_name)
     gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/sample/', file_name=tra_name)

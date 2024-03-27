@@ -95,7 +95,7 @@ class Conn(object):
             return None
 
         for split_node, n_link_gdf in self.not_conn_df.groupby(node_id_field):
-            print(split_node)
+            # print(split_node)
             if 'index_right' in n_link_gdf.columns:
                 n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
             if split_node not in self.net.get_node_data()[node_id_field]:

@@ -36,6 +36,7 @@ class VisualizationCombination(object):
         self.__hmm_obj_list.append(hmm_obj)
 
     def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None) -> None:
+        out_fldr = r'./' if out_fldr is None else out_fldr
         base_link_gdf = gpd.GeoDataFrame()
         base_node_gdf = gpd.GeoDataFrame()
         gps_link_gdf = gpd.GeoDataFrame()

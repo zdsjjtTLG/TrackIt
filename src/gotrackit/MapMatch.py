@@ -19,16 +19,48 @@ node_id_field = net_field.NODE_ID_FIELD
 
 
 class MapMatch(object):
-    def __init__(self, net: Net = None,
-                 node_num_threshold: int = 2000, gps_df: pd.DataFrame = None, time_format: str = "%Y-%m-%d %H:%M:%S",
-                 time_unit: str = 's', max_increment_times: int = 2, increment_buffer: bool = 20.0,
-                 is_lower_f: bool = False, lower_n: int = 2, is_rolling_average: bool = False, window: int = 2,
-                 gps_buffer: float = 90, use_sub_net: bool = True, gps_route_buffer_gap: float = 25.0,
-                 beta: float = 20.2, gps_sigma: float = 20.0, flag_name: str = 'test',
-                 export_html: bool = False, export_geo_res: bool = False, geo_res_fldr: str = None,
-                 html_fldr: str = None, dense_gps: bool = True, dense_interval: float = 25.0,
-                 use_gps_source: bool = False, use_heading_inf: bool = True, heading_para_array: np.ndarray = None):
+    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
+                 time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
+                 gps_buffer: float = 90, gps_route_buffer_gap: float = 25.0,
+                 max_increment_times: int = 2, increment_buffer: bool = 20.0,
+                 beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
+                 is_lower_f: bool = False, lower_n: int = 2,
+                 use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
+                 dense_gps: bool = True, dense_interval: float = 25.0,
+                 is_rolling_average: bool = False, window: int = 2,
+                 export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
+                 export_geo_res: bool = False, geo_res_fldr: str = None,
+                 node_num_threshold: int = 2000):
+        """
 
+        :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
+        :param net: gotrackit路网对象, 必须指定
+        :param use_sub_net: 是否在子网络上进行计算, 默认True
+        :param gps_df: GPS数据, 必须指定
+        :param time_format: GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
+        :param time_unit: GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
+        :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认90.0
+        :param gps_route_buffer_gap: 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
+        :param max_increment_times: 增量搜索次数, 默认2
+        :param increment_buffer: 增量半径, 默认20.0
+        :param beta: 该值越大, 状态转移概率对于距离越不敏感, 默认20m
+        :param gps_sigma: 该值越大, 发射概率对距离越不敏感, 默认20m
+        :param dis_para: 距离的折减系数, 默认0.1
+        :param is_lower_f: 是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
+        :param lower_n: 频率倍率, 默认2
+        :param use_heading_inf: 是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数), 默认False
+        :param heading_para_array: 差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
+        :param dense_gps: 是否对GPS数据进行加密, 默认False
+        :param dense_interval: 当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密, 默认25.0
+        :param is_rolling_average: 是否启用滑动窗口平均对GPS数据进行降噪, 默认False
+        :param window: 滑动窗口大小, 默认2
+        :param export_html: 是否输出网页可视化结果html文件, 默认True
+        :param use_gps_source: 是否在可视化结果中使用GPS源数据进行展示, 默认False
+        :param html_fldr: 保存网页可视化结果的文件目录, 默认当前目录
+        :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
+        :param geo_res_fldr: 存储几何可视化文件的目录, 默认当前目录
+        :param node_num_threshold: 默认2000
+        """
         # 坐标系投影
         self.plain_crs = net.planar_crs
         self.geo_crs = net.geo_crs
@@ -57,13 +89,14 @@ class MapMatch(object):
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
         self.gps_sigma = gps_sigma  # 发射概率参数, 概率与之成正比
         self.flag_name = flag_name
+        self.dis_para = dis_para
 
         self.export_html = export_html
         self.export_geo_res = export_geo_res
         self.geo_res_fldr = geo_res_fldr
         self.html_fldr = html_fldr
 
-        self.may_error_list = []
+        self.may_error_list = dict()
 
         self.my_net = net
         self.not_conn_cost = self.my_net.not_conn_cost
@@ -85,6 +118,7 @@ class MapMatch(object):
                                    plane_crs=self.plain_crs,
                                    max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
                                    dense_gps=self.dense_gps, dense_interval=self.dense_interval)
+            del _gps_df
             # 降频处理
             if self.is_lower_f:
                 print(rf'lower {self.lower_n} - frequency')
@@ -106,19 +140,19 @@ class MapMatch(object):
                 # 初始化一个隐马尔可夫模型
                 hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                        not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array)
+                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para)
             else:
                 print(rf'using whole net')
                 hmm_obj = HiddenMarkov(net=self.my_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                        not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array)
+                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para)
 
             # 求解参数
             hmm_obj.generate_markov_para()
             hmm_obj.solve()
             _match_res_df = hmm_obj.acquire_res()
             if hmm_obj.is_warn:
-                self.may_error_list.append(agent_id)
+                self.may_error_list[agent_id] = hmm_obj.warn_info
 
             if self.export_geo_res:
                 hmm_obj.acquire_geo_res(out_fldr=self.geo_res_fldr,

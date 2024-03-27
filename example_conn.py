@@ -36,6 +36,6 @@ def sz_osm():
 
 
 if __name__ == '__main__':
-    # xa_test()
+    xa_test()
     # t_xa_bug()
-    sz_osm()
+    # sz_osm()

@@ -39,7 +39,8 @@ class HiddenMarkov(object):
     """隐马尔可夫模型类"""
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None):
+                 not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
+                 dis_para: float = 0.1):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -63,6 +64,8 @@ class HiddenMarkov(object):
         if heading_para_array is None:
             self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
         self.angle_slice = 180 / len(self.heading_para_array)
+        self.dis_para = dis_para
+        self.warn_info = list()
 
     def generate_markov_para(self):
 
@@ -124,7 +127,7 @@ class HiddenMarkov(object):
             # 索引映射
             f_mapping, t_mapping = {i: f for i, f in zip(range(len(from_link)), sorted(from_link))}, \
                 {i: t for i, t in zip(range(len(to_link)), sorted(to_link))}
-            transition_mat = self.transition_probability(self.beta, transition_mat)
+            transition_mat = self.transition_probability(self.beta, transition_mat, self.dis_para)
 
             self.__ft_transition_dict[seq_list[i]] = transition_mat
             self.__ft_mapping_dict[seq_list[i]] = f_mapping
@@ -480,22 +483,23 @@ class HiddenMarkov(object):
         return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id, _type='single'), seq=gps_seq)
 
     @staticmethod
-    def transition_probability(beta: float = 30.2, dis_gap: float or np.ndarray = None):
+    def transition_probability(beta: float = 30.2, dis_gap: float or np.ndarray = None, dis_para: float = 0.1):
         """
         dis_gap = straight_l - route_l
         :param beta:
         :param dis_gap:
+        :param dis_para
         :return:
         """
         # p = (1 / beta) * np.e ** (- 0.1 * dis_gap / beta)
-        p = np.e ** (- 0.1 * dis_gap / beta)
+        p = np.e ** (- dis_para * dis_gap / beta)
         return p
 
     def emission_probability(self, sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = None) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
         heading_gap = self.heading_para_array[(heading_gap / self.angle_slice).astype(int)]
-        print(heading_gap)
-        p = heading_gap * np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
+        # print(heading_gap)
+        p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
         return p
 
     def acquire_res(self) -> gpd.GeoDataFrame():
@@ -504,7 +508,7 @@ class HiddenMarkov(object):
                                   observe_val, state_index in
                                   zip(self.gps_points.used_observation_seq_list,
                                       self.index_state_list)]
-        print(single_link_state_list)
+        # print(single_link_state_list)
         # 映射回原路网link_id, 以及dir
         # {[link_id, dir, from_node, to_node], [link_id, dir, from_node, to_node]...}
         bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
@@ -569,7 +573,7 @@ class HiddenMarkov(object):
         gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry=net_field.GEOMETRY_FIELD,
                                              crs=self.gps_points.crs)
         self.gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
-        return gps_match_res_gdf
+        return self.gps_match_res_gdf
 
     @function_time_cost
     def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
@@ -612,6 +616,7 @@ class HiddenMarkov(object):
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
                         warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
+                        self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
                         _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
                                              range(0, len(node_seq) - 1)]
                     else:
@@ -638,6 +643,7 @@ class HiddenMarkov(object):
                 else:
                     self.is_warn = True
                     warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
+                    self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,
@@ -726,6 +732,7 @@ class HiddenMarkov(object):
 
     def acquire_geo_res(self, out_fldr: str = None, flag_name: str = 'flag'):
         """获取矢量结果文件, 可以在qgis中可视化"""
+        out_fldr = r'./' if out_fldr is None else out_fldr
         if self.gps_match_res_gdf is None:
             self.acquire_res()
 

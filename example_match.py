@@ -98,41 +98,46 @@ def t_cq_match():
 
 
 def t_sample_match():
-    gps_df = pd.DataFrame()
-    fldr = r'./data/output/gps/sample/'
-    for file in os.listdir(fldr):
-        _ = gpd.read_file(os.path.join(fldr, file))
-        gps_df = pd.concat([gps_df, _])
-    gps_df.reset_index(inplace=True, drop=True)
+
+    # 读取GPS数据
+    # 这是一个有10辆车的GPS数据的文件
+    # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
+    gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
     print(gps_df)
-    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_7']
+    gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
+
+    # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
                  node_path=r'./data/input/net/xian/modifiedConn_node.shp')
-    my_net.init_net()
+    my_net.init_net()  # net初始化
 
-    # match
-    mpm = MapMatch(net=my_net, gps_df=gps_df,
-                   is_rolling_average=True, flag_name='xa_sample', window=3,
-                   lower_n=2,is_lower_f=True,
-                   gps_buffer=100,
-                   export_html=True, export_geo_res=True, use_heading_inf=True,
+    # 新建一个地图匹配对象, 指定其使用net对象, gps数据
+    # gps_buffer: 单位米, 意为只选取每个GPS点附近100米范围内的路段作为候选路段
+    # use_sub_net: 是否使用子网络进行计算
+    # use_heading_inf: 是否使用GPS差分航向角来修正发射概率
+    # 按照上述参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
+    # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+    #                use_sub_net=True, use_heading_inf=True,
+    #                export_html=True, export_geo_res=True,
+    #                html_fldr=r'./data/output/match_visualization/xa_sample',
+    #                use_gps_source=True,
+    #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+
+    # 这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
+    # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
+    # window=3, 滑动窗口大小为3
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+                   use_sub_net=True, use_heading_inf=False,
+                   is_rolling_average=True, window=3,
+                   export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/xa_sample',
-                   geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
-                   use_sub_net=True)
-    res, _ = mpm.execute()
-    print(_)
-    print(res)
-    res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
-    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_3'].copy()
-
-    # match(plain_crs='EPSG:32649', geo_crs='EPSG:4326', link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-    #       node_path=r'./data/input/net/xian/modifiedConn_node.shp', use_sub_net=True, gps_buffer=400,
-    #       buffer_for_sub_net=420, gps_df=gps_df,
-    #       is_rolling_average=True, window=2,
-    #       gps_sigma=15, beta=5,
-    #       flag_name='xian_sample', export_html=True, export_geo_res=True,
-    #       html_fldr=r'./data/output/match_visualization/sample',
-    #       geo_res_fldr=r'./data/output/match_visualization/sample', not_conn_cost=999.0)
+                   geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+    # 第一个返回结果是匹配结果表
+    # 第二个是发生警告的路段节点编号
+    match_res, warn_info = mpm.execute()
+    print(warn_info)
+    print(match_res)
+    match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
 def dense_example():

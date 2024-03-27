@@ -427,17 +427,10 @@ GPS数据字段要求如下：
 
 
     if __name__ == '__main__':
-        # 2. 新建一个路网对象, 并且指定其地理坐标系(shp源文件的crs)以及要使用的投影坐标系
-        # 示例为西安的路网, 使用6度带中的EPSG:32649(这个投影坐标系的指定, 用户需要依据自己的数据所在的城市来自定义修改)
-        plain_crs = 'EPSG:32649'
-        geo_crs = 'EPSG:4326'
-
-        # 这里使用的是西安一个小片区的路网, 我已经提前把路网做好了, 只需指定link层和node层的文件路径(可以去我的GitHub上找到这个数据)
-        # weight_field指明使用link图层中的哪一个字段作为路径搜索的权重字段(必须是浮点数类型的字段)
-        # 同时传入地理坐标系、平面投影坐标系参数
-        my_net = Net(link_path=r'data/input/net/xian/link.shp',
-                     node_path=r'data/input/net/xian/node.shp',
-                     weight_field='length', geo_crs=geo_crs, plane_crs=plain_crs)
+        # 1.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+        my_net = Net(link_path=r'data/input/net/xian/modifiedConn_link.shp',
+                     node_path=r'data/input/net/xian/modifiedConn_node.shp',
+                     weight_field='length')
 
         # 路网对象初始化(一定要做)
         my_net.init_net()
@@ -457,7 +450,7 @@ GPS数据字段要求如下：
 
         # 4.新建一个行程信息收集器对象, 对数据进行统一管理
         # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
-        data_col = RouteInfoCollector(from_crs=plain_crs, to_crs=geo_crs, convert_prj_sys=True)
+        data_col = RouteInfoCollector(from_crs=my_net.planar_crs, to_crs=my_net.geo_crs, convert_prj_sys=True)
 
         # 5.设置仿真参数, 并且初始化一个车辆实体
         _time_step = 0.1  # 仿真步长, s
@@ -753,6 +746,63 @@ GPS数据字段要求如下：
         link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649')
 
 
+4.9. 路段划分
+`````````````````````````````````````````````````
+
+你已经有了一套link和node文件, 你希望对link层进行路段重塑，即将长度大于L(m)的路段都进打断，同时点层数据也会随之自动变化
+
+
+划分前：
+
+.. image:: _static/images/before_divide.png
+    :align: center
+
+--------------------------------------------------------------------------------
+
+划分后：
+
+.. image:: _static/images/after_divide.png
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        my_net = Net(link_path=r'./data/input/net/test/0317/link1.geojson',
+                     node_path=r'./data/input/net/test/0317/node1.geojson')
+        print(my_net.geo_crs, my_net.planar_crs)
+
+        # 执行划分路网
+        # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分
+        # min_l: 划分后如果剩下的路段长度小于min_l, 那么此次划分将不被允许
+        # is_init_link: 划分后是否重新初始化路网对象
+        # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
+        my_net.divide_links(divide_l=50, min_l=5.0, is_init_link=True, method='alpha')
+        my_net.export_net(out_fldr=r'./data/input/net/test/0317/', file_type='geojson', flag_name='divide')
+
+
+4.10. id重映射
+`````````````````````````````````````````````````
+
+如果你的link表的link_id或者node表的node_id是一个非常大的整数, 使用这样的路网存在风险，你可以使用下面的函数进行ID重映射
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        l = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        n = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        print(l[['link_id', 'from_node', 'to_node']])
+        print(n[['node_id']])
+        nv = ng.NetReverse()
+        nv.remapping_link_node_id(l, n)
+        print(l[['link_id', 'from_node', 'to_node']])
+        print(n[['node_id']])
+
+
 函数方法的相关参数见 :doc:`类方法汇总`
 
 
@@ -778,6 +828,8 @@ GPS数据字段要求如下：
 5.2. 代码示例
 `````````````
 
+用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/net/xian>`_
+
 .. code-block:: python
     :linenos:
 
@@ -789,26 +841,133 @@ GPS数据字段要求如下：
 
     if __name__ == '__main__':
 
-        # 读取GPS数据(这个数据应该是已经做好了数据清洗、行程切分的GPS数据)
-        gps_df = pd.read_csv(r'路径/你的GPS数据文件.csv')
+        # 读取GPS数据
+        # 这是一个有10辆车的GPS数据的文件
+        # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
+        gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
         print(gps_df)
+        # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
 
-        # 构建net, 输入的坐标系必须是经纬度, wgs84 - EPSG:4326
-        my_net = Net(link_path=r'data/input/net/xian/link.shp',
-                     node_path=r'data/input/net/xian/node.shp')
-        my_net.init_net()
+        # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+                     node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net.init_net()  # net初始化
 
-        # 执行地图匹配
-        mpm = MapMatch(net=my_net, gps_df=gps_df,
-                       is_rolling_average=False, flag_name='cq_test',
+        # 新建一个地图匹配对象, 指定其使用net对象, gps数据
+        # gps_buffer: 单位米, 意为只选取每个GPS点附近100米范围内的路段作为候选路段
+        # use_sub_net: 是否使用子网络进行计算
+        # use_heading_inf: 是否使用GPS差分航向角来修正发射概率
+        # 按照上述参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
+        # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+        #                use_sub_net=True, use_heading_inf=True,
+        #                export_html=True, export_geo_res=True,
+        #                html_fldr=r'./data/output/match_visualization/xa_sample',
+        #                use_gps_source=True,
+        #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+
+        # 这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
+        # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
+        # window=3, 滑动窗口大小为3
+        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+                       use_sub_net=True, use_heading_inf=False,
+                       is_rolling_average=True, window=3,
                        export_html=True, export_geo_res=True,
-                       html_fldr=r'./data/output/match_visualization/cq',
-                       geo_res_fldr=r'./data/output/match_visualization/cq', dense_gps=False,
-                       use_sub_net=True)
-       match_res_df, warning_agent_list = mpm.execute()
+                       html_fldr=r'./data/output/match_visualization/xa_sample',
+                       geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+
+        # 第一个返回结果是匹配结果表
+        # 第二个是发生警告的路段节点编号
+        match_res, warn_info = mpm.execute()
+        print(warn_info)
+        print(match_res)
+        match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
-通过hmm_obj.acquire_res()获取的地图匹配的结果表字段含义为：
+地图匹配接口的完整参数解释：
+
+* flag_name
+    标记字符名称, 会用于标记输出的可视化文件, 默认"test"
+
+* net
+    gotrackit路网对象, 必须指定
+
+* use_sub_net
+    是否在子网络上进行计算, 默认True
+
+* gps_df
+    GPS数据, 必须指定
+
+* time_format
+    GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
+
+* time_unit
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
+
+* gps_buffer
+    GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认90.0
+
+* gps_route_buffer_gap
+    半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
+
+* max_increment_times
+    增量搜索次数, 默认2
+
+* increment_buffer
+    增量半径, 默认20.0
+
+* beta
+    该值越大, 状态转移概率对于距离越不敏感, 默认20m
+
+* gps_sigma
+    该值越大, 发射概率对距离越不敏感, 默认20m
+
+* dis_para
+    距离的折减系数, 默认0.1
+
+* is_lower_f
+    是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
+
+* lower_n
+    频率倍率, 默认2
+
+* use_heading_inf
+    是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者 低频定位数据(配合加密参数), 默认False, 默认False
+
+* heading_para_array
+    差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
+
+* dense_gps
+    是否对GPS数据进行加密, 默认False
+
+* dense_interval
+    当前后GPS点的直线距离L超过dense_interval即进行加密, 进行 int(L / dense_interval) + 1 等分加密, 默认25.0
+
+* is_rolling_average
+    是否启用滑动窗口平均对GPS数据进行降噪, 默认False
+
+* window
+    滑动窗口大小, 默认2
+
+* export_html
+    是否输出网页可视化结果html文件, 默认True
+
+* use_gps_source
+    是否在可视化结果中使用GPS源数据进行展示, 默认False
+
+* html_fldr
+    保存网页可视化结果的文件目录, 默认当前目录
+
+* export_geo_res
+    是否输出匹配结果的几何可视化文件, 默认False
+
+* geo_res_fldr
+    存储几何可视化文件的目录, 默认当前目录
+
+* node_num_threshold
+    默认2000
+
+
+地图匹配结果表字段含义为：
 
 
 .. csv-table:: 地图匹配结果表字段说明
@@ -833,22 +992,15 @@ GPS数据字段要求如下：
 --------------------------------------------------------------------------------
 
 
-相关类的参数和方法可参见：
+匹配结果HTML可视化：打开生成的html文件，按照下图点开时间轴播放器
 
-- :doc:`类方法汇总`
-
-6. 匹配结果可视化
-----------------------------
-
-
-.. image:: _static/images/visualization.png
+.. image:: _static/images/html_visualization.png
     :align: center
 
 ----------------------------------------
 
 
-.. code-block:: python
-    :linenos:
+相关类的参数和方法可参见：
 
-    vc.visualization(zoom=15, out_fldr=r'./data/output/match_visualization/', file_name='testXA')
+- :doc:`类方法汇总`
 

@@ -47,7 +47,6 @@ def split_by_row(label_field: str = 'label', df: pd.DataFrame or gpd.GeoDataFram
 
 
 
-
 def del_consecutive_zero(df: pd.DataFrame = None, col: str = None, n: int = 3) -> None:
     """标记超过连续n行为0的行"""
     m = df[col].ne(0)
