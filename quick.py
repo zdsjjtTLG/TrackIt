@@ -13,7 +13,7 @@ from numba import jit
 import networkx as nx
 from timeit import timeit
 from src.gotrackit.WrapsFunc import function_time_cost
-
+from src.gotrackit.tools.geo_process import judge_plain_crs
 a = dict()
 
 
@@ -32,7 +32,7 @@ class Test(object):
         print(df)
 
 @function_time_cost
-def test():
+def t():
     a = pd.DataFrame({'a': [np.random.randint(1, 50000) for i in range(0, 20000)], 'b': [i for i in range(0, 20000)]})
     a['c'] = a.apply(lambda x: sorted([x['a'], x['b']]), axis=1)
 
@@ -93,4 +93,13 @@ if __name__ == '__main__':
     # print(agg_result)
 
 
-    test()
+    # t()
+    res = judge_plain_crs(lng=101.9)
+    print(res)
+
+    import geopandas as gpd
+    from shapely.geometry import LineString, Point
+    gdf = gpd.GeoDataFrame({'geometry': [Point(12, 123), Point(121, 23)]}, geometry='geometry', crs='EPSG:32650')
+    print(gdf)
+    gdf = gdf.to_crs('EPSG:4326')
+    print(gdf)

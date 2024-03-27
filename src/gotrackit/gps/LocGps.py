@@ -5,21 +5,23 @@
 
 """车辆GPS数据的相关方法和属性"""
 
-
 import datetime
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from ..map.Net import Net
+from datetime import timedelta
 from ..tools.geo_process import prj_inf
-from ..GlobalVal import GpsField, NetField
+from ..GlobalVal import GpsField, NetField, PrjConst
 from ..WrapsFunc import function_time_cost
 from ..tools.geo_process import segmentize
 from ..tools.geo_process import angle_base_north
 from shapely.geometry import Point, Polygon, LineString
-from datetime import timedelta
+
+
 gps_field = GpsField()
 net_field = NetField()
+prj_const = PrjConst()
 
 lng_field = gps_field.LNG_FIELD
 lat_field = gps_field.LAT_FIELD
@@ -35,13 +37,13 @@ adj_speed_field = gps_field.ADJ_SPEED
 dense_geo_field = gps_field.DENSE_GEO
 n_seg_field = gps_field.N_SEGMENTS
 diff_vec = gps_field.DIFF_VEC
-
+geo_crs = prj_const.PRJ_CRS
 
 class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
-                 time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', geo_crs: str = 'EPSG:4326',
+                 time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plane_crs: str = 'EPSG:32649', dense_gps: bool = True, dense_interval: float = 25.0):
         """
 
@@ -50,7 +52,6 @@ class GpsPointsGdf(object):
         :param increment_buffer: 使用buffer进行关联, 可能会存在部分GPS点仍然关联不到任何路段, 对于这部分路段, 将启用增量buffer进一步关联
         :param max_increment_times: 增量搜索的最大次数
         :param time_format: 时间列的字符格式
-        :param geo_crs: 地理坐标系
         :param plane_crs: 平面投影坐标系
         :param dense_gps: 是否加密GPS点
         :param dense_interval: 加密间隔(相邻GPS点的直线距离小于dense_interval即会进行加密)

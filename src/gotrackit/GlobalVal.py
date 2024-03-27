@@ -386,3 +386,6 @@ class KeplerConfig(object):
     def get_polygon_config(self):
         return copy.deepcopy(self.__POLYGON_CONFIG)
 
+class PrjConst(object):
+    def __init__(self):
+        self.PRJ_CRS = 'EPSG:4326'

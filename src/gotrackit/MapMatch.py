@@ -18,7 +18,7 @@ node_id_field = net_field.NODE_ID_FIELD
 
 
 class MapMatch(object):
-    def __init__(self, net: Net = None, plain_crs: str = 'EPSG:32650', geo_crs: str = 'EPSG:4326',
+    def __init__(self, net: Net = None,
                  node_num_threshold: int = 2000, gps_df: pd.DataFrame = None, time_format: str = "%Y-%m-%d %H:%M:%S",
                  time_unit: str = 's', max_increment_times: int = 2, increment_buffer: bool = 20.0,
                  is_lower_f: bool = False, lower_n: int = 2, is_rolling_average: bool = False, window: int = 2,
@@ -29,8 +29,8 @@ class MapMatch(object):
                  use_gps_source: bool = False, use_heading_inf: bool = True):
 
         # 坐标系投影
-        self.plain_crs = plain_crs
-        self.geo_crs = geo_crs
+        self.plain_crs = net.planar_crs
+        self.geo_crs = net.geo_crs
 
         # 用于自动确定是否使用全局路网的指标
         self.node_num_threshold = node_num_threshold
@@ -80,7 +80,7 @@ class MapMatch(object):
             _gps_df.reset_index(inplace=True, drop=True)
             gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                    buffer=self.gps_buffer, time_unit=self.time_unit,
-                                   geo_crs=self.geo_crs, plane_crs=self.plain_crs,
+                                   plane_crs=self.plain_crs,
                                    max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
                                    dense_gps=self.dense_gps, dense_interval=self.dense_interval)
             # 降频处理
@@ -107,7 +107,7 @@ class MapMatch(object):
             else:
                 print(rf'using whole net')
                 hmm_obj = HiddenMarkov(net=self.my_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
-                                       not_conn_cost=self.my_net.not_conn_cost, use_heading_inf=self.use_heading_inf)
+                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf)
 
             # 求解参数
             hmm_obj.generate_markov_para()

@@ -9,28 +9,33 @@
 
 import pandas as pd
 import geopandas as gpd
-from ..GlobalVal import NetField
 from shapely.geometry import Point
+from ..GlobalVal import NetField, PrjConst
+from ..tools.geo_process import judge_plain_crs_based_on_node
 
 
 net_field = NetField()
+prj_const = PrjConst()
+
+geo_crs = prj_const.PRJ_CRS
 node_id_field = net_field.NODE_ID_FIELD
 geometry_field = net_field.GEOMETRY_FIELD
 
 
 class Node(object):
-    def __init__(self, node_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
-                 is_check: bool = True):
+    def __init__(self, node_gdf: gpd.GeoDataFrame = None, is_check: bool = True):
         self.geo_crs = geo_crs
-        self.plane_crs = plane_crs
+        self.planar_crs = node_gdf.crs
         self.__node_gdf = node_gdf.copy()
         self.max_node_id = None
         self.__available_node_id = None
         if is_check:
+            self.planar_crs = judge_plain_crs_based_on_node(node_gdf=self.__node_gdf)
             self.check()
         self.init_available_node_id()
 
     def check(self):
+        assert self.__node_gdf.crs == self.geo_crs, rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs}'
         gap_set = {node_id_field, geometry_field} - set(self.__node_gdf.columns)
         assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
         assert len(self.__node_gdf[node_id_field]) == len(self.__node_gdf[node_id_field].unique()), \
@@ -38,7 +43,6 @@ class Node(object):
         for col in [node_id_field]:
             assert len(self.__node_gdf[self.__node_gdf[col].isna()]) == 0, rf'点层Node字段{col}有空值...'
             self.__node_gdf[col] = self.__node_gdf[col].astype(int)
-        assert self.__node_gdf.crs == self.geo_crs, rf'源文件Node:地理坐标系指定有误:实际:{self.__node_gdf.crs}, 指定: {self.geo_crs}'
 
     def init_node(self):
         self.__node_gdf.set_index(node_id_field, inplace=True)
@@ -62,10 +66,10 @@ class Node(object):
         return self.__node_gdf.crs
 
     def to_plane_prj(self) -> None:
-        if self.__node_gdf.crs == self.plane_crs:
+        if self.__node_gdf.crs == self.planar_crs:
             pass
         else:
-            self.__node_gdf = self.__node_gdf.to_crs(self.plane_crs)
+            self.__node_gdf = self.__node_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
         if self.__node_gdf.crs == self.geo_crs:

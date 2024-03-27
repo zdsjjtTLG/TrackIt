@@ -148,6 +148,7 @@ class HiddenMarkov(object):
                                                        net_field.LINK_VEC_FIELD]],
                                      how='left',
                                      on=net_field.SINGLE_LINK_ID_FIELD)
+            del _
             emission_p_df[markov_field.HEADING_GAP] = \
                 emission_p_df.apply(
                     lambda row: vector_angle(v1=row[gps_field.DIFF_VEC], v2=row[net_field.LINK_VEC_FIELD]),
@@ -498,7 +499,7 @@ class HiddenMarkov(object):
         heading_gap = heading_gap.astype(float)
         heading_gap[heading_gap <= 70] = 1.0
         heading_gap[heading_gap > 70] = 0.00001
-        print(heading_gap)
+        # print(heading_gap)
         p = heading_gap * np.e ** (-0.5 * (0.1 * dis / sigma) ** 2)
         return p
 
@@ -663,7 +664,7 @@ class HiddenMarkov(object):
             single_link_gdf = self.net.get_link_data()
             node_gdf = self.net.get_node_data()
             net_crs = self.net.crs
-            plain_crs = self.net.plane_crs
+            plain_crs = self.net.planar_crs
             is_geo_crs = self.net.is_geo_crs()
             double_link_geo = {l: geo for l, geo in zip(single_link_gdf[net_field.LINK_ID_FIELD],
                                                         single_link_gdf[net_field.GEOMETRY_FIELD])}
@@ -743,6 +744,8 @@ class HiddenMarkov(object):
             [gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
              net_field.TO_NODE_FIELD, markov_field.DIS_TO_NEXT, markov_field.PRJ_GEO, gps_field.GEOMETRY_FIELD]].copy()
         prj_p_layer.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
+        prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=self.gps_points.plane_crs)
+        prj_p_layer = prj_p_layer.to_crs(self.gps_points.geo_crs)
 
         prj_p_layer['__geo'] = prj_p_layer.apply(
             lambda item: LineString((item[gps_field.GEOMETRY_FIELD], item[markov_field.PRJ_GEO])), axis=1)
@@ -753,6 +756,7 @@ class HiddenMarkov(object):
         prj_l_layer = gpd.GeoDataFrame(prj_l_layer, geometry=gps_field.GEOMETRY_FIELD, crs=prj_p_layer.crs)
 
         prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=prj_p_layer.crs)
+
         prj_p_layer.drop(columns=['__geo', gps_field.GEOMETRY_FIELD], axis=1, inplace=True)
 
         prj_l_layer = prj_l_layer.to_crs(self.net.geo_crs)

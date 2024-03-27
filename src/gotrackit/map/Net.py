@@ -13,16 +13,18 @@ from .Link import Link
 from .Node import Node
 import networkx as nx
 import geopandas as gpd
-from ..GlobalVal import NetField
 from shapely.geometry import LineString
 from ..tools.geo_process import prj_inf
 from ..tools.save_file import save_file
+from ..GlobalVal import NetField, PrjConst
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Polygon, Point
 from ..tools.geo_process import divide_line_by_l
 
 net_field = NetField()
+prj_const = PrjConst()
 
+geo_crs = prj_const.PRJ_CRS
 link_id_field = net_field.LINK_ID_FIELD
 dir_field = net_field.DIRECTION_FIELD
 from_node_field = net_field.FROM_NODE_FIELD
@@ -36,10 +38,9 @@ class Net(object):
 
     @function_time_cost
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
-                 node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length',
-                 geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,
+                 node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
-                 not_conn_cost: float = 999.0):
+                 not_conn_cost: float = 999.0, cache_path: bool = True):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -47,34 +48,32 @@ class Net(object):
         :param link_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net线层
         :param node_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net点层
         :param weight_field: 搜路权重字段
-        :param geo_crs:  地理坐标系
-        :param plane_crs: 平面投影坐标系
         :param create_single: 是否在初始化的时候创建single层
         :param search_method: 路径搜索方法, 'dijkstra' or 'bellman-ford'
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
-
+        :param not_conn_cost: 不连通路径的阻抗(m)
         """
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
         self.search_method = search_method
-        self.plane_crs = plane_crs
         self.weight_field = weight_field
         self.all_pair_path_df = pd.DataFrame()
         self.__stp_cache = dict()
         self.__done_path_cost = dict()
-        if link_gdf is None:
-            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, geo_crs=self.geo_crs,
-                               plane_crs=self.plane_crs, is_check=is_check)
-        else:
-            self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, geo_crs=self.geo_crs,
-                               plane_crs=self.plane_crs, is_check=is_check)
+        self.cache_path = cache_path
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, plane_crs=self.plane_crs,
-                               geo_crs=self.geo_crs)
+            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check)
         else:
-            self.__node = Node(node_gdf=node_gdf, is_check=is_check, plane_crs=self.plane_crs, geo_crs=self.geo_crs)
+            self.__node = Node(node_gdf=node_gdf, is_check=is_check)
 
+        if link_gdf is None:
+            self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, is_check=is_check,
+                               planar_crs=self.__node.planar_crs)
+        else:
+            self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, is_check=is_check,
+                               planar_crs=self.__node.planar_crs)
+        self.planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         self.__link.renew_length()
         if not init_from_existing:
@@ -130,6 +129,9 @@ class Net(object):
             try:
                 node_path = self.__stp_cache[o_node][d_node]
                 cost = self.__done_path_cost[o_node][d_node]
+                if not self.cache_path:
+                    del self.__stp_cache[o_node]
+                    del self.__done_path_cost[o_node]
             except KeyError:
                 return [], self.not_conn_cost
 
@@ -200,7 +202,7 @@ class Net(object):
         return self.__link.get_link_attr_by_ft(from_node=from_node, to_node=to_node, attr_name=attr_name)
 
     def to_plane_prj(self):
-        if self.__link.crs == self.plane_crs:
+        if self.__link.crs == self.planar_crs:
             pass
         else:
             self.__link.to_plane_prj()
@@ -249,7 +251,7 @@ class Net(object):
         :return:
         """
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
-                                                crs=self.plane_crs)
+                                                crs=self.planar_crs)
         sub_single_link_gdf = gpd.sjoin(self.get_link_data(), gps_array_buffer_gdf)
         if sub_single_link_gdf.empty:
             raise ValueError(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
@@ -261,7 +263,7 @@ class Net(object):
         sub_net = Net(link_gdf=sub_single_link_gdf,
                       node_gdf=sub_node_gdf,
                       weight_field=self.weight_field,
-                      geo_crs=self.geo_crs, plane_crs=self.plane_crs, init_from_existing=True, is_check=False,
+                      init_from_existing=True, is_check=False,
                       search_method=self.search_method)
         sub_net.init_net()
         return sub_net

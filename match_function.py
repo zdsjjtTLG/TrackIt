@@ -43,15 +43,14 @@ def t_lane_match():
 
     link_gdf = gpd.read_file(r'data/input/net/test/lane/LinkAfterModify.shp')
     node_gdf = gpd.read_file(r'data/input/net/test/lane/NodeAfterModify.shp')
-    my_net = Net(plane_crs='EPSG:32651', geo_crs='EPSG:4326',
-                 link_gdf=link_gdf, node_gdf=node_gdf, not_conn_cost=999.0)
+    my_net = Net(link_gdf=link_gdf, node_gdf=node_gdf)
     my_net.init_net()
 
     trajectory_gdf = gpd.read_file(r'./data/output/gps/lane/trajectory_3857.shp')
     trajectory_gdf.rename(columns={'id': 'agent_id'}, inplace=True)
 
     # 抽样测试
-    select_agent = list(trajectory_gdf.sample(frac=0.001)['agent_id'].unique())
+    select_agent = list(trajectory_gdf.sample(frac=0.0001)['agent_id'].unique())
     print(rf'{len(select_agent)} selected agents......')
     trajectory_gdf = trajectory_gdf[trajectory_gdf['agent_id'].isin(select_agent)]
     trajectory_gdf.reset_index(inplace=True, drop=True)
@@ -63,11 +62,12 @@ def t_lane_match():
                                                           result_type='expand', axis=1)
 
     # match
-    mpm = MapMatch(net=my_net, plain_crs='EPSG:32651', geo_crs='EPSG:4326', gps_df=trajectory_gdf,
-                   is_rolling_average=False, window=2,
+    mpm = MapMatch(net=my_net, gps_df=trajectory_gdf,
+                   is_rolling_average=False, window=2, gps_buffer=12, use_sub_net=False,
                    flag_name='check_0325', export_html=True, export_geo_res=True,
-                   html_fldr=r'./data/output/match_visualization/sample',
-                   geo_res_fldr=r'./data/output/match_visualization/sample', dense_gps=False)
+                   html_fldr=r'./data/output/match_visualization/lane',
+                   use_heading_inf=False,
+                   geo_res_fldr=r'./data/output/match_visualization/lane', dense_gps=False)
     res, _ = mpm.execute()
 
     res[['prj_lng', 'prj_lat']] = res.apply(lambda item: (item['prj_geo'].x, item['prj_geo'].y), axis=1,
@@ -83,18 +83,17 @@ def t_lane_match():
 
 
 def t_cq_match():
-    plain_crs = 'EPSG:32649'
     gps_df = gpd.read_file(rf'./data/output/gps/cq/gps.shp')
     gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
                                           result_type='expand')
     gps_df.drop(columns=['geometry'], axis=1, inplace=True)
-    my_net = Net(plane_crs=plain_crs, geo_crs='EPSG:4326',
+    my_net = Net(geo_crs='EPSG:4326',
                  link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
                  node_path=r'./data/input/net/test/cq/modifiedConn_node.shp')
     my_net.init_net()
 
     # match
-    mpm = MapMatch(net=my_net, plain_crs=plain_crs, geo_crs='EPSG:4326', gps_df=gps_df,
+    mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=False, flag_name='cq_test',
                    export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/cq',
@@ -111,13 +110,12 @@ def t_sample_match():
         gps_df = pd.concat([gps_df, _])
     gps_df.reset_index(inplace=True, drop=True)
     print(gps_df)
-    my_net = Net(plane_crs=plain_crs, geo_crs='EPSG:4326',
-                 link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
+    my_net = Net(link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
                  node_path=r'./data/input/net/test/cq/modifiedConn_node.shp')
     my_net.init_net()
 
     # match
-    mpm = MapMatch(net=my_net, plain_crs=plain_crs, geo_crs='EPSG:4326', gps_df=gps_df,
+    mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=False, flag_name='cq_test',
                    export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/cq',
@@ -136,20 +134,15 @@ def t_sample_match():
     #       geo_res_fldr=r'./data/output/match_visualization/sample', not_conn_cost=999.0)
 
 
-
-
 def dense_example():
 
-    plain_crs = 'EPSG:32649'
     gps_df = gpd.read_file(r'./data/output/gps/dense_example/test999.geojson')
-    my_net = Net(plane_crs=plain_crs, geo_crs='EPSG:4326',
-                 link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                 node_path=r'./data/input/net/xian/modifiedConn_node.shp',)
+    my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+                 node_path=r'./data/input/net/xian/modifiedConn_node.shp')
     my_net.init_net()
 
     # match
-    mpm = MapMatch(net=my_net, plain_crs=plain_crs, geo_crs='EPSG:4326', gps_df=gps_df,
-                   is_rolling_average=True, window=2, flag_name='dense_example',
+    mpm = MapMatch(net=my_net, gps_df=gps_df, is_rolling_average=True, window=2, flag_name='dense_example',
                    export_html=True, export_geo_res=True,
                    gps_buffer=400,
                    html_fldr=r'./data/output/match_visualization/dense_example',
@@ -159,16 +152,15 @@ def dense_example():
     print(res)
 
 def t_0326_taxi():
-    plain_crs = 'EPSG:32650'
     gps_df = pd.read_csv(r'./data/input/net/test/0326fyx/gps/part/TaxiData-Sample.csv')
     my_net = Net(plane_crs=plain_crs, geo_crs='EPSG:4326',
                  link_path=r'./data/input/net/test/0326fyx/load/create_node/LinkAfterModify.shp',
                  node_path=r'./data/input/net/test/0326fyx/load/create_node/NodeAfterModify.shp',
-                 not_conn_cost=1200)
+                 not_conn_cost=2000)
     my_net.init_net()
 
     # match
-    mpm = MapMatch(net=my_net, plain_crs=plain_crs, geo_crs='EPSG:4326', gps_df=gps_df,
+    mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=True, window=2, flag_name='0326_taxi',
                    export_html=True, export_geo_res=True,
                    gps_buffer=500, gps_sigma=30, beta=5.0,
@@ -191,16 +183,14 @@ def t_0326_taxi():
 
 def check_0325():
     # 某快速路匹配示例
-    plain_crs = 'EPSG:32651'
-    my_net = Net(plane_crs=plain_crs, geo_crs='EPSG:4326',
-                 link_path=r'./data/input/net/test/0325/G15_links.shp',
+    my_net = Net(link_path=r'./data/input/net/test/0325/G15_links.shp',
                  node_path=r'./data/input/net/test/0325/G15_gps_node.shp')
     my_net.init_net()
 
     gps_df = pd.read_csv(r'./data/input/net/test/0325/car_gps_test_noheading.csv')
     gps_df = gps_df.loc[0:260, :].copy()
     print(gps_df)
-    mpm = MapMatch(net=my_net, plain_crs=plain_crs, geo_crs='EPSG:4326', gps_df=gps_df,
+    mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=False, window=2,
                    flag_name='check_0325', export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/sample',
@@ -210,11 +200,11 @@ def check_0325():
 
 
 if __name__ == '__main__':
-    # t_lane_match()
+    t_lane_match()
 
     # t_cq_match()
 
     # t_sample_match()
     # check_0325()
     # dense_example()
-    t_0326_taxi()
+    # t_0326_taxi()

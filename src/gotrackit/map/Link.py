@@ -7,20 +7,20 @@
 路网线层存储与相关方法
 """
 
-
 import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
-from ..GlobalVal import NetField
+from shapely.geometry import LineString
+from ..GlobalVal import NetField, PrjConst
 from ..WrapsFunc import function_time_cost
-from shapely.geometry import LineString, Point
 from ..netreverse.RoadNet.Tools.process import merge_double_link
 
-
-NOT_CONN_COST = 200.0
 net_field = NetField()
+prj_const = PrjConst()
 
+
+geo_crs = prj_const.PRJ_CRS
 link_id_field = net_field.LINK_ID_FIELD
 dir_field = net_field.DIRECTION_FIELD
 from_node_field = net_field.FROM_NODE_FIELD
@@ -30,12 +30,15 @@ geometry_field = net_field.GEOMETRY_FIELD
 link_vec_field = net_field.LINK_VEC_FIELD
 
 
-class Link(object):
-    def __init__(self, link_gdf: gpd.GeoDataFrame = None, geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650',
-                 weight_field: str = None, is_check: bool = True):
 
+class Link(object):
+    def __init__(self, link_gdf: gpd.GeoDataFrame = None, planar_crs: str = None,
+                 weight_field: str = None, is_check: bool = True, not_conn_cost: float = 999.0):
+
+        self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
-        self.plane_crs = plane_crs
+        self.planar_crs = planar_crs
+
         _gap = {link_id_field, dir_field, from_node_field, to_node_field, length_field, geometry_field} - set(
             link_gdf.columns)
         if _gap:
@@ -65,6 +68,7 @@ class Link(object):
         self.done_link_vec = False
 
     def check(self):
+        assert self.link_gdf.crs == self.geo_crs, rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs}'
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
                    net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
@@ -77,7 +81,6 @@ class Link(object):
                     net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
             assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
             self.link_gdf[col] = self.link_gdf[col].astype(int)
-        assert self.link_gdf.crs == self.geo_crs, rf'源文件Link:地理坐标系指定有误:实际:{self.link_gdf.crs}, 指定: {self.geo_crs}'
 
     def init_link(self):
         """
@@ -166,7 +169,7 @@ class Link(object):
                                                   to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
             return node_path, sum(cost_list)
         except nx.NetworkXNoPath as e:
-            return [], NOT_CONN_COST
+            return [], self.not_conn_cost
 
     def get_shortest_path(self, o_node=None, d_node=None, weight_field: str = None):
         used_weight = weight_field
@@ -244,6 +247,7 @@ class Link(object):
         def get_ht_vec(line: LineString = None) -> np.ndarray:
             cor = list(line.coords)
             return np.array(cor[-1]) - np.array(cor[0])
+
         self.__single_link_gdf[link_vec_field] = self.__single_link_gdf.apply(
             lambda row: get_ht_vec(line=row[geometry_field]), axis=1)
         self.done_link_vec = True
@@ -264,7 +268,9 @@ class Link(object):
         self.link_gdf.loc[target_link, geometry_field] = self.link_gdf.loc[target_link, :].apply(
             lambda row: LineString(
                 [head_loc_dict[row[link_id_field]]] + list(row[geometry_field].coords)[1:-1] + [tail_loc_dict[
-                    row[link_id_field]]]), axis=1)
+                                                                                                    row[
+                                                                                                        link_id_field]]]),
+            axis=1)
 
     def get_double_link_data(self):
         pass
@@ -279,7 +285,7 @@ class Link(object):
         """
         return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], attr_name]
 
-    def modify_link_gdf(self, link_id_list: list[int], attr_field_list:list[str], val_list: list[list] = None):
+    def modify_link_gdf(self, link_id_list: list[int], attr_field_list: list[str], val_list: list[list] = None):
         self.link_gdf.loc[link_id_list, attr_field_list] = val_list
 
     def merge_double_link(self):
@@ -321,14 +327,14 @@ class Link(object):
         return self.__ft_link_mapping
 
     def to_plane_prj(self) -> None:
-        if self.link_gdf.crs == self.plane_crs:
+        if self.link_gdf.crs == self.planar_crs:
             pass
         else:
             if self.__single_link_gdf is None or self.__single_link_gdf.empty:
                 pass
             else:
-                self.__single_link_gdf = self.__single_link_gdf.to_crs(self.plane_crs)
-            self.link_gdf = self.link_gdf.to_crs(self.plane_crs)
+                self.__single_link_gdf = self.__single_link_gdf.to_crs(self.planar_crs)
+            self.link_gdf = self.link_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
         if self.link_gdf.crs == self.geo_crs:
