@@ -12,8 +12,8 @@
 
 import time
 import geopandas as gpd
-import src.gotrackit.netreverse.NetGen as ng
-
+# import src.gotrackit.netreverse.NetGen as ng
+import gotrackit.netreverse.NetGen as ng
 
 
 def func1():
@@ -61,6 +61,6 @@ def remap_id_of_link_node():
 
 
 if __name__ == '__main__':
-    # func2()
-    remap_id_of_link_node()
+    func2()
+    # remap_id_of_link_node()
 

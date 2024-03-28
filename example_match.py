@@ -8,8 +8,10 @@
 import os
 import pandas as pd
 import geopandas as gpd
-from src.gotrackit.map.Net import Net
-from src.gotrackit.MapMatch import MapMatch
+# from src.gotrackit.map.Net import Net
+# from src.gotrackit.MapMatch import MapMatch
+from gotrackit.map.Net import Net
+from gotrackit.MapMatch import MapMatch
 
 
 # test 1

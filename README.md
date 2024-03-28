@@ -10,7 +10,9 @@
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
-**2024.03.29即将更新: v0.1.9**
+**2024.03.28已经更新: v0.1.9**
+
+更新命令：pip install --upgrade  -i https://test.pypi.org/simple/ gotrackit
 
 - 增加GPS增密功能
 
@@ -77,12 +79,12 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 安装：
 
 ``` shell
-pip install -i https://pypi.org/simple/ gotrackit
+pip install -i https://test.pypi.org/simple/ gotrackit
 ```
 
 更新：
 ``` shell
-pip install --upgrade  -i https://pypi.org/simple/ gotrackit
+pip install --upgrade  -i https://test.pypi.org/simple/ gotrackit
 ```
 
 ### 1.2 用户手册

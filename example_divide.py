@@ -4,8 +4,8 @@
 # @Team    : ZheChengData
 
 import geopandas as gpd
-import src.gotrackit.netreverse.NetGen as ng
-
+# import src.gotrackit.netreverse.NetGen as ng
+import gotrackit.netreverse.NetGen as ng
 if __name__ == '__main__':
 
     ######   将数据处理为标准格式    ######
