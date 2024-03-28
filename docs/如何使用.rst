@@ -941,6 +941,19 @@ GPS数据字段要求如下：
 * heading_para_array
     差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
 
+对方向修正系数的解释：
+
+.. image:: _static/images/heading_para_1.png
+    :align: center
+
+----------------------------------------
+
+.. image:: _static/images/heading_para_2.png
+    :align: center
+
+----------------------------------------
+
+
 * dense_gps
     是否对GPS数据进行增密, 默认False
 

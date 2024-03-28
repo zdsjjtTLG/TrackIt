@@ -497,6 +497,7 @@ class HiddenMarkov(object):
 
     def emission_probability(self, sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = None) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
+        # print(heading_gap)
         heading_gap = self.heading_para_array[(heading_gap / self.angle_slice).astype(int)]
         # print(heading_gap)
         p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)

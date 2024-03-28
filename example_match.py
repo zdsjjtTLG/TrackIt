@@ -104,7 +104,7 @@ def t_sample_match():
     # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
     gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
     print(gps_df)
-    gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
+    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
 
     # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
