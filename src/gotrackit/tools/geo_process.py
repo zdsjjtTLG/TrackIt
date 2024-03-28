@@ -278,13 +278,13 @@ def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None) -> float:
         return 0
     # 计算夹角
     cos_angle = dot_product / (norm_v1 * norm_v2)
+
     # 防止因浮点数计算问题导致cos_angle超出范围
     cos_angle = min(max(cos_angle, -1), 1)
+
     # 计算弧度表示
     angle = np.arccos(cos_angle)
     return min(180 * angle / np.pi, 179.9)
-
-
 
 def angle_base_north(v: np.ndarray = None):
     angle = vector_angle(v, np.array([0, 1]))
