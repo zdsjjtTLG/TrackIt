@@ -924,19 +924,19 @@ GPS数据字段要求如下：
     增量半径, 默认20.0
 
 * beta
-    该值越大, 状态转移概率对于距离越不敏感, 默认20m
+    该值越大, 状态转移概率对于距离(m)越不敏感, 默认20m
 
 * gps_sigma
-    该值越大, 发射概率对距离越不敏感, 默认20m
+    该值越大, 发射概率对距离(m)越不敏感, 默认20m
 
 * dis_para
-    距离的折减系数, 默认0.1
+    距离(m)的折减系数, 默认0.1
 
 * is_lower_f
     是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
 
 * lower_n
-    频率倍率, 默认2
+    降频倍率, 默认2
 
 * use_heading_inf
     是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者 低频定位数据(配合加密参数), 默认False, 默认False
@@ -945,10 +945,10 @@ GPS数据字段要求如下：
     差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
 
 * dense_gps
-    是否对GPS数据进行加密, 默认False
+    是否对GPS数据进行增密, 默认False
 
 * dense_interval
-    当前后GPS点的直线距离L超过dense_interval即进行加密, 进行 int(L / dense_interval) + 1 等分加密, 默认25.0
+    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认25.0
 
 * is_rolling_average
     是否启用滑动窗口平均对GPS数据进行降噪, 默认False
