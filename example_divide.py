@@ -3,7 +3,8 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-from src.gotrackit.map.Net import Net
+import geopandas as gpd
+import src.gotrackit.netreverse.NetGen as ng
 
 if __name__ == '__main__':
 
@@ -27,15 +28,15 @@ if __name__ == '__main__':
     # node_gdf.to_file(r'./data/input/net/test/0317/node1.geojson', encoding='gbk', driver='GeoJSON')
     ######   将数据处理为标准格式    ######
 
-    my_net = Net(link_path=r'./data/input/net/test/0317/link1.geojson',
-                 node_path=r'./data/input/net/test/0317/node1.geojson')
-    print(my_net.geo_crs, my_net.planar_crs)
+    link = gpd.read_file(r'./data/input/net/test/0317/link1.geojson')
+    node = gpd.read_file(r'./data/input/net/test/0317/node1.geojson')
 
+    nv = ng.NetReverse()
     # 执行划分路网
     # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分
     # min_l: 划分后如果剩下的路段长度小于min_l, 那么此次划分将不被允许
-    # is_init_link: 划分后是否重新初始化路网对象
-    # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
-    my_net.divide_links(divide_l=50, min_l=5.0, is_init_link=True, method='alpha')
-    my_net.export_net(out_fldr=r'./data/input/net/test/0317/', file_type='geojson', flag_name='divide')
+    new_link, new_node = nv.divide_links(link_gdf=link, node_gdf=node, divide_l=50, min_l=5.0)
+
+    new_link.to_file(r'./data/input/net/test/0317/divide_link.geojson', driver='GeoJSON')
+    new_node.to_file(r'./data/input/net/test/0317/divide_node.geojson', driver='GeoJSON')
 

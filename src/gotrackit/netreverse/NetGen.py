@@ -25,8 +25,10 @@ from ..WrapsFunc import function_time_cost
 from .Parse.gd_car_path import ParseGdPath
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
+from .RoadNet.Tools.process import merge_double_link
 from ..tools.geo_process import clean_link_geo, remapping_id
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
+
 
 net_field = NetField()
 
@@ -402,3 +404,26 @@ class NetReverse(Reverse):
         :return:
         """
         remapping_id(link_gdf=link_gdf, node_gdf=node_gdf)
+
+    @staticmethod
+    def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None,
+                     divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+
+        :param link_gdf:
+        :param node_gdf:
+        :param divide_l:
+        :param min_l:
+        :return:
+        """
+        link_gdf = merge_double_link(link_gdf=link_gdf)
+        my_net = Net(link_gdf=link_gdf,
+                     node_gdf=node_gdf, create_single=False)
+
+        # 执行划分路网
+        # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分
+        # min_l: 划分后如果剩下的路段长度小于min_l, 那么此次划分将不被允许
+        # is_init_link: 划分后是否重新初始化路网对象
+        # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
+        my_net.divide_links(divide_l=divide_l, min_l=min_l, is_init_link=False, method='alpha')
+        return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
