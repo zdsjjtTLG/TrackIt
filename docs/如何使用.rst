@@ -851,7 +851,7 @@ GPS数据字段要求如下：
     if __name__ == '__main__':
 
         # 1.读取GPS数据
-        # 这是一个有10辆车的GPS数据的文件
+        # 这是一个有10辆车的GPS数据的文件, 已经做过了数据清洗以及行程切分
         # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
         gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
         print(gps_df)

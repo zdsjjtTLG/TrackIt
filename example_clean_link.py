@@ -59,8 +59,17 @@ def remap_id_of_link_node():
     print(l[['link_id', 'from_node', 'to_node']])
     print(n[['node_id']])
 
+def clean():
+    l = gpd.read_file(r'./data/input/net/test/0326fyx/load/modifiedConn_link.shp')
+    l.loc[l['oneway'] == 'B', 'dir'] = 0
+    l.loc[l['oneway'] == 'F', 'dir'] = 1
+    l.loc[l['oneway'] == 'T', 'dir'] = 1
+
+    l.to_file(r'./data/input/net/test/0326fyx/load/modifiedConn_link1.shp')
+
 
 if __name__ == '__main__':
-    func2()
+    # func2()
     # remap_id_of_link_node()
+    clean()
 

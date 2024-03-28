@@ -46,13 +46,13 @@ if __name__ == '__main__':
     speed_miu = 12.0  # 速度期望值
     speed_sigma = 3.6  # 速度标准差
     save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
-    loc_frequency_list = [3, 6, 10, 15]  # 每多少s进行一次GPS定位
+    loc_frequency_list = [30, 35, 30]  # 每多少s进行一次GPS定位
     loc_error_sigma = 40.0  # 定位误差标准差(m)
     loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
     k = 1
     # 开始行车
-    for car_id in [rf'xa_car_{i}' for i in range(k, k + 10)]:
+    for car_id in [rf'xa_car_{i}' for i in range(k, k + 3)]:
         # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route, save_log=False,
                   agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    tra_name = '0329sample'
+    tra_name = '0329xa_xishu'
     trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/sample/',
                                               file_name=tra_name)
     gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/sample/', file_name=tra_name)

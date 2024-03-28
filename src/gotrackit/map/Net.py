@@ -70,10 +70,12 @@ class Net(object):
 
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, is_check=is_check,
-                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id)
+                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id,
+                               not_conn_cost=self.not_conn_cost)
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, is_check=is_check,
-                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id)
+                               planar_crs=self.__node.planar_crs, init_available_link=self.cache_id,
+                               not_conn_cost=self.not_conn_cost)
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         self.__link.renew_length()

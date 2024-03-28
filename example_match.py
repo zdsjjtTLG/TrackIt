@@ -106,10 +106,13 @@ def t_sample_match():
     gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
     print(gps_df)
     # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
-
+    l = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    n = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
     # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
-    my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                 node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+    # my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+    #              node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n)
     my_net.init_net()  # net初始化
 
     # 新建一个地图匹配对象, 指定其使用net对象, gps数据
@@ -140,6 +143,54 @@ def t_sample_match():
     print(match_res)
     match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
+def t_sample_xa_xishu_match():
+
+    # 读取GPS数据
+    # 这是一个有10辆车的GPS数据的文件
+    # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
+    gps_df = gpd.read_file(r'./data/output/gps/sample/0329xa_xishu.geojson')
+    gps_df.drop(columns=['geometry'], axis=1, inplace=True)
+    print(gps_df)
+    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
+    l = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    n = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+    # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+    # my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+    #              node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n)
+    my_net.init_net()  # net初始化
+
+    # 新建一个地图匹配对象, 指定其使用net对象, gps数据
+    # gps_buffer: 单位米, 意为只选取每个GPS点附近100米范围内的路段作为候选路段
+    # use_sub_net: 是否使用子网络进行计算
+    # use_heading_inf: 是否使用GPS差分航向角来修正发射概率
+    # 按照上述参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
+    # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+    #                use_sub_net=True, use_heading_inf=True,
+    #                export_html=True, export_geo_res=True,
+    #                html_fldr=r'./data/output/match_visualization/xa_sample',
+    #                use_gps_source=True,
+    #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+
+    # 这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
+    # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
+    # window=3, 滑动窗口大小为3
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=250, flag_name='xa_sample_xishu',
+                   use_sub_net=True, use_heading_inf=True,
+                   dense_gps=True, dense_interval=40,
+                   is_rolling_average=True, window=3,
+                   export_html=True, export_geo_res=True,
+                   use_gps_source=True,
+                   html_fldr=r'./data/output/match_visualization/xa_sample',
+                   geo_res_fldr=r'./data/output/match_visualization/xa_sample',)
+    # 第一个返回结果是匹配结果表
+    # 第二个是发生警告的路段节点编号
+    match_res, warn_info = mpm.execute()
+    print(warn_info)
+    print(match_res)
+    match_res.to_csv(r'./data/output/match_visualization/xa_sample/xishu_match_res.csv', encoding='utf_8_sig', index=False)
+
 
 def dense_example():
 
@@ -161,19 +212,19 @@ def dense_example():
 
 def t_0326_taxi():
     gps_df = pd.read_csv(r'./data/input/net/test/0326fyx/gps/part/TaxiData-Sample.csv')
-    my_net = Net(link_path=r'./data/input/net/test/0326fyx/load/create_node/LinkAfterModify.shp',
-                 node_path=r'./data/input/net/test/0326fyx/load/create_node/NodeAfterModify.shp',
+    my_net = Net(link_path=r'./data/input/net/test/0326fyx/load/modifiedConn_link1.shp',
+                 node_path=r'./data/input/net/test/0326fyx/load/modifiedConn_node.shp',
                  not_conn_cost=2000)
     my_net.init_net()
 
     # match
     mpm = MapMatch(net=my_net, gps_df=gps_df,
-                   is_rolling_average=True, window=2, flag_name='0326_taxi',
+                   is_rolling_average=True, window=2, flag_name='0326_taxi_a',
                    export_html=True, export_geo_res=True,
                    gps_buffer=500, gps_sigma=30, beta=5.0,
                    html_fldr=r'./data/output/match_visualization/0326_taxi',
                    geo_res_fldr=r'./data/output/match_visualization/0326_taxi', dense_gps=True,
-                   use_sub_net=True, dense_interval=60, use_gps_source=False)
+                   use_sub_net=True, dense_interval=60, use_gps_source=True)
     res, _ = mpm.execute()
     print(res)
 
@@ -188,7 +239,7 @@ def check_0325():
     print(gps_df)
     mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=False, window=2,
-                   flag_name='check_0325', export_html=True, export_geo_res=True,
+                   flag_name='check_0325_source', export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/sample',
                    geo_res_fldr=r'./data/output/match_visualization/sample')
     res_df, label_list = mpm.execute()
@@ -201,8 +252,8 @@ if __name__ == '__main__':
 
     # t_cq_match()
 
-    t_sample_match()
+    # t_sample_match()
     # check_0325()
     # dense_example()
     # t_0326_taxi()
-
+    t_sample_xa_xishu_match()
