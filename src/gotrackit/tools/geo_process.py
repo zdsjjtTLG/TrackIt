@@ -172,7 +172,7 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                                                                              [(cp.x, cp.y)] + coords[i:])], prj_vec
 
 
-def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
+def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650') -> gpd.GeoDataFrame:
     """
     将geometry列中的Multi对象处理为single对象
     :param gdf:

@@ -393,7 +393,7 @@ class NetReverse(Reverse):
         return link_gdf, node_gdf
 
     @staticmethod
-    def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32649') -> gpd.GeoDataFrame:
+    def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650') -> gpd.GeoDataFrame:
         return clean_link_geo(gdf=gdf, plain_crs=plain_crs)
 
     @staticmethod

@@ -111,9 +111,9 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     if modify_conn:
         if conn_period == 'start':
             print(rf'##########   {flag_name} - Repair Road Network Connectivity Before Topology Optimization')
-            net = Net(link_gdf=link_gdf, node_gdf=new_node, geo_crs=link_gdf.crs, plane_crs=plain_prj,
-                      create_single=False)
+            net = Net(link_gdf=link_gdf, node_gdf=new_node, create_single=False)
             conn = Conn(net=net, check_buffer=conn_buffer)
+            # print(net.geo_crs, net.planar_crs)
             link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
 
     # 5.拓扑优化
@@ -141,8 +141,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     if modify_conn:
         if conn_period == 'final':
             print(rf'##########   {flag_name} - Repair Road Network Connectivity After Topology Optimization')
-            net = Net(link_gdf=final_link, node_gdf=final_node, geo_crs=final_link.crs, plane_crs=plain_prj,
-                      create_single=False)
+            net = Net(link_gdf=final_link, node_gdf=final_node, create_single=False)
+            # print(net.geo_crs, net.planar_crs)
             conn = Conn(net=net, check_buffer=conn_buffer)
             final_link, final_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
 

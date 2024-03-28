@@ -155,6 +155,7 @@ class HiddenMarkov(object):
         else:
             emission_p_df[markov_field.HEADING_GAP] = 0
         emission_p_df[markov_field.HEADING_GAP] = emission_p_df[markov_field.HEADING_GAP].astype(object)
+        emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].astype(object)
         emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
                                   ascending=[True, True], inplace=True)
         emission_p_df = emission_p_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(

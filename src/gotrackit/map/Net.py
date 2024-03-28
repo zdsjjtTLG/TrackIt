@@ -74,7 +74,7 @@ class Net(object):
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, is_check=is_check,
                                planar_crs=self.__node.planar_crs, init_available_link=self.cache_id)
-        self.planar_crs = self.__node.planar_crs
+        self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         self.__link.renew_length()
         if not init_from_existing:
@@ -90,6 +90,15 @@ class Net(object):
 
         if is_check:
             self.check()
+    @property
+    def planar_crs(self):
+        return self.__planar_crs
+
+    @planar_crs.setter
+    def planar_crs(self, val):
+        self.__planar_crs = val
+        self.__link.planar_crs = val
+        self.__node.planar_crs = val
 
     def check(self) -> None:
         """检查点层线层的关联一致性"""

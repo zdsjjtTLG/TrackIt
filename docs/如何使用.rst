@@ -703,6 +703,7 @@ GPS数据字段要求如下：
         link_gdf = gpd.read_file(r'./data/input/net/test/sz/FinalLink.shp')
         node_gdf = gpd.read_file(r'./data/input/net/test/sz/FinalNode.shp')
 
+        # net_file_type指的是输出路网文件的类型
         nv = ng.NetReverse(net_file_type='shp', conn_buffer=0.8, net_out_fldr=r'./data/input/net/test/sz/')
         new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, book_mark_name='sz_conn_test', generate_mark=True)
 

@@ -82,8 +82,7 @@ def t_cq_match():
     gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
                                           result_type='expand')
     gps_df.drop(columns=['geometry'], axis=1, inplace=True)
-    my_net = Net(geo_crs='EPSG:4326',
-                 link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
+    my_net = Net(link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
                  node_path=r'./data/input/net/test/cq/modifiedConn_node.shp')
     my_net.init_net()
 
