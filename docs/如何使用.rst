@@ -835,7 +835,7 @@ GPS数据字段要求如下：
 .. _地图匹配代码示例:
 
 5.2. 代码示例
-`````````````
+`````````````````
 
 用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data>`_
 
@@ -1023,3 +1023,48 @@ GPS数据字段要求如下：
 
 - :doc:`类方法汇总`
 
+6. 常见报错以及解决方案
+----------------------------
+
+
+6.1. 构建net对象错误报坐标系不匹配
+``````````````````````````````````````````````
+
+.. image:: _static/images/bug_no_crs_error.png
+    :align: center
+
+--------------------------------------------------------
+
+解决方案：
+
+.. code-block:: python
+    :linenos:
+
+    # 1. 从gotrackit导入相关模块Net, MapMatch
+    import geopandas as gpd
+    from gotrackit.map.Net import Net
+    from gotrackit.MapMatch import MapMatch
+
+
+    if __name__ == '__main__':
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+
+        link = link.to_crs('EPSG:4326')
+        node = node.to_crs('EPSG:4326')
+
+        my_net = Net(link_gdf=link, node_gdf=node)
+        my_net.init_net()  # net初始化
+
+
+6.1. 使用jupyter报net对象无planar_crs属性
+``````````````````````````````````````````````
+
+
+.. image:: _static/images/bug_no_planar_crs.png
+    :align: center
+
+--------------------------------------------------------
+
+
+解决方案：使用pycharm
