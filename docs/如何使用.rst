@@ -862,10 +862,7 @@ GPS数据字段要求如下：
         my_net.init_net()  # net初始化
 
         # 3.新建一个地图匹配对象, 指定其使用net对象, gps数据
-        # gps_buffer: 单位米, 意为只选取每个GPS点附近100米范围内的路段作为候选路段
-        # use_sub_net: 是否使用子网络进行计算
-        # use_heading_inf: 是否使用GPS差分航向角来修正发射概率
-        # 按照上述参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
+        # 按照以下参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
         # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
         #                use_sub_net=True, use_heading_inf=True,
         #                export_html=True, export_geo_res=True,
