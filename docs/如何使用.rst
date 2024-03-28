@@ -766,26 +766,34 @@ GPS数据字段要求如下：
 
 --------------------------------------------------------------------------------
 
+从gotrackit导入相关模块 ::
+
+    import gotrackit.netreverse.NetGen as ng
+
 
 .. code-block:: python
     :linenos:
 
     if __name__ == '__main__':
-        my_net = Net(link_path=r'./data/input/net/test/0317/link1.geojson',
-                     node_path=r'./data/input/net/test/0317/node1.geojson')
-        print(my_net.geo_crs, my_net.planar_crs)
+        link = gpd.read_file(r'./data/input/net/test/0317/link1.geojson')
+        node = gpd.read_file(r'./data/input/net/test/0317/node1.geojson')
 
+        nv = ng.NetReverse()
         # 执行划分路网
         # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分
         # min_l: 划分后如果剩下的路段长度小于min_l, 那么此次划分将不被允许
-        # is_init_link: 划分后是否重新初始化路网对象
-        # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
-        my_net.divide_links(divide_l=50, min_l=5.0, is_init_link=True, method='alpha')
-        my_net.export_net(out_fldr=r'./data/input/net/test/0317/', file_type='geojson', flag_name='divide')
+        new_link, new_node = nv.divide_links(link_gdf=link, node_gdf=node, divide_l=50, min_l=5.0)
+
+        new_link.to_file(r'./data/input/net/test/0317/divide_link.geojson', driver='GeoJSON', encoding='gbk')
+        new_node.to_file(r'./data/input/net/test/0317/divide_node.geojson', driver='GeoJSON', encoding='gbk')
 
 
 4.10. id重映射
 `````````````````````````````````````````````````
+
+从gotrackit导入相关模块 ::
+
+    import gotrackit.netreverse.NetGen as ng
 
 如果你的link表的link_id或者node表的node_id是一个非常大的整数, 使用这样的路网存在风险，你可以使用下面的函数进行ID重映射
 
@@ -841,19 +849,19 @@ GPS数据字段要求如下：
 
     if __name__ == '__main__':
 
-        # 读取GPS数据
+        # 1.读取GPS数据
         # 这是一个有10辆车的GPS数据的文件
         # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
         gps_df = pd.read_csv(r'./data/output/gps/sample/0327sample.csv')
         print(gps_df)
         # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
 
-        # 构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+        # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
         my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
                      node_path=r'./data/input/net/xian/modifiedConn_node.shp')
         my_net.init_net()  # net初始化
 
-        # 新建一个地图匹配对象, 指定其使用net对象, gps数据
+        # 3.新建一个地图匹配对象, 指定其使用net对象, gps数据
         # gps_buffer: 单位米, 意为只选取每个GPS点附近100米范围内的路段作为候选路段
         # use_sub_net: 是否使用子网络进行计算
         # use_heading_inf: 是否使用GPS差分航向角来修正发射概率
@@ -865,7 +873,7 @@ GPS数据字段要求如下：
         #                use_gps_source=True,
         #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
 
-        # 这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
+        # 3.这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
         # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
         # window=3, 滑动窗口大小为3
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
