@@ -266,7 +266,7 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
     return divide_line_list, divide_point_list, len(divide_line_list)
 
 
-def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None):
+def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None) -> float:
     # 计算点积
     dot_product = np.dot(v1, v2)
     # 计算两个向量的模
@@ -280,12 +280,10 @@ def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None):
     cos_angle = dot_product / (norm_v1 * norm_v2)
     # 防止因浮点数计算问题导致cos_angle超出范围
     cos_angle = min(max(cos_angle, -1), 1)
-
-    # 计算角度值，结果以弧度表示
+    # 计算弧度表示
     angle = np.arccos(cos_angle)
+    return min(180 * angle / np.pi, 179.9)
 
-    # 转换为角度制，如果需要转换为度数，乘以180/np.pi
-    return np.degrees(angle)
 
 
 def angle_base_north(v: np.ndarray = None):
