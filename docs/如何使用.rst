@@ -910,7 +910,7 @@ GPS数据字段要求如下：
     GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
 
 * gps_buffer
-    GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认90.0
+    GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为候选路段, 默认90.0
 
 * gps_route_buffer_gap
     半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
