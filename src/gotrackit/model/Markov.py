@@ -62,7 +62,7 @@ class HiddenMarkov(object):
         self.not_conn_cost = not_conn_cost
         self.use_heading_inf = use_heading_inf
         if heading_para_array is None:
-            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
+            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.00001, 0.00001, 0.000001, 0.000001])
         self.angle_slice = 180 / len(self.heading_para_array)
         self.dis_para = dis_para
         self.warn_info = list()
