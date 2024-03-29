@@ -843,6 +843,7 @@ GPS数据字段要求如下：
     :linenos:
 
     # 1. 从gotrackit导入相关模块Net, MapMatch
+    import pandas as pd
     import geopandas as gpd
     from gotrackit.map.Net import Net
     from gotrackit.MapMatch import MapMatch

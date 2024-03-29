@@ -247,6 +247,40 @@ def check_0325():
     print(res_df)
 
 
+def bug_0329():
+    from shapely.geometry import Point
+    link = gpd.read_file(r'./data/input/net/test/0329BUG/new_link/LinkAfterModify.shp')
+    node = gpd.read_file(r'./data/input/net/test/0329BUG/new_link/NodeAfterModify.shp')
+    link = link.to_crs('EPSG:4326')
+    node = node.to_crs('EPSG:4326')
+
+    print(link)
+    print(node)
+    gps_df = gpd.read_file(r'./data/input/net/test/0329BUG/helmert/trajectory_helmert.shp')
+    print(gps_df.crs)
+    gps_df = gps_df.to_crs('EPSG:4326')
+    gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
+                                          result_type='expand')
+
+    gps_df['seq'] = [i for i in range(0, len(gps_df))]
+    gps_df.to_file(r'aaa.shp')
+    # print(link)
+    # print(node)
+    # print(gps_df)
+    # my_net = Net(link_gdf=link, node_gdf=node)
+    # my_net.init_net()
+    # mpm = MapMatch(net=my_net, gps_df=gps_df, dense_gps=False,
+    #                is_rolling_average=False, window=2,
+    #                lower_n=3, is_lower_f=True, gps_buffer=50,
+    #                use_sub_net=False,
+    #                flag_name='0329_bug', export_html=True, export_geo_res=True,
+    #                html_fldr=r'./data/output/match_visualization/0329_bug',
+    #                geo_res_fldr=r'./data/output/match_visualization/0329_bug')
+    # res_df, label_list = mpm.execute()
+    # print(label_list)
+    # print(res_df)
+
+
 if __name__ == '__main__':
     # t_lane_match()
 
@@ -256,4 +290,5 @@ if __name__ == '__main__':
     # check_0325()
     # dense_example()
     # t_0326_taxi()
-    t_sample_xa_xishu_match()
+    # t_sample_xa_xishu_match()
+    bug_0329()
