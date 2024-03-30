@@ -288,7 +288,7 @@ if __name__ == '__main__':
 
     # t_sample_match()
     # check_0325()
-    # dense_example()
+    dense_example()
     # t_0326_taxi()
     # t_sample_xa_xishu_match()
-    bug_0329()
+    # bug_0329()

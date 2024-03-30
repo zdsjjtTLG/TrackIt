@@ -1,4 +1,7 @@
-# GoTrackIt
+
+![car_gps.png](docs/_static/images/gotrackit.png)
+
+
 [![Documentation Status](https://readthedocs.org/projects/gotrackit/badge/?version=latest)](https://gotrackit.readthedocs.io/en/latest/?badge=latest)
 ![PyPI - Version](https://img.shields.io/pypi/v/gotrackit)
 ![GitHub License](https://img.shields.io/github/license/zdsjjtTLG/Trackit)
@@ -12,7 +15,7 @@
 
 **2024.03.28已经更新: v0.1.9**
 
-更新命令：pip install --upgrade  -i https://test.pypi.org/simple/ gotrackit
+更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 - 增加GPS增密功能
 
@@ -35,7 +38,6 @@
 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
 
 ![car_gps.png](docs/_static/images/wxq.jpg)
-
 
 
 ## 1. 简介
@@ -118,10 +120,16 @@ __如何依据GPS数据推算车辆的实际路径？__
 
 ## 4. 匹配结果可视化
 
-中高频GPS匹配效果:
 
-![main.png](docs/_static/images/m_h_f.gif)
+![car_gps.png](docs/_static/images/l_f.gif)
 
-低频GPS匹配效果:
+![car_gps.png](docs/_static/images/m_h_f.gif)
 
-![main.png](docs/_static/images/l_f.gif)
+稀疏轨迹增密匹配：
+
+![car_gps.png](docs/_static/images/dense_gps.gif)
+
+![car_gps.png](docs/_static/images/taxi_xishu.gif)
+
+![car_gps.png](docs/_static/images/xa_sample.gif)
+
