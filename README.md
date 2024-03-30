@@ -37,7 +37,36 @@
 
 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
 
+<div align="center">
+    <img src="docs/_static/images/l_f.gif" />
+</div>
+
+<div align="center">
+    <img src="docs/_static/images/m_h_f.gif" />
+</div>
+
+稀疏轨迹增密匹配：
+
+<div align="center">
+    <img src="docs/_static/images/dense_gps.gif" />
+</div>
+
+
+<div align="center">
+    <img src="docs/_static/images/taxi_xishu.gif" />
+</div>
+
+<div align="center">
+    <img src="docs/_static/images/xa_sample.gif" />
+</div>
+
+
 ![car_gps.png](docs/_static/images/wxq.jpg)
+
+
+
+
+
 
 
 ## 1. 简介
@@ -117,19 +146,4 @@ __如何依据GPS数据推算车辆的实际路径？__
 
 ![main.png](docs/_static/images/trace.png)
 
-
-## 4. 匹配结果可视化
-
-
-![car_gps.png](docs/_static/images/l_f.gif)
-
-![car_gps.png](docs/_static/images/m_h_f.gif)
-
-稀疏轨迹增密匹配：
-
-![car_gps.png](docs/_static/images/dense_gps.gif)
-
-![car_gps.png](docs/_static/images/taxi_xishu.gif)
-
-![car_gps.png](docs/_static/images/xa_sample.gif)
 
