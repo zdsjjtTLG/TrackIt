@@ -101,7 +101,6 @@ class HiddenMarkov(object):
         print(gps_candidate_link)
         # 一定要排序
         seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
-
         if len(seq_list) <= 1:
             raise ValueError(r'GPS数据样本点不足2个, 请检查...')
 
