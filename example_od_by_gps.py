@@ -67,7 +67,17 @@ def first_in_index():
     pass
 
 
+def simplify_0402():
+    sz_test_gps_gdf = pd.read_csv(r'./data/input/net/test/0402BUG/gps/gps.csv')
+
+    gtp = GpsTrip(gps_df=sz_test_gps_gdf)
+    gtp.add_main_group()
+    res = gtp.clean_res()
+    res.to_file(r'./data/output/split_gps/res.geojson', encoding='gbk', driver='GeoJSON')
+
+
 if __name__ == '__main__':
     # get_sample_data()
-    simplify()
+    # simplify()
+    simplify_0402()
 

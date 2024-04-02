@@ -56,6 +56,7 @@
     <img src="docs/_static/images/taxi_xishu.gif" />
 </div>
 
+
 <div align="center">
     <img src="docs/_static/images/xa_sample.gif" />
 </div>
@@ -110,12 +111,12 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 安装：
 
 ``` shell
-pip install -i https://test.pypi.org/simple/ gotrackit
+pip install -i https://pypi.org/simple/ gotrackit
 ```
 
 更新：
 ``` shell
-pip install --upgrade  -i https://test.pypi.org/simple/ gotrackit
+pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ```
 
 ### 1.2 用户手册

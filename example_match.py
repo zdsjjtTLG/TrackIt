@@ -8,10 +8,10 @@
 import os
 import pandas as pd
 import geopandas as gpd
-# from src.gotrackit.map.Net import Net
-# from src.gotrackit.MapMatch import MapMatch
-from gotrackit.map.Net import Net
-from gotrackit.MapMatch import MapMatch
+from src.gotrackit.map.Net import Net
+from src.gotrackit.MapMatch import MapMatch
+# from gotrackit.map.Net import Net
+# from gotrackit.MapMatch import MapMatch
 
 
 # test 1
@@ -281,6 +281,62 @@ def bug_0329():
     # print(res_df)
 
 
+def bug_0402():
+    # 1.读取GPS数据
+    # 这是一个有10辆车的GPS数据的文件, 已经做过了数据清洗以及行程切分
+    # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
+    # gps_df = pd.read_csv(r'./data/input/net/test/0402BUG/gps/id1v1.csv')
+    gps_df = gpd.read_file(r'./data/input/net/test/0402BUG/gps/new_gps.geojson')
+    gps_df.drop(columns=['geometry'], axis=1, inplace=True)
+    # gps_df['agent_id'] = gps_df['agent_id'].fillna(22223)
+    # gps_df['agent_id'] = gps_df['agent_id'].astype(int)
+    # gps_df['agent_id'] = gps_df['agent_id'].astype(str)
+    print(gps_df)
+    # gps_df.to_csv(r'./data/input/net/test/0402BUG/gps/gps.csv', encoding='utf_8_sig')
+    # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
+
+    # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+    my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
+                 node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=1500)
+    my_net.init_net()  # net初始化
+
+    # 3.新建一个地图匹配对象, 指定其使用net对象, gps数据
+    # 按照以下参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
+    # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+    #                use_sub_net=True, use_heading_inf=True,
+    #                export_html=True, export_geo_res=True,
+    #                html_fldr=r'./data/output/match_visualization/xa_sample',
+    #                use_gps_source=True,
+    #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+
+    # 3.这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
+    # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
+    # window=3, 滑动窗口大小为3
+    # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=300, flag_name='id1',
+    #                is_lower_f=True, lower_n=2,
+    #                beta=10,
+    #                use_sub_net=True, use_heading_inf=True,
+    #                max_increment_times=2, increment_buffer=200,
+    #                is_rolling_average=True, window=2,
+    #                export_html=True, export_geo_res=True,
+    #                html_fldr=r'./data/output/match_visualization/0402BUG/',
+    #                geo_res_fldr=r'./data/output/match_visualization/0402BUG/', dense_gps=True, dense_interval=50)
+
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=300, flag_name='id1',
+                   use_sub_net=True, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   is_rolling_average=True, window=2, dense_interval=50,
+                   export_html=True, export_geo_res=True, top_k=25,
+                   html_fldr=r'./data/output/match_visualization/0402BUG/',
+                   geo_res_fldr=r'./data/output/match_visualization/0402BUG/', dense_gps=True)
+
+    # 第一个返回结果是匹配结果表
+    # 第二个是发生警告的路段节点编号
+    match_res, warn_info = mpm.execute()
+    print(warn_info)
+    print(match_res)
+    # match_res.to_csv(r'/home/omnisky/Desktop/FYX/TrackIt-main/mine/output/id1/match_res.csv', encoding='utf_8_sig', index=False)
+
+
 if __name__ == '__main__':
     # t_lane_match()
 
@@ -288,7 +344,14 @@ if __name__ == '__main__':
 
     # t_sample_match()
     # check_0325()
-    dense_example()
+    # dense_example()
     # t_0326_taxi()
     # t_sample_xa_xishu_match()
     # bug_0329()
+    bug_0402()
+
+    # l = gpd.read_file(r'./data/input/net/test/0402BUG/load/link.shp')
+    # l = l.to_crs('EPSG:32650')
+    # l['geometry'] = l['geometry'].remove_repeated_points(0.5)
+    # l = l.to_crs('EPSG:4326')
+    # l.to_file(r'./data/input/net/test/0402BUG/load/new_link.shp', encoding='gbk')

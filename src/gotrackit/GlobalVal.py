@@ -43,9 +43,10 @@ class GpsField(object):
         self.SUB_GROUP_FIELD = 'sub_group'
         self.NEXT_P = 'next_p'
         self.PRE_P = 'pre_p'
+        self.NEXT_SEQ = 'next_seq'
         self.NEXT_TIME = 'next_time'
         self.ADJ_TIME_GAP = 'time_gap'
-        self.ADJ_DIS = 'dis_gap'
+        self.ADJ_DIS = 'gps_adj_dis'
         self.ADJ_SPEED = 'adj_speed'
 
         self.DENSE_GEO = '__dens_geo__'
@@ -59,6 +60,8 @@ class MarkovField(object):
     def __init__(self):
         self.FROM_STATE = 'from_state'
         self.TO_STATE = 'to_state'
+        self.FROM_SEQ = 'from_seq'
+        self.TO_SEQ = 'to_seq'
         self.FROM_STATE_N = 'from_state_node'
         self.TO_STATE_N = 'to_state_node'
         self.ROUTE_LENGTH = 'route_l'

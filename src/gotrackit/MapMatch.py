@@ -22,7 +22,7 @@ class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 90, gps_route_buffer_gap: float = 25.0,
-                 max_increment_times: int = 2, increment_buffer: bool = 20.0,
+                 max_increment_times: int = 2, increment_buffer: float = 20.0,
                  beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
@@ -30,7 +30,7 @@ class MapMatch(object):
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
                  export_geo_res: bool = False, geo_res_fldr: str = None,
-                 node_num_threshold: int = 2000):
+                 node_num_threshold: int = 2000, top_k: int = 20):
         """
 
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
@@ -85,6 +85,7 @@ class MapMatch(object):
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
         self.heading_para_array = heading_para_array
+        self.top_k = top_k
 
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
         self.gps_sigma = gps_sigma  # 发射概率参数, 概率与之成正比
@@ -140,12 +141,14 @@ class MapMatch(object):
                 # 初始化一个隐马尔可夫模型
                 hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                        not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para)
+                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para,
+                                       top_k=self.top_k)
             else:
                 print(rf'using whole net')
                 hmm_obj = HiddenMarkov(net=self.my_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                        not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para)
+                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para,
+                                       top_k=self.top_k)
 
             # 求解参数
             hmm_obj.generate_markov_para()

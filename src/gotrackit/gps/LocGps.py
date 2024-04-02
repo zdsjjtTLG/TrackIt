@@ -12,10 +12,10 @@ import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
 from ..tools.geo_process import prj_inf
-from ..GlobalVal import GpsField, NetField, PrjConst
 from ..WrapsFunc import function_time_cost
 from ..tools.geo_process import segmentize
 from ..tools.geo_process import angle_base_north
+from ..GlobalVal import GpsField, NetField, PrjConst
 from shapely.geometry import Point, Polygon, LineString
 
 
@@ -26,6 +26,7 @@ prj_const = PrjConst()
 lng_field = gps_field.LNG_FIELD
 lat_field = gps_field.LAT_FIELD
 next_p_field = gps_field.NEXT_P
+next_seq_field = gps_field.NEXT_SEQ
 pre_p_field = gps_field.PRE_P
 time_field = gps_field.TIME_FIELD
 next_time_field = gps_field.NEXT_TIME
@@ -102,14 +103,8 @@ class GpsPointsGdf(object):
     def dense(self):
 
         # 时间差和距离差
-        self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
-            self.__gps_points_gdf[time_field])
-        self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
-            self.__gps_points_gdf[geometry_field])
-        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
-            lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
-        self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
-            lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
+        self.calc_adj_dis_gap()
+        self.calc_adj_time_gap()
 
         should_be_dense_gdf = self.__gps_points_gdf[self.__gps_points_gdf[dis_gap_field] > self.dense_interval].copy()
         if should_be_dense_gdf.empty:
@@ -146,6 +141,28 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
+
+    def calc_adj_dis_gap(self) -> None:
+        # 距离差
+        self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
+            self.__gps_points_gdf[geometry_field])
+        self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
+            lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
+
+    def calc_adj_time_gap(self) -> None:
+        # 时间差
+        self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
+            self.__gps_points_gdf[time_field])
+        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
+            lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
+
+    def calc_pre_next_dis(self) -> pd.DataFrame():
+        self.calc_adj_dis_gap()
+        # next_seq
+        self.__gps_points_gdf[next_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].shift(-1)
+        self.__gps_points_gdf.dropna(subset=[next_seq_field], inplace=True)
+        self.__gps_points_gdf[next_seq_field] = self.__gps_points_gdf[next_seq_field].astype(int)
+        return self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, next_seq_field, gps_field.ADJ_DIS]].copy()
 
     def lower_frequency(self, n: int = 5):
         """
@@ -218,6 +235,7 @@ class GpsPointsGdf(object):
 
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
+        # {(from_seq, to_seq): dis, ...}
         self.__gps_point_dis_dict = {
             (seq_list[i], seq_list[i + 1]): self.__gps_points_gdf.at[seq_list[i], gps_field.GEOMETRY_FIELD].distance(
                 self.__gps_points_gdf.at[seq_list[i + 1], gps_field.GEOMETRY_FIELD]) for i in
@@ -232,6 +250,9 @@ class GpsPointsGdf(object):
                 self.__gps_points_gdf.at[adj_gps_seq[1], gps_field.GEOMETRY_FIELD])
             self.__gps_point_dis_dict[adj_gps_seq] = dis
         return dis
+
+    def get_adj_gps_dis_df(self):
+        return self.__gps_point_dis_dict
 
     def plot_point(self):
         pass
@@ -318,7 +339,7 @@ class GpsPointsGdf(object):
         single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                                                net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
                                                net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]]
-
+        single_link_gdf.reset_index(inplace=True, drop=True)
         candidate_link = pd.DataFrame()
         remain_gps_list = []
         for i in [i for i in range(0, self.max_increment_times)]:
@@ -331,15 +352,22 @@ class GpsPointsGdf(object):
 
             _candidate_link = join_df[~join_df[net_field.SINGLE_LINK_ID_FIELD].isna()]
             candidate_link = pd.concat([candidate_link, _candidate_link])
-
+            del _candidate_link
             remain_gps_list = list(join_df[join_df[net_field.SINGLE_LINK_ID_FIELD].isna()][gps_field.POINT_SEQ_FIELD].unique())
             if not remain_gps_list:
                 break
 
             gps_buffer_gdf = gps_buffer_gdf[gps_buffer_gdf[gps_field.POINT_SEQ_FIELD].isin(remain_gps_list)].copy()
-        candidate_link.drop(columns=['index_right', net_field.GEOMETRY_FIELD, 'gps_buffer'], axis=1, inplace=True)
-        candidate_link.reset_index(inplace=True, drop=True)
-
+        if not candidate_link.empty:
+            candidate_link.drop(columns=['index_right', 'gps_buffer'], axis=1, inplace=True)
+            for col in [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+                        net_field.SINGLE_LINK_ID_FIELD, net_field.DIRECTION_FIELD]:
+                candidate_link[col] = candidate_link[col].astype(int)
+            # add link geo
+            single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
+            candidate_link = pd.merge(candidate_link, single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
+                                      on=net_field.SINGLE_LINK_ID_FIELD, how='left')
+            candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
 
     def to_plane_prj(self) -> None:

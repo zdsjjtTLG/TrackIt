@@ -4,22 +4,23 @@
 # @Team    : ZheChengData
 
 """Markov Model Class"""
-
-
+import multiprocessing
 import time
 import os.path
 import datetime
 import warnings
-import itertools
 import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
 from ..map.Net import Net
+from itertools import chain
 from datetime import timedelta
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
+from ..tools.geo_process import prj_inf
 from ..WrapsFunc import function_time_cost
+from ..tools.group import cut_group_for_df
 from shapely.geometry import Point, LineString
 from ..GlobalVal import NetField, GpsField, MarkovField
 from ..tools.geo_process import n_equal_points, vector_angle
@@ -40,7 +41,7 @@ class HiddenMarkov(object):
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
-                 dis_para: float = 0.1):
+                 dis_para: float = 0.1, top_k: int = 25):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -66,12 +67,19 @@ class HiddenMarkov(object):
         self.angle_slice = 180 / len(self.heading_para_array)
         self.dis_para = dis_para
         self.warn_info = list()
+        self.top_k = top_k
 
     def generate_markov_para(self):
 
         # self.__generate_markov_para()
         self.__generate_transition_mat()
+        # self.__generate_transition_mat_alpha_multi()
+        # time.sleep(1200)
         self.__generate_emission_mat()
+
+    def __generate_prj_info(self):
+        """计算GPS点到候选路段的投影信息"""
+        pass
 
     @function_time_cost
     def __generate_transition_mat(self):
@@ -79,6 +87,9 @@ class HiddenMarkov(object):
         # 依据一辆车的时序gps点和和底层路网生成转移概率矩阵和生成概率矩阵
         # seq, geometry, single_link_id, from_node, to_node, dir, length
         gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net)
+        print(gps_candidate_link)
+        if gps_candidate_link.empty:
+            raise ValueError(r'GPS数据样本点无法关联到任何路段...')
 
         if _gap:
             warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
@@ -86,6 +97,8 @@ class HiddenMarkov(object):
             # 删除关联不到任何路段的gps点
             self.gps_points.delete_target_gps(target_seq_list=list(_gap))
 
+        gps_candidate_link = self.filter_k_candidates(preliminary_candidate_link=gps_candidate_link, top_k=self.top_k)
+        print(gps_candidate_link)
         # 一定要排序
         seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
 
@@ -132,6 +145,176 @@ class HiddenMarkov(object):
             self.__ft_transition_dict[seq_list[i]] = transition_mat
             self.__ft_mapping_dict[seq_list[i]] = f_mapping
             self.__ft_mapping_dict[seq_list[i + 1]] = t_mapping
+
+    @function_time_cost
+    def __generate_transition_mat_alpha_multi(self):
+
+        # 依据一辆车的时序gps点和和底层路网生成转移概率矩阵和生成概率矩阵
+        # seq, geometry, single_link_id, from_node, to_node, dir, length
+        gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net)
+
+        if gps_candidate_link.empty:
+            raise ValueError(r'GPS数据样本点无法关联到任何路段...')
+
+        if _gap:
+            warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
+
+            # 删除关联不到任何路段的gps点
+            self.gps_points.delete_target_gps(target_seq_list=list(_gap))
+
+        self.filter_k_candidates(preliminary_candidate_link=gps_candidate_link)
+
+
+        # 一定要排序
+        seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
+
+        if len(seq_list) <= 1:
+            raise ValueError(r'GPS数据样本点不足2个, 请检查...')
+
+        # 已经删除了关联不到任何路段的GPS点, 基于新的序列计算相邻GPS点距离
+        # gps_field.POINT_SEQ_FIELD, gps_field.NEXT_SEQ, gps_field.ADJ_DIS
+        gps_pre_next_dis_df = self.gps_points.calc_pre_next_dis()
+
+        # 计算每个seq点对应的candidate_link_list
+        seq_candidate = \
+            gps_candidate_link.groupby(gps_field.POINT_SEQ_FIELD).agg({net_field.SINGLE_LINK_ID_FIELD: list})
+
+        all_ft_state_list = list(chain(*[[[seq_list[i], seq_list[i + 1], f, t]
+                                          for f in seq_candidate.at[seq_list[i], net_field.SINGLE_LINK_ID_FIELD]
+                                          for t in seq_candidate.at[seq_list[i + 1], net_field.SINGLE_LINK_ID_FIELD]]
+                                         for i in range(0, len(seq_list) - 1)]))
+        transition_df = pd.DataFrame(all_ft_state_list,
+                                     columns=[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ,
+                                              markov_field.FROM_STATE, markov_field.TO_STATE])
+        del all_ft_state_list
+        single_link_gdf = self.net.get_link_data()
+        single_link_gdf.reset_index(inplace=True, drop=True)
+        gps_gdf = self.gps_points.gps_gdf
+        transition_df = self.diy_merge(left_df=transition_df,
+                                       right_df=single_link_gdf[
+                                           [net_field.SINGLE_LINK_ID_FIELD, net_field.GEOMETRY_FIELD]],
+                                       left_key=markov_field.FROM_STATE, right_key=net_field.SINGLE_LINK_ID_FIELD,
+                                       flag='from_link_geo')
+        transition_df = self.diy_merge(left_df=transition_df,
+                                       right_df=single_link_gdf[
+                                           [net_field.SINGLE_LINK_ID_FIELD, net_field.GEOMETRY_FIELD]],
+                                       left_key=markov_field.TO_STATE, right_key=net_field.SINGLE_LINK_ID_FIELD,
+                                       flag='to_link_geo')
+        transition_df = self.diy_merge(left_df=transition_df,
+                                       right_df=gps_gdf[
+                                           [gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]],
+                                       left_key=gps_field.FROM_GPS_SEQ, right_key=gps_field.POINT_SEQ_FIELD,
+                                       flag='from_gps_geo')
+        transition_df = self.diy_merge(left_df=transition_df,
+                                       right_df=gps_gdf[
+                                           [gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]],
+                                       left_key=gps_field.TO_GPS_SEQ, right_key=gps_field.POINT_SEQ_FIELD,
+                                       flag='to_gps_geo')
+
+        del single_link_gdf, gps_gdf
+
+        n = 5
+        transition_df_group = cut_group_for_df(df=transition_df, n=n)
+        del transition_df
+
+        pool = multiprocessing.Pool(processes=n)
+        result_list = []
+        for i in range(0, len(transition_df_group)):
+            transition_df = transition_df_group[i]
+            result = pool.apply_async(self.generate_transition_mat_alpha,
+                                      args=(transition_df, gps_pre_next_dis_df))
+            result_list.append(result)
+        pool.close()
+        pool.join()
+
+    def filter_k_candidates(self, preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
+                            top_k: int = 10):
+        """
+        对Buffer范围内的初步候选路段进行二次筛选, 需按照投影距离排名前K位的
+        :param preliminary_candidate_link:
+        :param top_k
+        :return:
+        """
+
+        preliminary_candidate_link['prj_info'] = preliminary_candidate_link.apply(
+            lambda row: prj_inf(p=row[gps_field.GEOMETRY_FIELD], line=row['single_link_geo']), axis=1)
+        preliminary_candidate_link['prj_dis'] = preliminary_candidate_link.apply(lambda row: row['prj_info'][1], axis=1)
+        preliminary_candidate_link.sort_values(by=[gps_field.POINT_SEQ_FIELD, 'prj_dis'], ascending=[True, True],
+                                               inplace=True)
+        candidate_link = preliminary_candidate_link.groupby(gps_field.POINT_SEQ_FIELD).head(top_k)
+        candidate_link.reset_index(inplace=True, drop=True)
+
+        self.__done_prj_dict = {
+            (gps_seq, single_link_id): (prj_info[0], prj_info[1], prj_info[2], prj_info[3], prj_info[5]) for
+            gps_seq, single_link_id, prj_info in
+            zip(candidate_link[gps_field.POINT_SEQ_FIELD],
+                candidate_link[net_field.SINGLE_LINK_ID_FIELD],
+                candidate_link['prj_info'])}
+
+        return candidate_link
+
+
+    @staticmethod
+    def diy_merge(left_df: pd.DataFrame, right_df: pd.DataFrame or gpd.GeoDataFrame = None, left_key: str = None,
+                  right_key: str = None, flag: str = None, drop_right_key: bool = True):
+        df = pd.merge(left_df, right_df, left_on=left_key, right_on=right_key, how='left')
+        df.rename(columns={net_field.GEOMETRY_FIELD: flag}, inplace=True)
+        if drop_right_key:
+            df.drop(columns=[right_key], axis=1, inplace=True)
+        return df
+
+    def generate_transition_mat_alpha(self, transition_df: pd.DataFrame = None, gps_pre_next_dis_df: pd.DataFrame = None):
+        transition_df[markov_field.ROUTE_LENGTH] = \
+            transition_df.apply(
+                lambda item: self.calc_route_length(from_gps_seq=item[gps_field.POINT_SEQ_FIELD],
+                                                    to_gps_seq=item[gps_field.NEXT_SEQ],
+                                                    from_link_id=item[markov_field.FROM_STATE],
+                                                    to_link_id=item[markov_field.TO_STATE]), axis=1)
+
+        transition_df = pd.merge(transition_df, gps_pre_next_dis_df, on=[gps_field.POINT_SEQ_FIELD, gps_field.NEXT_SEQ],
+                                 how='left')
+
+        transition_df[markov_field.DIS_GAP] = transition_df.apply(
+            lambda item: np.abs(-item[markov_field.ROUTE_LENGTH] + item[gps_field.ADJ_DIS]), axis=1)
+
+        # # 计算状态转移概率矩阵
+        # for i in range(0, len(seq_list) - 1):
+        #     from_link = gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD] == seq_list[i]][
+        #         net_field.SINGLE_LINK_ID_FIELD].to_list()
+        #     to_link = gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD] == seq_list[i + 1]][
+        #         net_field.SINGLE_LINK_ID_FIELD].to_list()
+        #
+        #     transition_df = pd.DataFrame([[int(f), int(t)] for f in from_link for t in to_link],
+        #                                  columns=[markov_field.FROM_STATE,
+        #                                           markov_field.TO_STATE])
+        #
+        #     transition_df[markov_field.ROUTE_LENGTH] = \
+        #         transition_df.apply(
+        #             lambda item: self.calc_route_length(from_gps_seq=seq_list[i],
+        #                                                 to_gps_seq=seq_list[i + 1],
+        #                                                 from_link_id=item[markov_field.FROM_STATE],
+        #                                                 to_link_id=item[markov_field.TO_STATE]), axis=1)
+        #
+        #     transition_df[markov_field.DIS_GAP] = np.abs(-transition_df[
+        #         markov_field.ROUTE_LENGTH] + self.gps_points.get_gps_point_dis((seq_list[i], seq_list[i + 1])))
+        #
+        #     self.__s2s_route_l[(seq_list[i], seq_list[i + 1])] = transition_df[
+        #         [markov_field.FROM_STATE, markov_field.TO_STATE, markov_field.ROUTE_LENGTH]].copy().set_index(
+        #         [markov_field.FROM_STATE, markov_field.TO_STATE])
+        #
+        #     # 转成matrix
+        #     transition_mat = transition_df[
+        #         [markov_field.FROM_STATE, markov_field.TO_STATE, markov_field.DIS_GAP]].set_index(
+        #         [markov_field.FROM_STATE, markov_field.TO_STATE]).unstack().values
+        #
+        #     # 索引映射
+        #     f_mapping, t_mapping = {i: f for i, f in zip(range(len(from_link)), sorted(from_link))}, \
+        #         {i: t for i, t in zip(range(len(to_link)), sorted(to_link))}
+        #     transition_mat = self.transition_probability(self.beta, transition_mat, self.dis_para)
+        #
+        #     self.__ft_transition_dict[seq_list[i]] = transition_mat
+        #     self.__ft_mapping_dict[seq_list[i]] = f_mapping
+        #     self.__ft_mapping_dict[seq_list[i + 1]] = t_mapping
 
     @function_time_cost
     def __generate_emission_mat(self):
@@ -267,6 +450,96 @@ class HiddenMarkov(object):
         else:
             return self.not_conn_cost
 
+    def calc_route_length_alpha(self, from_gps_seq: int = None, to_gps_seq: int = None, from_link_id: int = None,
+                                to_link_id: int = None) -> float:
+        """
+        :param from_gps_seq: 上一观测时刻的gps点序号
+        :param to_gps_seq: 当前观测时刻的gps点序号
+        :param from_link_id: 上一观测时刻候选link_id
+        :param to_link_id: 当前观测时刻候选link_id
+        :return:
+        """
+        done_prj_dict = dict()
+        # prj_p, prj_dis, route_dis
+        (from_prj_p, from_prj_dis, from_route_dis, from_l_length, from_p_vec) = \
+            self.cache_emission_data_alpha(gps_seq=from_gps_seq, single_link_id=from_link_id)
+
+        (to_prj_p, to_prj_dis, to_route_dis, to_l_length, to_p_vec) = \
+            self.cache_emission_data_alpha(gps_seq=to_gps_seq, single_link_id=to_link_id)
+
+        # 基于投影信息计算路径长度
+        from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id, _type='single'), \
+            self.net.get_link_from_to(to_link_id, _type='single')
+
+        # same link
+        if from_link_id == to_link_id:
+            route_l = np.absolute(from_route_dis - to_route_dis)
+            return route_l
+
+        # one same node
+        dup_node_list = list(set(from_link_ft) & set(to_link_ft))
+        if len(dup_node_list) == 1:
+            dup_node = dup_node_list[0]
+            if (dup_node == from_link_ft[1]) and (dup_node == to_link_ft[0]):
+                route_l = from_l_length - from_route_dis + to_route_dis
+                return np.absolute(route_l)
+            else:
+                return self.not_conn_cost
+        # 正好相反的f-t
+        elif len(dup_node_list) == 2:
+            route_l = from_l_length - from_route_dis + to_route_dis
+            return np.absolute(route_l)
+
+        route_item = self.net.search(o_node=from_link_ft[0], d_node=to_link_ft[0])
+        if len(route_item[0]) > 2:
+            self.__adj_seq_path_dict[(from_link_id, to_link_id)] = route_item[0]
+        if route_item[0]:
+            if route_item[0][1] != from_link_ft[1]:
+                # abnormal
+                # route_item_alpha = self.net.search(o_node=from_link_ft[1], d_node=to_link_ft[0],
+                #                                    search_method=self.search_method)
+                # if route_item_alpha[0]:
+                #     route_l1 = route_item[1] + from_route_dis
+                # else:
+                #     return NOT_CONN_COST
+                return self.not_conn_cost
+            else:
+                route_l1 = route_item[1] - from_route_dis
+
+            if route_item[0][-2] == to_link_ft[1]:
+                # abnormal
+                return self.not_conn_cost
+            else:
+                route_l2 = to_route_dis
+
+            route_l = np.absolute(route_l1 + route_l2)
+            return route_l
+        else:
+            return self.not_conn_cost
+
+    def cache_emission_data_alpha(self, gps_seq: int = None, single_link_id: int = None, done_prj_dict: dict = None,
+                                  target_link_geo: LineString = None, gps_geo: Point = None) -> \
+            tuple[Point, float, float, float, np.ndarray]:
+        """
+        :param gps_seq:
+        :param single_link_id:
+        :param target_link_geo
+        :param gps_geo
+        :param done_prj_dict
+        :return:
+        """
+        if (gps_seq, single_link_id) in done_prj_dict.keys():
+            # already calculated
+            (prj_p, prj_dis, route_dis, l_length, p_vec) = done_prj_dict[
+                (gps_seq, single_link_id)]
+        else:
+            # new calc and cache
+            (prj_p, prj_dis, route_dis, l_length, p_vec) = self.get_gps_prj_info_alpha(target_link_geo=target_link_geo,
+                                                                                       gps_geo=gps_geo)
+            done_prj_dict.update(
+                {(gps_seq, single_link_id): (prj_p, prj_dis, route_dis, l_length, p_vec)})
+        return prj_p, prj_dis, route_dis, l_length, p_vec
+
     def cache_emission_data(self, gps_seq: int = None, single_link_id: int = None) -> \
             tuple[Point, float, float, float, np.ndarray]:
         """
@@ -280,6 +553,7 @@ class HiddenMarkov(object):
                 (gps_seq, single_link_id)]
         else:
             # new calc and cache
+            print('# new calc and cache')
             (prj_p, prj_dis, route_dis, l_length, p_vec) = self.get_gps_prj_info(
                 target_link_id=single_link_id,
                 gps_seq=gps_seq)
@@ -287,201 +561,14 @@ class HiddenMarkov(object):
                 {(gps_seq, single_link_id): (prj_p, prj_dis, route_dis, l_length, p_vec)})
         return prj_p, prj_dis, route_dis, l_length, p_vec
 
-
-    # @function_time_cost
-    # def __generate_markov_para(self, use_swifter: bool = False):
-    #     # 依据一辆车的时序gps点和和底层路网生成转移概率矩阵和生成概率矩阵
-    #     # seq, geometry, single_link_id, from_node, to_node, dir, length
-    #     gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net)
-    #
-    #     # {seq1: {'single_link_id': [candidate_link]}, seq2: ...}
-    #     gps_candidate_link_dict = gps_candidate_link.groupby([gps_field.POINT_SEQ_FIELD]).agg(
-    #         {net_field.SINGLE_LINK_ID_FIELD: list}).to_dict(orient='index')
-    #
-    #     if _gap:
-    #         warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
-    #
-    #         # 删除关联不到任何路段的gps点
-    #         self.gps_points.delete_target_gps(target_seq_list=list(_gap))
-    #
-    #     # 一定要排序
-    #     seq_list = sorted(list(gps_candidate_link_dict.keys()))
-    #
-    #     if len(seq_list) <= 1:
-    #         raise ValueError(r'GPS数据样本点不足2个, 请检查...')
-    #
-    #     self.gps_points.calc_gps_point_dis()
-    #
-    #     ft_gps_candidate = \
-    #         {(seq_list[i], seq_list[i + 1]): [
-    #             list(itertools.product(gps_candidate_link_dict[seq_list[i]][net_field.SINGLE_LINK_ID_FIELD],
-    #                                    gps_candidate_link_dict[seq_list[i + 1]][net_field.SINGLE_LINK_ID_FIELD]))]
-    #             for i in range(0, len(seq_list) - 1)}
-    #
-    #     seq_link_df = gps_candidate_link.groupby([gps_field.POINT_SEQ_FIELD]).agg(
-    #         {net_field.SINGLE_LINK_ID_FIELD: list})
-    #     self.__ft_mapping_dict = {
-    #         seq: {i: link for i, link in enumerate(sorted(seq_link_df.at[seq, net_field.SINGLE_LINK_ID_FIELD]))} for seq
-    #         in seq_link_df.index}
-    #
-    #     # print(self.__ft_mapping_dict)
-    #     transit_df = pd.DataFrame(ft_gps_candidate).T.reset_index(drop=False).rename(
-    #         columns={'level_0': from_gps_f, 'level_1': to_gps_f, 0: 'ft_link'})
-    #
-    #     transit_df = transit_df.explode(column='ft_link', ignore_index=True)
-    #
-    #     all_required_source_list = \
-    #         gps_candidate_link[gps_candidate_link[gps_field.POINT_SEQ_FIELD].isin(seq_list[:-1])][
-    #             net_field.FROM_NODE_FIELD].unique()
-    #
-    #     # 提前计算最短路信息
-    #     path_cost_df = pd.DataFrame({'source': all_required_source_list})
-    #     if not use_swifter:
-    #         path_cost_df['path'] = path_cost_df.apply(lambda row:
-    #                                                   self.net._single_source_path(g=self.net.graph,
-    #                                                                                source=row['source'],
-    #                                                                                method=self.net.search_method,
-    #                                                                                weight_field=self.net.weight_field),
-    #                                                   axis=1)
-    #     else:
-    #         path_cost_df['path'] = path_cost_df.swifter.apply(lambda row:
-    #                                                            self.net._single_source_path(g=self.net.graph,
-    #                                                                                         source=row['source'],
-    #                                                                                         method=self.net.search_method,
-    #                                                                                         weight_field=self.net.weight_field),
-    #                                                            axis=1)
-    #
-    #     # 计算发射概率
-    #
-    #     print(path_cost_df)
-    #     path_cost_df.set_index('source', inplace=True)
-    #     self.path_cost_df = path_cost_df
-    #
-    #
-    #     # dis of (gps, prj_gps)
-    #     gps_candidate_link[['prj_p', markov_field.PRJ_L, 'route_dis', 'l_length']] = gps_candidate_link.apply(
-    #         lambda row: self.get_gps_prj_info(target_link_id=row[net_field.SINGLE_LINK_ID_FIELD],
-    #                                           gps_seq=row[gps_field.POINT_SEQ_FIELD]), axis=1, result_type='expand')
-    #
-    #     # 计算done_prj_dict
-    #     self.__done_prj_dict = {(row[gps_field.POINT_SEQ_FIELD], row[net_field.SINGLE_LINK_ID_FIELD]):
-    #                                 (row['prj_p'], row[markov_field.PRJ_L], row['route_dis'], row['l_length']) for
-    #                             _, row in
-    #                             gps_candidate_link.iterrows()}
-    #
-    #
-    #     emission_p_df = gps_candidate_link[
-    #         [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, markov_field.PRJ_L]].copy()
-    #
-    #     emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
-    #                               ascending=[True, True], inplace=True)
-    #
-    #     emission_p_df = \
-    #         emission_p_df.groupby([gps_field.POINT_SEQ_FIELD])[markov_field.PRJ_L].agg(
-    #             lambda x: list(x)).reset_index(drop=False)
-    #     # emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].swifter.apply(lambda row: np.array(row))
-    #     emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].apply(lambda row: np.array(row))
-    #
-    #     self.__emission_mat_dict = {
-    #         int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
-    #                                                                        sigma=self.gps_sigma) for _, row in
-    #         emission_p_df.iterrows()}
-    #
-    #     def ft_link_path_item(from_link, to_link):
-    #         try:
-    #             source_item = path_cost_df.at[from_link, 'path']
-    #             return source_item[1][to_link], source_item[0][to_link]
-    #         except KeyError:
-    #             return [], NOT_CONN_COST
-    #
-    #     # 计算转移概率
-    #     transit_df[markov_field.ROUTE_LENGTH] = \
-    #         transit_df.apply(
-    #             lambda item: self._calc_route_length(from_link_id=item['ft_link'][0],
-    #                                                  to_link_id=item['ft_link'][1],
-    #                                                  from_route_dis=self.__done_prj_dict[
-    #                                                      (item[from_gps_f], item['ft_link'][0])][1],
-    #                                                  to_route_dis=self.__done_prj_dict[
-    #                                                      (item[to_gps_f], item['ft_link'][1])][1],
-    #                                                  from_l_length=self.__done_prj_dict[
-    #                                                      (item[from_gps_f], item['ft_link'][0])][3]
-    #                                                  ), axis=1)
-    #
-    #
-    #     # transit_df[markov_field.ROUTE_LENGTH] = \
-    #     #     transit_df.swifter.apply(
-    #     #         lambda item: self._calc_route_length(from_link_id=item['ft_link'][0],
-    #     #                                              to_link_id=item['ft_link'][1],
-    #     #                                              from_route_dis=self.__done_prj_dict[
-    #     #                                                  (item[from_gps_f], item['ft_link'][0])][1],
-    #     #                                              to_route_dis=self.__done_prj_dict[
-    #     #                                                  (item[to_gps_f], item['ft_link'][1])][1],
-    #     #                                              from_l_length=self.__done_prj_dict[
-    #     #                                                  (item[from_gps_f], item['ft_link'][0])][3]
-    #     #                                              ), axis=1)
-    #     print(transit_df)
-    #
-    # def _calc_route_length(self, from_route_dis: float = None, to_route_dis: float = None,
-    #                        from_l_length: float = None,
-    #                        from_link_id: int = None, to_link_id: int = None) -> float:
-    #     """
-    #     :param from_route_dis: 上一观测时刻的gps点序号
-    #     :param to_route_dis: 当前观测时刻的gps点序号
-    #     :param from_link_id: 上一观测时刻候选link_id
-    #     :param to_link_id: 当前观测时刻候选link_id
-    #     :return:
-    #     """
-    #     # 基于投影信息计算路径长度
-    #     from_link_ft, to_link_ft = self.net.get_link_from_to(from_link_id), self.net.get_link_from_to(to_link_id)
-    #
-    #     # same link
-    #     if from_link_id == to_link_id:
-    #         route_l = np.absolute(from_route_dis - to_route_dis)
-    #         return route_l
-    #
-    #     # one same node
-    #     dup_node_list = list(set(from_link_ft) & set(to_link_ft))
-    #     if len(dup_node_list) == 1:
-    #         dup_node = dup_node_list[0]
-    #         if (dup_node == from_link_ft[1]) and (dup_node == to_link_ft[0]):
-    #             route_l = from_l_length - from_route_dis + to_route_dis
-    #             return np.absolute(route_l)
-    #         else:
-    #             return NOT_CONN_COST
-    #     # 正好相反的f-t
-    #     elif len(dup_node_list) == 2:
-    #         route_l = from_l_length - from_route_dis + to_route_dis
-    #         return np.absolute(route_l)
-    #
-    #     try:
-    #         source_item = self.path_cost_df.at[from_link_ft[0], 'path']
-    #         route_item = [source_item[1][to_link_ft[0]], source_item[0][to_link_ft[0]]]
-    #     except KeyError:
-    #         route_item = [], NOT_CONN_COST
-    #
-    #     if len(route_item[0]) > 2:
-    #         self.__adj_seq_path_dict[(from_link_id, to_link_id)] = route_item[0]
-    #     if route_item[0]:
-    #         if route_item[0][1] != from_link_ft[1]:
-    #             return NOT_CONN_COST
-    #         else:
-    #             route_l1 = route_item[1] - from_route_dis
-    #
-    #         if route_item[0][-2] == to_link_ft[1]:
-    #             # abnormal
-    #             return NOT_CONN_COST
-    #         else:
-    #             route_l2 = to_route_dis
-    #
-    #         route_l = np.absolute(route_l1 + route_l2)
-    #         return route_l
-    #     else:
-    #         return NOT_CONN_COST
-    #
-    #
     def get_gps_prj_info(self, gps_seq: int = None, target_link_id: int = None) -> \
             tuple[Point, float, float, float, np.ndarray]:
         return self.gps_points.get_prj_inf(line=self.net.get_link_geo(target_link_id, _type='single'), seq=gps_seq)
+
+    def get_gps_prj_info_alpha(self, gps_geo: Point = None, target_link_geo: LineString = None) -> \
+            tuple[Point, float, float, float, np.ndarray]:
+        (prj_p, prj_dis, route_dis, l_length, _, p_vec) = prj_inf(gps_geo, target_link_geo)
+        return prj_p, prj_dis, route_dis, l_length, p_vec
 
     @staticmethod
     def transition_probability(beta: float = 30.2, dis_gap: float or np.ndarray = None, dis_para: float = 0.1):

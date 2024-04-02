@@ -2,16 +2,19 @@
 # @Time    : 2024/2/10 15:27
 # @Author  : TangKai
 # @Team    : ZheChengData
+import os
 
 import pyproj
 import numpy as np
 import pandas as pd
+import multiprocessing
 import geopandas as gpd
 import xml.etree.cElementTree as ET
 from shapely.geometry import LineString, Point, Polygon
+from ..tools.group import cut_group
+from ..WrapsFunc import function_time_cost
 
 """SUMO路网转换的相关方法"""
-
 
 EDGE_ID_KEY = 'id'
 EDGE_FROM_KEY = 'from'
@@ -42,7 +45,6 @@ JUNCTION_TYPE_KEY = 'type'
 JUNCTION_X_KEY = 'x'
 JUNCTION_Y_KEY = 'y'
 JUNCTION_SHAPE_KEY = 'shape'
-
 
 
 class SumoConvert(object):
@@ -129,64 +131,131 @@ class SumoConvert(object):
         return edge_df
 
     # 2.解析net.xml文件
-    def get_net_shp(self, net_path: str = None, crs: str = None, prj4_str: str = None) -> tuple[
-        gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    @function_time_cost
+    def get_net_shp(self, net_path: str = None, crs: str = None, prj4_str: str = None, core_num: int = 1,
+                    l_threshold: float = 1.0) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
         必须时平面投影
         从net.xml解析微观车道级路网
         :param net_path:
         :param crs:
+        :param prj4_str
+        :param core_num
+        :param l_threshold
         :return:
         """
+        core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
         net_tree = ET.parse(net_path)
+
         net_root = net_tree.getroot()
         if crs is None:
             assert prj4_str is not None
             crs = 'EPSG:' + prj4_2_crs(prj4_str=prj4_str)
-        edge_df, junction_df, avg_center_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-        for child in net_root:
-            if child.tag == 'edge':
-                _edge_df, _avg_center_df = self.parse_net_edge(net_edge_obj=child)
-                edge_df = pd.concat([edge_df, _edge_df])
-                avg_center_df = pd.concat([avg_center_df, _avg_center_df])
-            elif child.tag == 'junction':
-                _junction_df = self.parse_net_junction(junction_obj=child)
-                junction_df = pd.concat([junction_df, _junction_df])
-        junction_df.reset_index(inplace=True, drop=True)
+        # 车道线, edge中心线, 交叉口面域
+        lane_gdf, avg_edge_gdf, junction_gdf = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-        edge_df.reset_index(inplace=True, drop=True)
-        avg_center_df.reset_index(inplace=True, drop=True)
+        all_edge_ele = list(net_root.findall('edge'))
+        all_junction_ele = list(net_root.findall('junction'))
 
-        edge_df.rename(columns={EDGE_SHAPE_KEY: 'geometry'}, inplace=True)
-        avg_center_df.rename(columns={EDGE_SHAPE_KEY: 'geometry'}, inplace=True)
-        junction_df.rename(columns={JUNCTION_SHAPE_KEY: 'geometry'}, inplace=True)
+        # 分组
+        edge_ele_group = cut_group(obj_list=all_edge_ele, n=core_num)
+        junction_ele_group = cut_group(obj_list=all_junction_ele, n=core_num)
 
-        print(junction_df)
-        junction_gdf = gpd.GeoDataFrame(junction_df, geometry='geometry', crs=crs)
-        edge_gdf = gpd.GeoDataFrame(edge_df, geometry='geometry', crs=crs)
-        avg_center_gdf = gpd.GeoDataFrame(avg_center_df, geometry='geometry', crs=crs)
+        edge_ele_group_len, junction_ele_group_len = len(edge_ele_group), len(junction_ele_group)
 
-        del edge_df, junction_df, avg_center_df
+        # assure the same group
+        if edge_ele_group_len > junction_ele_group_len:
+            junction_ele_group.extend([] * (edge_ele_group_len - junction_ele_group_len))
+        elif edge_ele_group_len < junction_ele_group_len:
+            edge_ele_group.extend([] * (junction_ele_group_len - edge_ele_group_len))
 
-        lane_polygon_gdf = edge_gdf[edge_gdf['function'] != 'internal'].copy()
+        del all_edge_ele, all_junction_ele
+
+        pool = multiprocessing.Pool(processes=core_num)
+        result_list = []
+        for i in range(len(edge_ele_group)):
+            result = pool.apply_async(self.parse_elements,
+                                      args=(edge_ele_group[i], junction_ele_group[i]))
+            result_list.append(result)
+        pool.close()
+        pool.join()
+
+        for res in result_list:
+            _lane_df, _avg_edge_df, _junction_df = res.get()
+            lane_gdf = pd.concat([lane_gdf, _lane_df])
+            avg_edge_gdf = pd.concat([avg_edge_gdf, _avg_edge_df])
+            junction_gdf = pd.concat([junction_gdf, _junction_df])
+        del result_list
+
+        lane_gdf.reset_index(inplace=True, drop=True)
+        avg_edge_gdf.reset_index(inplace=True, drop=True)
+        junction_gdf.reset_index(inplace=True, drop=True)
+
+        junction_gdf = gpd.GeoDataFrame(junction_gdf, geometry='geometry', crs=crs)
+        lane_gdf = gpd.GeoDataFrame(lane_gdf, geometry='geometry', crs=crs)
+        avg_edge_gdf = gpd.GeoDataFrame(avg_edge_gdf, geometry='geometry', crs=crs)
+
+        lane_gdf['geometry'] = lane_gdf['geometry'].remove_repeated_points(l_threshold)
+        avg_edge_gdf['geometry'] = avg_edge_gdf['geometry'].remove_repeated_points(l_threshold)
+
+        lane_polygon_gdf = lane_gdf[lane_gdf['function'] != 'internal'].copy()
         lane_polygon_gdf['geometry'] = lane_polygon_gdf.apply(lambda item:
                                                               get_off_polygon(l=item['geometry'],
                                                                               off_line_l=(item[
-                                                                                              LANE_WIDTH_KEY] - 0.05) / 2),
+                                                                                              LANE_WIDTH_KEY] - 0.01) / 2),
                                                               axis=1)
-        return edge_gdf, junction_gdf, lane_polygon_gdf, avg_center_gdf
+        return lane_gdf, junction_gdf, lane_polygon_gdf, avg_edge_gdf
+
+    def parse_elements(self, edge_ele_list: list[ET.Element] = None, junction_ele_list: list[ET.Element] = None) \
+            -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """
+        :param edge_ele_list:
+        :param junction_ele_list
+        :return:
+        """
+        print('a')
+        lane_item_list, avg_edge_item_list = list(), list()
+        for edge_ele in edge_ele_list:
+            _lane_item_list, avg_edge_item = self.parse_net_edge(net_edge_obj=edge_ele)
+            lane_item_list.extend(_lane_item_list)
+            avg_edge_item_list.append(avg_edge_item)
+        lane_df = pd.DataFrame(lane_item_list,
+                               columns=[EDGE_ID_KEY, EDGE_FROM_KEY, EDGE_TO_KEY, EDGE_FUNCTION_KEY,
+                                        LANE_INDEX_KEY, LANE_SPEED_KEY, LANE_LENGTH_KEY, LANE_WIDTH_KEY,
+                                        LANE_SHAPE_KEY])
+        avg_edge_df = pd.DataFrame(avg_edge_item_list,
+                                   columns=[EDGE_ID_KEY, EDGE_FROM_KEY, EDGE_TO_KEY, EDGE_FUNCTION_KEY, EDGE_SHAPE_KEY])
+        lane_df.rename(columns={EDGE_SHAPE_KEY: 'geometry'}, inplace=True)
+        avg_edge_df.rename(columns={EDGE_SHAPE_KEY: 'geometry'}, inplace=True)
+
+        junction_item_list = list()
+        for junction_ele in junction_ele_list:
+            junction_item = self.parse_net_junction(junction_obj=junction_ele)
+            junction_item_list.append(junction_item)
+
+        junction_df = pd.DataFrame(junction_item_list, columns=[JUNCTION_ID_KEY, JUNCTION_TYPE_KEY,
+                                                                JUNCTION_X_KEY, JUNCTION_Y_KEY, JUNCTION_SHAPE_KEY])
+        junction_df.rename(columns={JUNCTION_SHAPE_KEY: 'geometry'}, inplace=True)
+
+        return lane_df, avg_edge_df, junction_df
 
     @staticmethod
-    def parse_net_edge(net_edge_obj: ET.Element = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def parse_net_edge(net_edge_obj: ET.Element = None) -> \
+            tuple[
+                list[list[str, str, str, str, int, float, float, float, LineString]],
+                list[str, str, str, str, LineString]
+            ]:
         """
 
         :param net_edge_obj:
         :return:
         """
-        lane_item_list = []
         edge_id = net_edge_obj.get(EDGE_ID_KEY)
         edge_from, edge_to = net_edge_obj.get(EDGE_FROM_KEY), net_edge_obj.get(EDGE_TO_KEY)
+        lane_item_list: list[list[str, str, str, str, int, float, float, float, LineString]] = []
+
         edge_function = net_edge_obj.get(EDGE_FUNCTION_KEY)
         edge_function = 'normal' if edge_function is None else edge_function
 
@@ -196,8 +265,9 @@ class SumoConvert(object):
             lane_id, lane_index, lane_shape, lane_length, = lane_obj.get(LANE_ID_KEY), \
                 lane_obj.get(LANE_INDEX_KEY), lane_obj.get(
                 LANE_SHAPE_KEY), lane_obj.get(LANE_LENGTH_KEY)
+
             if lane_id is None or lane_index is None:
-                print(net_edge_obj.get(EDGE_ID_KEY))
+                # print(net_edge_obj.get(EDGE_ID_KEY))
                 continue
 
             lane_speed, lane_width = float(try_get_v(lane_obj, LANE_SPEED_KEY, DEFAULT_LANE_SPEED)), \
@@ -205,19 +275,16 @@ class SumoConvert(object):
 
             lane_shape = [list(map(float, xy.split(','))) for xy in lane_shape.split(' ')]
             avg_line_shape_list.append(lane_shape)
+            lane_shape = LineString(lane_shape)
 
-            lane_item_list.append([lane_id, lane_index, lane_speed, lane_length, lane_width, LineString(lane_shape)])
+            if lane_length is None:
+                lane_length = lane_shape.length
 
-        lane_df = pd.DataFrame(lane_item_list,
-                               columns=[LANE_ID_KEY, LANE_INDEX_KEY, LANE_SPEED_KEY, LANE_LENGTH_KEY, LANE_WIDTH_KEY,
-                                        LANE_SHAPE_KEY])
-        lane_df[EDGE_ID_KEY] = edge_id
-        lane_df[EDGE_FUNCTION_KEY] = edge_function
+            lane_item_list.append(
+                [edge_id, edge_from, edge_to, edge_function, int(lane_index), float(lane_speed),
+                 float(lane_length), float(lane_width), lane_shape])
 
-        lane_df[EDGE_FROM_KEY], lane_df[EDGE_TO_KEY], lane_df[EDGE_FUNCTION_KEY] = edge_from, edge_to, edge_function
-
-        avg_center_link_df = pd.DataFrame()
-
+        avg_center_line = LineString()
         if edge_function == 'normal':
             try:
                 avg_center_line = LineString(
@@ -227,24 +294,23 @@ class SumoConvert(object):
                 select_line = [avg_line_shape_list[int(_l / 2)]]
                 avg_center_line = LineString(
                     np.array(select_line).mean(axis=0))
-            avg_center_link_df = pd.DataFrame({EDGE_ID_KEY: [edge_id],
-                                               EDGE_FROM_KEY: [edge_from],
-                                               EDGE_TO_KEY: [edge_to],
-                                               'geometry': [avg_center_line]})
 
-        return lane_df, avg_center_link_df
+        return lane_item_list, [edge_id, edge_from, edge_to, edge_function, avg_center_line]
 
     @staticmethod
-    def parse_net_junction(junction_obj: ET.Element = None) -> pd.DataFrame:
+    def parse_net_junction(junction_obj: ET.Element = None) -> list[str, str, float, float, Polygon]:
         """
 
         :param junction_obj:
         :return:
         """
-        junction_item_list = []
         junction_id, junction_type, junction_x, junction_y, junction_shape = \
             junction_obj.get(JUNCTION_ID_KEY), junction_obj.get(JUNCTION_TYPE_KEY), junction_obj.get(JUNCTION_X_KEY), \
-                junction_obj.get(JUNCTION_Y_KEY), junction_obj.get(JUNCTION_SHAPE_KEY)
+            junction_obj.get(JUNCTION_Y_KEY), junction_obj.get(JUNCTION_SHAPE_KEY)
+        try:
+            junction_x, junction_y = float(junction_x), float(junction_y)
+        except TypeError:
+            pass
         if junction_type == 'internal':
             junction_shape = Polygon(list(Point(junction_x, junction_y).buffer(1.5).exterior.coords))
         else:
@@ -257,12 +323,7 @@ class SumoConvert(object):
             else:
                 junction_shape = LineString(list(Point(junction_x, junction_y).buffer(1.5).exterior.coords))
 
-        junction_item_list.append([junction_id, junction_type, junction_x, junction_y, junction_shape])
-
-        junction_df = pd.DataFrame(junction_item_list,
-                                   columns=[JUNCTION_ID_KEY, JUNCTION_TYPE_KEY, JUNCTION_X_KEY, JUNCTION_Y_KEY,
-                                            JUNCTION_SHAPE_KEY])
-        return junction_df
+        return [junction_id, junction_type, junction_x, junction_y, junction_shape]
 
     # 转换plain edge和plain node文件的坐标系
     def convert_plain_crs(self, plain_edge_path: str = None, plain_node_path: str = None, from_crs='EPSG:4326',

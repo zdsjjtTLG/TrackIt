@@ -172,7 +172,7 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                                                                              [(cp.x, cp.y)] + coords[i:])], prj_vec
 
 
-def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650') -> gpd.GeoDataFrame:
+def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
     """
     将geometry列中的Multi对象处理为single对象
     :param gdf:
@@ -204,7 +204,7 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650') 
     gdf.drop(columns=['is_multi'], axis=1, inplace=True)
     gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
     gdf = gdf.to_crs(plain_crs)
-    gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(0.1)
+    gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(l_threshold)
     gdf = gdf.to_crs(origin_crs)
     return gdf
 
