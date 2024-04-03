@@ -30,7 +30,8 @@ class MapMatch(object):
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
                  export_geo_res: bool = False, geo_res_fldr: str = None,
-                 node_num_threshold: int = 2000, top_k: int = 20):
+                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = False,
+                 core_num: int = 1):
         """
 
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
@@ -60,6 +61,7 @@ class MapMatch(object):
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
         :param geo_res_fldr: 存储几何可视化文件的目录, 默认当前目录
         :param node_num_threshold: 默认2000
+        :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -85,6 +87,7 @@ class MapMatch(object):
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
         self.heading_para_array = heading_para_array
+        self.omitted_l = omitted_l
         self.top_k = top_k
 
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
@@ -102,6 +105,9 @@ class MapMatch(object):
         self.my_net = net
         self.not_conn_cost = self.my_net.not_conn_cost
         self.use_gps_source = use_gps_source
+        assert omitted_l < dense_interval / 2, 'omitted_l 必须小于 dense_interval / 2'
+        self.multi_core = multi_core
+        self.core_num = core_num
 
     def execute(self):
 
@@ -136,19 +142,18 @@ class MapMatch(object):
             # 依据当前的GPS数据(源数据)做一个子网络
             if self.use_sub_net:
                 print(rf'using sub net')
-                sub_net = self.my_net.create_computational_net(
+                used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap))
-                # 初始化一个隐马尔可夫模型
-                hmm_obj = HiddenMarkov(net=sub_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
-                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                       top_k=self.top_k)
             else:
+                used_net = self.my_net
                 print(rf'using whole net')
-                hmm_obj = HiddenMarkov(net=self.my_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
-                                       not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
-                                       heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                       top_k=self.top_k)
+
+            # 初始化一个隐马尔可夫模型
+            hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
+                                   not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
+                                   heading_para_array=self.heading_para_array, dis_para=self.dis_para,
+                                   top_k=self.top_k, omitted_l=self.omitted_l, multi_core=self.multi_core,
+                                   core_num=self.core_num)
 
             # 求解参数
             hmm_obj.generate_markov_para()

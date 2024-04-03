@@ -286,6 +286,23 @@ def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None) -> float:
     angle = np.arccos(cos_angle)
     return min(180 * angle / np.pi, 179.9)
 
+
+def hmm_vector_angle(gps_diff_vec: np.ndarray = None, link_dir_vec: np.ndarray = None, omitted_l: float = 6.0) -> float:
+    """
+    计算GPS差分航向向量和候选路段切点方向向量的夹角
+    :param gps_diff_vec:
+    :param link_dir_vec:
+    :param omitted_l
+    :return:
+    """
+    # 在GPS点密集处, gps_diff_vec不准确, 往往gps_diff_vec的模会很小, 为了不干扰匹配, 返回0
+
+    if np.sqrt(gps_diff_vec[0] ** 2 + gps_diff_vec[1] ** 2) <= omitted_l:
+        return 0.0
+    else:
+        return vector_angle(v1=gps_diff_vec, v2=link_dir_vec)
+
+
 def angle_base_north(v: np.ndarray = None):
     angle = vector_angle(v, np.array([0, 1]))
     if v[0] <= 0:

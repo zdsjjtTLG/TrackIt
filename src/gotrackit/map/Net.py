@@ -159,15 +159,13 @@ class Net(object):
         return self.__link.get_shortest_path_length(o_node=o_node, d_node=d_node)
 
     def calc_shortest_path(self, source: int = None, method: str = 'dijkstra') -> None:
-        if source in self.__stp_cache.keys():
+
+        try:
+            self.__done_path_cost[source], self.__stp_cache[source] = self._single_source_path(
+                self.__link.get_graph(), source=source,
+                method=method, weight_field=self.weight_field)
+        except nx.NetworkXNoPath:
             pass
-        else:
-            try:
-                self.__done_path_cost[source], self.__stp_cache[source] = self._single_source_path(
-                    self.__link.get_graph(), source=source,
-                    method=method, weight_field=self.weight_field)
-            except nx.NetworkXNoPath:
-                pass
 
     @staticmethod
     def _single_source_path(g: nx.DiGraph = None, source: int = None, method: str = 'dijkstra',

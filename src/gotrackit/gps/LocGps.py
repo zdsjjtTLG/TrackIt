@@ -159,10 +159,11 @@ class GpsPointsGdf(object):
     def calc_pre_next_dis(self) -> pd.DataFrame():
         self.calc_adj_dis_gap()
         # next_seq
-        self.__gps_points_gdf[next_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].shift(-1)
-        self.__gps_points_gdf.dropna(subset=[next_seq_field], inplace=True)
-        self.__gps_points_gdf[next_seq_field] = self.__gps_points_gdf[next_seq_field].astype(int)
-        return self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, next_seq_field, gps_field.ADJ_DIS]].copy()
+        res = self.__gps_points_gdf.copy()
+        res[next_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].shift(-1).copy()
+        res.dropna(subset=[next_seq_field], inplace=True)
+        res[next_seq_field] = res[next_seq_field].astype(int)
+        return res[[gps_field.POINT_SEQ_FIELD, next_seq_field, gps_field.ADJ_DIS]]
 
     def lower_frequency(self, n: int = 5):
         """
@@ -276,7 +277,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf['loc'] = self.__gps_points_gdf.apply(
             lambda row: np.array([row[geometry_field].x, row[geometry_field].y]), axis=1)
         self.__gps_points_gdf[diff_vec] = self.__gps_points_gdf.apply(
-            lambda row: row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc'],
+            lambda row: (row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc']) / 2,
             axis=1)
 
         self.__gps_points_gdf.drop(
@@ -365,7 +366,9 @@ class GpsPointsGdf(object):
                 candidate_link[col] = candidate_link[col].astype(int)
             # add link geo
             single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
-            candidate_link = pd.merge(candidate_link, single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
+            candidate_link = pd.merge(candidate_link,
+                                      single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo',
+                                                       net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]],
                                       on=net_field.SINGLE_LINK_ID_FIELD, how='left')
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
