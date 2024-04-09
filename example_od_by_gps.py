@@ -68,12 +68,29 @@ def first_in_index():
 
 
 def simplify_0402():
-    sz_test_gps_gdf = pd.read_csv(r'./data/input/net/test/0402BUG/gps/gps.csv')
+    from src.gotrackit.tools.coord_trans import LngLatTransfer
+    con = LngLatTransfer()
 
-    gtp = GpsTrip(gps_df=sz_test_gps_gdf)
+    sz_test_gps_gdf = pd.read_csv(r'./data/input/net/test/0402BUG/gps/gps.csv')
+    sz_test_gps_gdf[['lng', 'lat']] = sz_test_gps_gdf.apply(lambda row: con.loc_convert(lng=row['lng'],
+                                                                                        lat=row['lat'], con_type='84-gc'), axis=1, result_type='expand')
+    gtp = GpsTrip(gps_df=sz_test_gps_gdf, min_distance_threshold=20, n=5, way_points_num=5)
     gtp.add_main_group()
-    res = gtp.clean_res()
-    res.to_file(r'./data/output/split_gps/res.geojson', encoding='gbk', driver='GeoJSON')
+    od_df = gtp.generate_od()
+    od_df.to_csv(r'./data/input/net/test/0402BUG/gps/gps_diy_od.csv', index=False)
+
+    from shapely.geometry import LineString
+    od_df['geometry'] = \
+        od_df.apply(lambda row: LineString(
+            [(float(row['o_x']), float(row['o_y']))] + [tuple(map(float, item.split(','))) for item in
+                                                        row['way_points'].split(';')] + [
+                (float(row['d_x']), float(row['d_y']))]), axis=1)
+
+    od_line = gpd.GeoDataFrame(od_df, geometry='geometry', crs='EPSG:4326')
+    del od_line['way_points']
+
+    od_line.to_file(r'./data/input/net/test/0402BUG/gps/gps_od.shp',encoding='gbk')
+
 
 
 if __name__ == '__main__':

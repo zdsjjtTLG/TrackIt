@@ -7,7 +7,7 @@
 
 import geopandas as gpd
 # import src.gotrackit.netreverse.NetGen as ng
-import gotrackit.netreverse.NetGen as ng
+import src.gotrackit.netreverse.NetGen as ng
 
 
 def xa_test():
@@ -47,7 +47,8 @@ def aaa():
     node_gdf = gpd.read_file(r'./data/input/net/xian/node.shp')
     link_gdf = link_gdf.to_crs('EPSG:4326')
     node_gdf = node_gdf.to_crs('EPSG:4326')
-    nv = ng.NetReverse(plain_prj='EPSG:32649', conn_buffer=0.8, net_out_fldr=r'./data/input/net/xian/')
+    nv = ng.NetReverse(plain_prj='EPSG:32649', conn_buffer=0.8, net_out_fldr=r'./data/input/net/xian/',
+                       multi_core_merge=True, core_num=2)
 
     new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, generate_mark=True,
                                                 book_mark_name='xa_test')
@@ -64,7 +65,7 @@ def aaa():
 
 
 if __name__ == '__main__':
-    # xa_test()
+    xa_test()
     # t_xa_bug()
     # sz_osm()
-    aaa()
+    # aaa()

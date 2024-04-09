@@ -12,7 +12,6 @@ import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
 from ..tools.geo_process import prj_inf
-from ..WrapsFunc import function_time_cost
 from ..tools.geo_process import segmentize
 from ..tools.geo_process import angle_base_north
 from ..GlobalVal import GpsField, NetField, PrjConst
@@ -39,13 +38,16 @@ dense_geo_field = gps_field.DENSE_GEO
 n_seg_field = gps_field.N_SEGMENTS
 diff_vec = gps_field.DIFF_VEC
 geo_crs = prj_const.PRJ_CRS
+sub_group_field = gps_field.SUB_GROUP_FIELD
+
 
 class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None,
                  buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plane_crs: str = 'EPSG:32649', dense_gps: bool = True, dense_interval: float = 25.0):
+                 plane_crs: str = 'EPSG:32649', dense_gps: bool = True, dense_interval: float = 25.0,
+                 dwell_l_length: float = 10.0, dwell_n: int = 3):
         """
 
         :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
@@ -55,6 +57,8 @@ class GpsPointsGdf(object):
         :param time_format: 时间列的字符格式
         :param plane_crs: 平面投影坐标系
         :param dense_gps: 是否加密GPS点
+        :param dwell_l_length: 停留点识别距离阈值
+        :param dwell_n: 连续dwell_n个点的距离小于dwell_l_length就被识别为停留点
         :param dense_interval: 加密间隔(相邻GPS点的直线距离小于dense_interval即会进行加密)
         """
         self.geo_crs = geo_crs
@@ -65,6 +69,8 @@ class GpsPointsGdf(object):
         self.dense_gps = dense_gps
         self.dense_interval = dense_interval
         self.max_increment_times = 1 if max_increment_times <= 0 else max_increment_times
+        self.dwell_l_length = dwell_l_length
+        self.dwell_n = dwell_n
         self.__gps_point_dis_dict = dict()
         self.__gps_points_gdf = gps_points_df
         self.check()
@@ -84,7 +90,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
-
+        # self.__gps_points_gdf.to_csv(r'gps.csv')
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.to_plane_prj()
         # self.calc_gps_point_dis()
@@ -160,7 +166,7 @@ class GpsPointsGdf(object):
         self.calc_adj_dis_gap()
         # next_seq
         res = self.__gps_points_gdf.copy()
-        res[next_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].shift(-1).copy()
+        res[next_seq_field] = res[gps_field.POINT_SEQ_FIELD].shift(-1)
         res.dropna(subset=[next_seq_field], inplace=True)
         res[next_seq_field] = res[next_seq_field].astype(int)
         return res[[gps_field.POINT_SEQ_FIELD, next_seq_field, gps_field.ADJ_DIS]]
@@ -175,9 +181,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'] == 0].copy()
         # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         # self.__gps_points_gdf.reset_index(inplace=True, drop=True)
-        # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
-        # self.calc_gps_point_dis()
 
     def rolling_average(self, window: int = 2):
         """
@@ -223,16 +227,6 @@ class GpsPointsGdf(object):
                                                                      unit='s')
         self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
                                                                      format='%Y-%m-%d %H:%M:%S')
-        # print(self.__gps_points_gdf.crs)
-        # self.calc_gps_point_dis()
-
-    def dwell_point_processing(self, buffer: float = 25.0):
-        """识别停留点, 去除多余的停留点GPS信息"""
-        if self.__source_gps_points_gdf is None:
-            self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
-        # TO DO ......
-        self.calc_gps_point_dis()
-        pass
 
     def calc_gps_point_dis(self) -> None:
         seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
@@ -321,12 +315,13 @@ class GpsPointsGdf(object):
     def crs(self):
         return self.__crs
 
-    def get_gps_array_buffer(self, buffer: float = 200.0) -> Polygon:
+    def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon:
         """输出gps路径的buffer范围面域"""
-        gps_array_buffer = LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()).buffer(buffer)
+        gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
+        simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
+        gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
         return gps_array_buffer
 
-    @function_time_cost
     def generate_candidate_link(self, net: Net = None) -> tuple[pd.DataFrame, list[int]]:
         """
         计算GPS观测点的候选路段
@@ -454,24 +449,36 @@ class GpsPointsGdf(object):
     def used_observation_seq_list(self) -> list[int]:
         return self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
 
+    def del_dwell_points(self) -> None:
+        # add field = dis_gap_field
+        self.calc_adj_dis_gap()
+        self.__gps_points_gdf['dwell_label'] = \
+            (self.__gps_points_gdf[dis_gap_field] > self.dwell_l_length).astype(int)
 
-if __name__ == '__main__':
-    from datetime import timedelta
+        self.__gps_points_gdf = self.del_consecutive_zero(df=self.__gps_points_gdf, col='dwell_label', n=self.dwell_n)
+        self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)
 
-    df = pd.DataFrame({'val': [1,2,3,4,5,6,7]})
-    df['val1'] = [1,2,3,4,5,6,7]
-    df['time'] = [datetime.datetime.now() + timedelta(seconds=i * 10) for i in range(1, len(df) + 1)]
-    result = df[['val', 'val1']].rolling(window=2).mean()
-    print(result)
-    print(result.at[1, 'val'])
-    # print(df)
-    # df['time'] = df['time'].apply(lambda x: x.timestamp())
-    # result = df['val'].rolling(window=2).mean()
-    # result = df['time'].rolling(window=2).mean()
-    # print(result)
-    #
-    # df['time'] = result
-    # df['time'] = pd.to_datetime(df['time'], unit='s')
-    # print(df)
+    @staticmethod
+    def del_consecutive_zero(df: pd.DataFrame or gpd.GeoDataFrame = None,
+                             col: str = None, n: int = 3) -> pd.DataFrame or gpd.GeoDataFrame:
+        """
+        标记超过连续n行为0的行, 并且只保留最后一行
+        :param df:
+        :param col:
+        :param n:
+        :return:
+        """
+        m = df[col].ne(0)
+        df['__del__'] = (df.groupby(m.cumsum())[col]
+                         .transform('count').gt(n + 1)
+                         & (~m)
+                         )
+        df['__a__'] = df['__del__'].ne(1).cumsum()
+        df['__cut__'] = df['__a__'] & df['__del__']
+        df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
+        df[sub_group_field] = df['__cut__'].ne(0).cumsum()
+        df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
+        return df
+
 
 

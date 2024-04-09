@@ -34,6 +34,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  save_streets_before_modify_minimum: bool = True, restrict_angle: bool = True,
                  limit_col_name: str = 'road_name',
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
+                 multi_core_merge: bool = False, core_num: int = 3,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
                  save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False, save_done_topo:bool=False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
@@ -52,6 +53,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param save_preliminary: 是否保存合并2度节点后的link
     :param accu_l_threshold: 合并后的link的长度的最大值(m)
     :param angle_threshold: 允许的最大转角(如果两个相邻的可合并link的转角超过这个角度则不允许合并)
+    :param multi_core_merge:
+    :param core_num:
     :param min_length: 允许的最小link长度
     :param limit_col_name: 属性限制字段
     :param restrict_length: 是否启用合并后的长度限制
@@ -132,7 +135,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                                                                   allow_ring=False,
                                                                   modify_minimum_buffer=modify_minimum_buffer,
                                                                   min_length=min_length,
-                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio)
+                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio,
+                                                                  multi_core=multi_core_merge, core_num=core_num)
 
     if save_done_topo:
         save_file(data_item=final_link, out_fldr=out_fldr, file_name='DoneTopoLink', file_type=net_file_type)

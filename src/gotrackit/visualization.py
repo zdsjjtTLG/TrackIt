@@ -35,14 +35,17 @@ class VisualizationCombination(object):
     def collect_hmm(self, hmm_obj: HiddenMarkov = None):
         self.__hmm_obj_list.append(hmm_obj)
 
-    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None) -> None:
+    def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None,
+                      link_width: float = 1.5, node_radius: float = 1.5,
+                      match_link_width: float = 5.0, gps_radius: float = 3.0) -> None:
         out_fldr = r'./' if out_fldr is None else out_fldr
         base_link_gdf = gpd.GeoDataFrame()
         base_node_gdf = gpd.GeoDataFrame()
         gps_link_gdf = gpd.GeoDataFrame()
         for hmm in self.__hmm_obj_list:
             _gps_link_gdf, _base_link_gdf, _base_node_gdf = hmm.acquire_visualization_res(
-                use_gps_source=self.use_gps_source)
+                use_gps_source=self.use_gps_source, link_width=link_width, gps_radius=gps_radius,
+                match_link_width=match_link_width, node_radius=node_radius)
             base_link_gdf = pd.concat([base_link_gdf, _base_link_gdf])
             base_node_gdf = pd.concat([base_node_gdf, _base_node_gdf])
             gps_link_gdf = pd.concat([gps_link_gdf, _gps_link_gdf])
@@ -77,7 +80,8 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     # 生成KeplerGl对象
     if gps_field.HEADING_FIELD in mix_gdf.columns:
         mix_gdf.drop(columns=gps_field.HEADING_FIELD, axis=1, inplace=True)
-    data_item = {kepler_config.MIX_NAME: mix_gdf}
+    mix_gdf.sort_values(by='type', ascending=True, inplace=True)
+    data_item = dict()
 
     # 起点经纬度
     cen_geo = mix_gdf.at[0, net_field.GEOMETRY_FIELD].centroid
@@ -100,6 +104,7 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
         link_item = generate_polygon_layer(color=[65, 72, 88], layer_id=kepler_config.BASE_LINK_NAME)
         user_config["config"]["visState"]["layers"].append(link_item)
         data_item[kepler_config.BASE_LINK_NAME] = link_gdf
+    data_item[kepler_config.MIX_NAME] = mix_gdf
 
     user_map = KeplerGl(height=600, data=data_item)  # data以图层名为键，对应的矢量数据为值
     user_map.config = user_config

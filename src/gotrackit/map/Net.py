@@ -274,7 +274,8 @@ class Net(object):
                       node_gdf=sub_node_gdf,
                       weight_field=self.weight_field,
                       init_from_existing=True, is_check=False,
-                      search_method=self.search_method)
+                      search_method=self.search_method, cache_path=self.cache_path, cache_id=self.cache_id,
+                      not_conn_cost=self.not_conn_cost)
         sub_net.init_net()
         return sub_net
 

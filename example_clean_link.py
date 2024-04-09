@@ -13,7 +13,7 @@
 import time
 import geopandas as gpd
 # import src.gotrackit.netreverse.NetGen as ng
-import gotrackit.netreverse.NetGen as ng
+import src.gotrackit.netreverse.NetGen as ng
 
 
 def func1():
@@ -68,8 +68,67 @@ def clean():
     l.to_file(r'./data/input/net/test/0326fyx/load/modifiedConn_link1.shp')
 
 
+def simplify_trace():
+    trace = gpd.read_file(r'./data/input/net/test/simplify_trace/trace.shp')
+    trace = trace.to_crs('EPSG:32649')
+
+    trace_a = trace.copy()
+    a = time.time()
+    trace_a['geometry'] = trace_a['geometry'].simplify(30.0)
+    print(time.time() - a)
+    trace_a = trace_a.to_crs('EPSG:4326')
+
+    trace_a.to_file(r'./data/input/net/test/simplify_trace/simplify_trace.shp')
+
+    trace_b = trace.copy()
+    b = time.time()
+    trace_b['geometry'] = trace_b['geometry'].remove_repeated_points(30.0)
+    print(time.time() - b)
+    trace_b = trace_b.to_crs('EPSG:4326')
+
+    trace_b.to_file(r'./data/input/net/test/simplify_trace/drop_dup_trace.shp')
+
+
+def redivide_link_node():
+    # 读取数据
+    origin_link = gpd.read_file(r'./data/input/net/test/0402BUG/load/test_link.geojson')
+    # origin_link = gpd.read_file(r'./data/input/net/test/0317/divide_link.geojson')
+    print(origin_link)
+
+    origin_link = ng.NetReverse.clean_link_geo(gdf=origin_link, l_threshold=1.0, plain_crs='EPSG:32650')
+    nv = ng.NetReverse(net_out_fldr=r'./data/input/net/test/0402BUG/redivide',
+                       plain_prj='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
+                       core_num=5, save_streets_after_modify_minimum=True)
+
+    # 处理geometry
+    nv.redivide_link_node(link_gdf=origin_link)
+
+
+def t_merge_multi():
+    from src.gotrackit.netreverse.RoadNet.MultiCoreMerge.merge_links_multi import merge_links_multi
+    origin_link = gpd.read_file(r'./data/input/net/test/0317/divide_link.geojson')
+    origin_node = gpd.read_file(r'./data/input/net/test/0317/divide_node.geojson')
+    origin_link = origin_link.to_crs('EPSG:4326')
+    origin_node = origin_node.to_crs('EPSG:4326')
+    origin_node['node_id'] = origin_node['node_id'].astype(int)
+    l, n, _ = merge_links_multi(link_gdf=origin_link, node_gdf=origin_node, limit_col_name='name',
+                             accu_l_threshold=90, core_num=3)
+    print(l.columns)
+    print(n)
+    l.to_file(r'./data/input/net/test/0317/multi_merge_link.shp')
+    n.to_file(r'./data/input/net/test/0317/multi_merge_node.shp')
+
 if __name__ == '__main__':
     # func2()
     # remap_id_of_link_node()
-    clean()
-
+    # clean()
+    # simplify_trace()
+    redivide_link_node()
+    # t_merge_multi()
+    # import itertools
+    # my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # result = itertools.islice(my_list, 2, 6)
+    # print(len(result))
+    # for item in result:
+    #     # print(item)
+    #     print('aaa')

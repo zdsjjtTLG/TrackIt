@@ -82,12 +82,13 @@ required_field_list = [link_id_field, length_field, direction_field,
 
 
 # 主模块, 找出2度路段组
-def get_two_degrees_node_seq(ud_graph=None, allow_ring=False, d_graph=None):
+def get_two_degrees_node_seq(ud_graph=None, allow_ring=False, sub_graph_node_group=None, two_degrees_sub_graph=None):
     """
     找出2度节点组
     :param ud_graph: nx.net, 无向图
-    :param d_graph: nx.net, 有向图
     :param allow_ring: bool, 是否允许出现环
+    :param sub_graph_node_group:
+    :param two_degrees_sub_graph
     :return:
 
       group              link_seq(sorted...)
@@ -95,25 +96,14 @@ def get_two_degrees_node_seq(ud_graph=None, allow_ring=False, d_graph=None):
         2     [(13, 14), (14, 15), (15, 16), (16, 17)]
         3     [(1, 7), (7, 9), (3, 9), (3, 4), (4, 5), (5, 1)]
     """
-    # 找出度为2的节点id
-    degree_dict = dict(nx.degree(ud_graph))  # 无向图的度
-    d_degree_dict = dict(d_graph.degree)  # 有向图的度
     # 用于存储所有的链组
     all_seq_list = []
 
     # 用于存储所有的环组
     all_cycle_list = []
 
-    # 找出2度节点
-    # 无向图中度为2的节点,(且在有向图中的入度和出度之和为2或者4)
-    two_degree_node_list = [node for node in list(degree_dict.keys()) if
-                            (degree_dict[node] == 2) and d_degree_dict[node] in [2, 4]]
-
-    # 使用度为2的节点建立子图
-    two_degrees_sub_graph = nx.subgraph(ud_graph, two_degree_node_list)
-
     # 度为2的节点组成子图中也包含很多不连通的子图, all_seq_list: [[12, 23, 34], [1, 234, 2], ...]
-    for sub_graph_node in nx.connected_components(two_degrees_sub_graph):
+    for sub_graph_node in sub_graph_node_group:
         seq_list = []
 
         # 如果大于等于两个节点

@@ -995,10 +995,14 @@ GPS数据字段要求如下：
     :widths: 15, 15, 40
 
     "seq","gps点的序列ID","int"
-    "sub_seq","gps点的子序列ID","int"
+    "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
+    "lng","gps点的经度, EPSG:4326","float"
+    "lat","gps点的纬度, EPSG:4326","float"
     "geometry","gps点的几何对象","geometry"
-    "prj_geo","gps在匹配路段上投影点的几何对象","geometry"
-    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离","float"
+    "prj_lng","gps点在匹配路段上投影点的经度, EPSG:4326, 后补点的该值为空","geometry"
+    "prj_lat","gps点在匹配路段上投影点的纬度, EPSG:4326, 后补点的该值为空","geometry"
+    "prj_geo","gps在匹配路段上投影点的几何对象, 后补点的该值为空","geometry"
+    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
     "time","gps定位时间","datetime"
     "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
     "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"

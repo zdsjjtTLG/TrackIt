@@ -28,19 +28,19 @@ adj_speed_field = gps_field.ADJ_SPEED
 
 class GpsTrip(GpsArray):
     def __init__(self, gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0,
-                 min_speed_threshold: float = 2.0, min_distance_threshold: float = 100.0,
-                 min_time_gap: float = 80):
+                 plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n :int = 5,
+                 min_distance_threshold: float = 10.0, way_points_num: int = 5):
 
         GpsArray.__init__(self, gps_points_df=gps_df, time_unit=time_unit, time_format=time_format,
                           plane_crs=plain_crs, geo_crs='EPSG:4326')
 
         self.group_gap_threshold = group_gap_threshold  # s, 相邻GPS的时间超过这个阈值则被切分行程
-        self.min_speed_threshold = min_speed_threshold  # m/s, 相邻GPS的速度小于这个阈值
-        self.min_distance_threshold = min_distance_threshold  # m, 相邻GPS的直线距离
-        self.min_time_gap = min_time_gap  # s, 相邻GPS的时间小于这个阈值
+        self.min_distance_threshold = min_distance_threshold  # m, 相邻GPS的直线距离小于这个值就被切分子行程
         self.gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
         self.__clean_gps_gdf = gpd.GeoDataFrame()
+        assert way_points_num <= 9
+        self.way_points_num = way_points_num
+        self.n = n
 
     def add_main_group(self):
 
@@ -68,16 +68,9 @@ class GpsTrip(GpsArray):
             group_gps_gdf.drop(columns=['main_label'], axis=1, inplace=True)
 
             for _, _gps_df in group_gps_gdf.groupby(group_field):
-                _gps_df[adj_speed_field] = _gps_df.apply(lambda row: get_v(row[dis_gap_field], row[time_gap_field]),
-                                                         axis=1)
-                _gps_df['speed_label'] = _gps_df.apply(
-                    lambda row: 0 if row[adj_speed_field] < self.min_speed_threshold and row[
-                        dis_gap_field] < self.min_distance_threshold and row[
-                                         time_gap_field] < self.min_time_gap else 1, axis=1)
-                self.del_consecutive_zero(df=_gps_df, col='speed_label')
+                _gps_df['sub_label'] = (_gps_df[dis_gap_field] >= self.min_distance_threshold).astype(int)
+                self.del_consecutive_zero(df=_gps_df, col='sub_label', n=self.n)
                 self.__clean_gps_gdf = pd.concat([self.__clean_gps_gdf, _gps_df])
-                break
-            break
 
     @staticmethod
     def add_group(df: pd.DataFrame = None, label_field: str = 'label'):
@@ -96,7 +89,7 @@ class GpsTrip(GpsArray):
 
     @staticmethod
     def del_consecutive_zero(df: pd.DataFrame = None, col: str = None, n: int = 3) -> None:
-        """标记超过连续n行为0的行"""
+        """标记超过连续n行为0的行, 并且只保留最后一行"""
 
         m = df[col].ne(0)
         df['__del__'] = (df.groupby(m.cumsum())[col]
@@ -104,7 +97,7 @@ class GpsTrip(GpsArray):
                          & (~m)
                          )
         df['__a__'] = df['__del__'].ne(1).cumsum()
-        df['__cut__'] = df['__a__'] & df['__del__']
+        df['__cut__'] = df['__a__'].ne(0) & df['__del__']
         df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
         df[sub_group_field] = df['__cut__'].ne(0).cumsum()
         df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
@@ -117,3 +110,32 @@ class GpsTrip(GpsArray):
         export_res['final'] = export_res.apply(lambda row: '-'.join([str(row[group_field]), str(row[sub_group_field])]),
                                                axis=1)
         return export_res
+
+    def generate_od(self):
+        def generate_way_point(df=None):
+            df.reset_index(inplace=True, drop=True)
+            _l = len(df)
+            if len(df) <= self.way_points_num:
+                pass
+            else:
+                o_x, o_y, d_x, d_y = df.at[0, 'lng'], df.at[0, 'lat'], df.at[_l - 1, 'lng'], df.at[_l - 1, 'lat']
+                df.drop(index=[0, _l - 1], axis=0, inplace=True)
+                df.reset_index(inplace=True, drop=True)
+                gap = int(len(df) / self.way_points_num)
+                _sle = df.loc[[gap * i + int(gap / 2) for i in range(self.way_points_num)], :].copy()
+                del df
+                _sle['loc'] = _sle.apply(lambda row: ','.join([str(row['lng']), str(row['lat'])]), axis=1)
+                return o_x, o_y, d_x, d_y, ';'.join(_sle['loc'].to_list())
+
+        res_df = self.clean_res()
+        res_df.rename(columns={'final': 'od_id'}, inplace=True)
+        od_df = res_df.groupby('od_id').apply(lambda df:
+                                              generate_way_point(df)).reset_index(drop=False).rename(
+            columns={0: 'item'})
+        od_df.dropna(subset=['item'], inplace=True)
+        od_df[['o_x', 'o_y', 'd_x', 'd_y', 'way_points']] = od_df.apply(lambda row: row['item'], axis=1,
+                                                                        result_type='expand')
+        od_df['od_id'] = [i for i in range(1, len(od_df) + 1)]
+        del od_df['item']
+        print(od_df)
+        return od_df

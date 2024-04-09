@@ -23,10 +23,11 @@ from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from ..WrapsFunc import function_time_cost
 from .Parse.gd_car_path import ParseGdPath
+from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
-from .RoadNet.Tools.process import merge_double_link
 from ..tools.geo_process import clean_link_geo, remapping_id
+from .RoadNet.Tools.process import merge_double_link, create_single_link
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 
 
@@ -53,6 +54,7 @@ class NetReverse(Reverse):
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
+                 multi_core_merge: bool = False, core_num: int = 3,
                  save_preliminary: bool = False, save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
                  dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
@@ -94,6 +96,8 @@ class NetReverse(Reverse):
         self.min_length = min_length
         self.save_preliminary = save_preliminary
         self.save_done_topo = save_done_topo
+        self.multi_core_merge = multi_core_merge
+        self.core_num = core_num
 
         # process dup
         self.is_process_dup_link = is_process_dup_link
@@ -228,7 +232,8 @@ class NetReverse(Reverse):
                                                      is_process_dup_link=False,
                                                      process_dup_link_buffer=self.process_dup_link_buffer,
                                                      min_length=self.min_length,
-                                                     dup_link_buffer_ratio=self.dup_link_buffer_ratio)
+                                                     dup_link_buffer_ratio=self.dup_link_buffer_ratio,
+                                                     multi_core=self.multi_core_merge, core_num=self.core_num)
         if out_fldr is not None:
             save_file(data_item=link_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_link')
             save_file(data_item=node_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_node')
@@ -298,7 +303,7 @@ class NetReverse(Reverse):
         assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
         fmod = FormatOD(plain_crs=self.plain_prj)
         if isinstance(region_gdf, gpd.GeoDataFrame) and not region_gdf.empty:
-            assert region_gdf.crs == 'EPSG:4326', '面域文件必须是EPSG:4326"'
+            assert region_gdf.crs.srs == 'EPSG:4326', '面域文件必须是EPSG:4326"'
         if od_type == 'rand_od':
             if region_gdf is None or region_gdf.empty:
                 region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
@@ -357,7 +362,9 @@ class NetReverse(Reverse):
                                  net_file_type=self.net_file_type,
                                  modify_conn=self.is_modify_conn,
                                  conn_buffer=self.conn_buffer,
-                                 conn_period=self.conn_period)
+                                 conn_period=self.conn_period,
+                                 multi_core_merge=self.multi_core_merge,
+                                 core_num=self.core_num)
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
@@ -371,13 +378,13 @@ class NetReverse(Reverse):
         :param generate_mark
         :return:
         """
-        geo_crs = link_gdf.crs
+        geo_crs = link_gdf.crs.srs
         assert geo_crs == 'EPSG:4326'
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=generate_mark)
-        net.export_net(export_crs=link_gdf.crs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
+        net.export_net(export_crs=link_gdf.crs.srs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
                        flag_name='modifiedConn')
         net.to_geo_prj()
         link_gdf, node_gdf = net.get_bilateral_link_data(), net.get_node_data()
@@ -428,3 +435,32 @@ class NetReverse(Reverse):
         # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
         my_net.divide_links(divide_l=divide_l, min_l=min_l, is_init_link=False, method='alpha')
         return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+
+    def redivide_link_node(self, link_gdf: gpd.GeoDataFrame = None):
+        """
+        对link进行线层和点层的重新划分
+        :param link_gdf: gpd.GeoDataFrame, 要求至少有geometry字段
+        """
+        link_gdf = link_gdf.to_crs('EPSG:4326')
+
+        if net_field.DIRECTION_FIELD not in link_gdf.columns:
+            print(rf'link层数据缺少dir字段, 自动填充为0')
+            link_gdf[net_field.DIRECTION_FIELD] = 0
+        link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
+        try:
+            del link_gdf[net_field.FROM_NODE_FIELD]
+            del link_gdf[net_field.TO_NODE_FIELD]
+            del link_gdf[net_field.LINK_ID_FIELD]
+            del link_gdf[net_field.LENGTH_FIELD]
+        except Exception as e:
+            print(repr(e))
+        assert set(link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), 'dir字段中有异常值, 只允许0,1出现'
+
+        # 创建single_link
+        single_link_gdf = create_single_link(link_gdf=link_gdf)
+        if self.limit_col_name not in single_link_gdf.columns:
+            single_link_gdf[self.limit_col_name] = 'XX路'
+        single_link_gdf = split_path(path_gdf=single_link_gdf)
+        single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+        del link_gdf
+        self.__generate_net_from_split_path(split_path_gdf=single_link_gdf)

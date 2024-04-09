@@ -10,6 +10,7 @@ from .map.Net import Net
 from .gps.LocGps import GpsPointsGdf
 from .model.Markov import HiddenMarkov
 from .GlobalVal import NetField, GpsField
+from .WrapsFunc import function_time_cost
 from .visualization import VisualizationCombination
 
 gps_field = GpsField()
@@ -21,17 +22,20 @@ node_id_field = net_field.NODE_ID_FIELD
 class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
-                 gps_buffer: float = 90, gps_route_buffer_gap: float = 25.0,
+                 gps_buffer: float = 100, gps_route_buffer_gap: float = 25.0,
                  max_increment_times: int = 2, increment_buffer: float = 20.0,
                  beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
-                 dense_gps: bool = True, dense_interval: float = 25.0,
+                 dense_gps: bool = True, dense_interval: float = 50.0,
+                 dwell_l_length: float = 10.0, dwell_n: int = 3, del_dwell: bool = True,
+                 dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
                  export_geo_res: bool = False, geo_res_fldr: str = None,
-                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = False,
-                 core_num: int = 1):
+                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = True,
+                 core_num: int = 1, link_width: float = 1.5, node_radius: float = 1.5,
+                 match_link_width: float = 5.0, gps_radius: float = 3.0):
         """
 
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
@@ -40,7 +44,7 @@ class MapMatch(object):
         :param gps_df: GPS数据, 必须指定
         :param time_format: GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
         :param time_unit: GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
-        :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认90.0
+        :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认100.0
         :param gps_route_buffer_gap: 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
         :param max_increment_times: 增量搜索次数, 默认2
         :param increment_buffer: 增量半径, 默认20.0
@@ -53,6 +57,7 @@ class MapMatch(object):
         :param heading_para_array: 差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
         :param dense_gps: 是否对GPS数据进行加密, 默认False
         :param dense_interval: 当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密, 默认25.0
+        :param dup_threshold: 利用GPS轨迹计算sub_net时, 先对GPS点原始轨迹做简化, 重复点检测阈值, 默认5m
         :param is_rolling_average: 是否启用滑动窗口平均对GPS数据进行降噪, 默认False
         :param window: 滑动窗口大小, 默认2
         :param export_html: 是否输出网页可视化结果html文件, 默认True
@@ -76,6 +81,9 @@ class MapMatch(object):
         self.time_unit = time_unit  # 时间列单位
         self.is_lower_f = is_lower_f  # 是否降频率
         self.lower_n = lower_n  # 降频倍数
+        self.del_dwell = del_dwell
+        self.dwell_n = dwell_n
+        self.dwell_l_length = dwell_l_length
         self.is_rolling_average = is_rolling_average  # 是否启用滑动窗口平均
         self.rolling_window = window  # 窗口大小
         self.dense_gps = dense_gps  # 是否加密GPS
@@ -89,6 +97,8 @@ class MapMatch(object):
         self.heading_para_array = heading_para_array
         self.omitted_l = omitted_l
         self.top_k = top_k
+        self.dup_threshold = dup_threshold
+        assert dup_threshold < (self.gps_buffer + self.gps_route_buffer_gap) / 3
 
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
         self.gps_sigma = gps_sigma  # 发射概率参数, 概率与之成正比
@@ -109,6 +119,13 @@ class MapMatch(object):
         self.multi_core = multi_core
         self.core_num = core_num
 
+        # 网页可视化参数
+        self.link_width = link_width
+        self.node_radius = node_radius
+        self.match_link_width = match_link_width
+        self.gps_radius = gps_radius
+
+    @function_time_cost
     def execute(self):
 
         match_res_df = pd.DataFrame()
@@ -124,12 +141,16 @@ class MapMatch(object):
                                    buffer=self.gps_buffer, time_unit=self.time_unit,
                                    plane_crs=self.plain_crs,
                                    max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
-                                   dense_gps=self.dense_gps, dense_interval=self.dense_interval)
+                                   dense_gps=self.dense_gps, dense_interval=self.dense_interval,
+                                   dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
             del _gps_df
             # 降频处理
             if self.is_lower_f:
                 print(rf'lower {self.lower_n} - frequency')
                 gps_obj.lower_frequency(n=self.lower_n)
+
+            if self.del_dwell:
+                gps_obj.del_dwell_points()
 
             if self.is_rolling_average:
                 print(rf'rolling average by window size - {self.rolling_window}')
@@ -143,7 +164,8 @@ class MapMatch(object):
             if self.use_sub_net:
                 print(rf'using sub net')
                 used_net = self.my_net.create_computational_net(
-                    gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap))
+                    gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap,
+                                                                  dup_threshold=self.dup_threshold))
             else:
                 used_net = self.my_net
                 print(rf'using whole net')
@@ -172,8 +194,14 @@ class MapMatch(object):
                 # 4.初始化一个匹配结果管理器
                 vc = VisualizationCombination(use_gps_source=self.use_gps_source)
                 vc.collect_hmm(hmm_obj)
-                vc.visualization(zoom=15, out_fldr=self.html_fldr,
-                                 file_name=file_name)
+                try:
+                    vc.visualization(zoom=15, out_fldr=self.html_fldr,
+                                     file_name=file_name, link_width=self.link_width,
+                                     node_radius=self.node_radius, match_link_width=self.match_link_width,
+                                     gps_radius=self.gps_radius)
+                except Exception as e:
+                    print(repr(e))
+                    print(rf'输出HTML可视化文件, 出现某些错误, 输出失败...')
                 del vc
         match_res_df.reset_index(inplace=True, drop=True)
         return match_res_df, self.may_error_list

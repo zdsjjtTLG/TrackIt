@@ -34,7 +34,7 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     :param link_gdf:
     :return:
     """
-    origin_crs = link_gdf.crs
+    origin_crs = link_gdf.crs.srs
 
     # 消除from_node = to_node的记录
     link_gdf.drop(index=link_gdf[link_gdf[from_node_id_field] == link_gdf[to_node_id_field]].index, inplace=True, axis=0)
@@ -89,7 +89,7 @@ def convert_neg_to_pos(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     if link_neg.empty:
         return link_gdf
     else:
-        origin_crs = link_gdf.crs
+        origin_crs = link_gdf.crs.srs
 
         # 从原路网中删除dir为-1的记录
         link_gdf.drop(index=link_gdf[link_gdf[direction_field] == -1].index, axis=0, inplace=True)
@@ -118,6 +118,24 @@ def convert_neg_to_pos(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
         link_gdf = gpd.GeoDataFrame(link_gdf, geometry=geometry_field, crs=origin_crs)
 
         return link_gdf
+
+
+def create_single_link(link_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    基于原来路网创建单向路网
+    :return:
+    """
+    link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
+    neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
+    if neg_link.empty:
+        return link_gdf
+    else:
+        neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
+            lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+
+        single_link_gdf = pd.concat([link_gdf, neg_link])
+        single_link_gdf.reset_index(inplace=True, drop=True)
+        return single_link_gdf
 
 
 if __name__ == '__main__':

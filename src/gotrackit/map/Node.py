@@ -26,10 +26,10 @@ geometry_field = net_field.GEOMETRY_FIELD
 class Node(object):
     def __init__(self, node_gdf: gpd.GeoDataFrame = None, is_check: bool = True, init_available_node: bool = True):
         self.geo_crs = geo_crs
-        self.planar_crs = node_gdf.crs
+        self.planar_crs = node_gdf.crs.srs
         self.__node_gdf = node_gdf.copy()
-        self.max_node_id = None
-        self.__available_node_id = None
+        self.max_node_id = 999
+        self.__available_node_id = []
         if is_check:
             self.planar_crs = judge_plain_crs_based_on_node(node_gdf=self.__node_gdf)
             self.check()
@@ -37,7 +37,7 @@ class Node(object):
             self.init_available_node_id()
 
     def check(self):
-        assert self.__node_gdf.crs == self.geo_crs, rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs}'
+        assert self.__node_gdf.crs.srs == self.geo_crs, rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs.srs}'
         gap_set = {node_id_field, geometry_field} - set(self.__node_gdf.columns)
         assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
         assert len(self.__node_gdf[node_id_field]) == len(self.__node_gdf[node_id_field].unique()), \
@@ -65,16 +65,16 @@ class Node(object):
 
     @property
     def crs(self):
-        return self.__node_gdf.crs
+        return self.__node_gdf.crs.srs
 
     def to_plane_prj(self) -> None:
-        if self.__node_gdf.crs == self.planar_crs:
+        if self.__node_gdf.crs.srs == self.planar_crs:
             pass
         else:
             self.__node_gdf = self.__node_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
-        if self.__node_gdf.crs == self.geo_crs:
+        if self.__node_gdf.crs.srs == self.geo_crs:
             pass
         else:
             self.__node_gdf = self.__node_gdf.to_crs(self.geo_crs)
@@ -82,7 +82,7 @@ class Node(object):
     def init_available_node_id(self) -> None:
         max_node = self.__node_gdf[node_id_field].max()
         self.max_node_id = max_node
-        if self.max_node_id >= 10000000:
+        if self.max_node_id >= 10000:
             return None
         self.__available_node_id = list({i for i in range(1, max_node + 1)} - set(self.__node_gdf[node_id_field]))
 

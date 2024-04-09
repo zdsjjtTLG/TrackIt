@@ -180,7 +180,7 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
     :return:
     """
     assert geometry_field in gdf.columns
-    origin_crs = gdf.crs
+    origin_crs = gdf.crs.srs
     con = LngLatTransfer()
 
     gdf[geometry_field] = gdf.apply(lambda row: con.obj_convert(geo_obj=row[geometry_field], con_type='None'), axis=1)
@@ -296,7 +296,6 @@ def hmm_vector_angle(gps_diff_vec: np.ndarray = None, link_dir_vec: np.ndarray =
     :return:
     """
     # 在GPS点密集处, gps_diff_vec不准确, 往往gps_diff_vec的模会很小, 为了不干扰匹配, 返回0
-
     if np.sqrt(gps_diff_vec[0] ** 2 + gps_diff_vec[1] ** 2) <= omitted_l:
         return 0.0
     else:

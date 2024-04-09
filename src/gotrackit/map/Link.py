@@ -57,7 +57,7 @@ class Link(object):
         self.__available_link_id = []
         if is_check:
             self.check()
-        self.max_link_id = None
+        self.max_link_id = 999
         if init_available_link:
             self.init_available_link_id()
         self.__single_link_gdf = gpd.GeoDataFrame()
@@ -71,7 +71,7 @@ class Link(object):
         self.done_link_vec = False
 
     def check(self):
-        assert self.link_gdf.crs == self.geo_crs, rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs}'
+        assert self.link_gdf.crs.srs == self.geo_crs, rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs.srs}'
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
                    net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
@@ -212,11 +212,11 @@ class Link(object):
                      dir_field: dir_val, geometry_field: geo}
         attr_dict.update(kwargs)
         self.link_gdf = pd.concat(
-            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)])
+            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs.srs)])
         self.link_gdf.index = self.link_gdf[link_id_field]
 
     def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
-        assert link_gdf.crs == self.crs
+        assert link_gdf.crs.srs == self.crs
         assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
         self.link_gdf = pd.concat(
             [self.link_gdf, link_gdf])
@@ -330,7 +330,7 @@ class Link(object):
         return self.__ft_link_mapping
 
     def to_plane_prj(self) -> None:
-        if self.link_gdf.crs == self.planar_crs:
+        if self.link_gdf.crs.srs == self.planar_crs:
             pass
         else:
             if self.__single_link_gdf is None or self.__single_link_gdf.empty:
@@ -340,7 +340,7 @@ class Link(object):
             self.link_gdf = self.link_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
-        if self.link_gdf.crs == self.geo_crs:
+        if self.link_gdf.crs.srs == self.geo_crs:
             pass
         else:
             if self.__single_link_gdf is None or self.__single_link_gdf.empty:
@@ -351,7 +351,7 @@ class Link(object):
 
     @property
     def crs(self):
-        return self.link_gdf.crs
+        return self.link_gdf.crs.srs
 
     @property
     def bilateral_unidirectional_mapping(self) -> dict[int, tuple[int, int, int, int]]:
@@ -360,7 +360,7 @@ class Link(object):
     def init_available_link_id(self) -> None:
         max_link = self.link_gdf[link_id_field].max()
         self.max_link_id = max_link
-        if self.max_link_id >= 10000000:
+        if self.max_link_id >= 100000:
             return None
         self.__available_link_id = list({i for i in range(1, max_link + 1)} - set(self.link_gdf[link_id_field]))
 

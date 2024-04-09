@@ -10,6 +10,7 @@ import geopandas as gpd
 from ..book_mark import generate_book_mark
 from .DupProcess.DupLinks import process_dup_link
 from .Merge.merge_links import merge_two_degrees_node
+from .MultiCoreMerge.merge_links_multi import merge_links_multi
 
 
 def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, ignore_dir: bool = False,
@@ -17,7 +18,8 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
              accu_l_threshold: float = 500.0, angle_threshold: float = 15.0, restrict_length: bool = True,
              restrict_angle: bool = True, save_preliminary: bool = True, out_fldr: str = None,
              is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.75, min_length: float = 50.0,
-             dup_link_buffer_ratio: float = 60.0, modify_minimum_buffer: float = 0.8) -> \
+             dup_link_buffer_ratio: float = 60.0, modify_minimum_buffer: float = 0.8, multi_core: bool = False,
+             core_num: int = 3) -> \
         tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
     """crs input: EPSG:4326
     拓扑优化, 先合并2度节点, 再处理重复link
@@ -38,19 +40,33 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
     :param min_length: 路段最小长度
     :param dup_link_buffer_ratio: LinkBuffer重叠率阈值, 推荐60
     :param modify_minimum_buffer
+    :param multi_core:
+    :param core_num
     :return:
     """
 
     # 1.按照规则合并2度节点
-    new_link, new_node, merge_info_dict = merge_two_degrees_node(link_gdf=link_gdf, limit_col_name=limit_col_name,
-                                                                 ignore_dir=ignore_dir,
-                                                                 allow_ring=allow_ring,
-                                                                 node_gdf=node_gdf,
-                                                                 plain_prj=plain_prj, accu_l_threshold=accu_l_threshold,
-                                                                 angle_threshold=angle_threshold,
-                                                                 restrict_length=restrict_length,
-                                                                 restrict_angle=restrict_angle,
-                                                                 min_length=min_length)
+    if multi_core:
+        new_link, new_node, merge_info_dict = merge_links_multi(link_gdf=link_gdf, limit_col_name=limit_col_name,
+                                                                ignore_dir=ignore_dir,
+                                                                allow_ring=allow_ring,
+                                                                node_gdf=node_gdf,
+                                                                plain_prj=plain_prj, accu_l_threshold=accu_l_threshold,
+                                                                angle_threshold=angle_threshold,
+                                                                restrict_length=restrict_length,
+                                                                restrict_angle=restrict_angle,
+                                                                min_length=min_length, core_num=core_num)
+    else:
+        new_link, new_node, merge_info_dict = merge_two_degrees_node(link_gdf=link_gdf, limit_col_name=limit_col_name,
+                                                                     ignore_dir=ignore_dir,
+                                                                     allow_ring=allow_ring,
+                                                                     node_gdf=node_gdf,
+                                                                     plain_prj=plain_prj,
+                                                                     accu_l_threshold=accu_l_threshold,
+                                                                     angle_threshold=angle_threshold,
+                                                                     restrict_length=restrict_length,
+                                                                     restrict_angle=restrict_angle,
+                                                                     min_length=min_length)
     if save_preliminary:
         generate_book_mark(input_fldr=out_fldr, name_loc_dict=merge_info_dict, prj_name=out_fldr.split('/')[-1])
         new_link.to_file(os.path.join(out_fldr, 'AfterTPMergeLink.shp'), encoding='gbk')
@@ -58,8 +74,8 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
 
     # 是否处理重复link
     if is_process_dup_link:
-        origin_crs = new_link.crs
-        if new_link.crs == plain_prj:
+        origin_crs = new_link.crs.srs
+        if new_link.crs.srs == plain_prj:
             pass
         else:
             new_link = new_link.to_crs(plain_prj)
@@ -69,7 +85,7 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
                                                                  buffer=process_dup_link_buffer,
                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio,
                                                                  modify_minimum_buffer=modify_minimum_buffer)
-        if final_link.crs == origin_crs:
+        if final_link.crs.srs == origin_crs:
             pass
         else:
             final_link = final_link.to_crs(origin_crs)
