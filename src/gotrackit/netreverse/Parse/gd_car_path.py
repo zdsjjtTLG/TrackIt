@@ -137,6 +137,8 @@ class ParseGdPath(object):
             except:
                 print(rf'##########   Skip File {file}')
         all_split_link_gdf.reset_index(inplace=True, drop=True)
+        if all_split_link_gdf.empty:
+            return gpd.GeoDataFrame()
         all_split_link_gdf = gpd.GeoDataFrame(all_split_link_gdf, geometry='geometry', crs='EPSG:4326')
         if drop_ft:
             all_split_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)

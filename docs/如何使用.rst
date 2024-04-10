@@ -497,9 +497,12 @@ GPS数据字段要求如下：
 
    通过该方式获取的路网严禁用于商业行为，仅限于教育以及科学研究。
 
+
+.. note::
+
+   请注意：通过该方式获取的路网的坐标系是GCJ-02，一般的GPS数据坐标系都是WGS-84。
+
 路网生产的相关函数不需要您提供任何的空间地理信息文件，只需指定范围、和申请 `开发者key <https://lbs.amap.com>`_ 即可获取路网。
-
-
 
 .. _路网生产代码示例:
 
@@ -659,6 +662,22 @@ GPS数据字段要求如下：
         #                              od_type='diy_od')
 
 
+本算法包提供了一个依据GPS数据来生产自定义OD的接口，示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        sz_test_gps_gdf = pd.read_csv(r'./data/output/gps/real_sz/TaxiData2.csv')
+        sz_test_gps_gdf.rename(
+            columns={'VehicleNum': 'agent_id', 'longitude': 'lng', 'latitude': 'lat', 'timestamp': 'time'}, inplace=True)
+        nv = ng.NetReverse()
+        gps_od, od_line = nv.generate_od_by_gps(gps_df=sz_test_gps_gdf, way_points_num=7)
+        print(gps_od)
+        gps_od.to_csv(r'./data/output/gps/real_sz/gps_od.csv', encoding='utf_8_sig', index=False)
+        od_line.to_file(r'./data/output/gps/real_sz/gps_od.shp')
+
+
 4.6. 基于已有路网线层, 生产点层
 `````````````````````````````````````````
 
@@ -744,7 +763,7 @@ GPS数据字段要求如下：
         df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
 
         # 处理geometry
-        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649')
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0,)
 
 
 4.9. 路段划分
@@ -811,6 +830,47 @@ GPS数据字段要求如下：
         print(l[['link_id', 'from_node', 'to_node']])
         print(n[['node_id']])
 
+
+4.11. 路网路段、节点重塑
+`````````````````````````````````````````````````
+
+你已经有了一套link文件，但是其存在折点联通性问题，如下图：
+
+.. image:: _static/images/before_redivide.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+可以使用该接口进行路段和节点的重塑以及联通性的优化，你只需要输入一个线层，该函数会帮你重塑节点划分以及路段划分，并且修复联通性
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        # 读取数据
+        origin_link = gpd.read_file(r'./data/input/net/test/0402BUG/load/test_link.geojson')
+        print(origin_link)
+
+        # 为防止线层线型有重复点，先做清洗
+        origin_link = ng.NetReverse.clean_link_geo(gdf=origin_link, l_threshold=1.0, plain_crs='EPSG:32650')
+
+        # multi_core_merge=True表示启用多进程进行拓扑优化
+        # merge_core_num表示启用两个核
+        nv = ng.NetReverse(net_out_fldr=r'./data/input/net/test/0402BUG/redivide',
+                           plain_prj='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
+                           merge_core_num=2, save_streets_after_modify_minimum=True)
+
+        # 路段、节点重新划分、联通性修复，新的网络文件在net_out_fldr下生成
+        nv.redivide_link_node(link_gdf=origin_link)
+
+
+重塑修复后：
+
+.. image:: _static/images/after_redivide.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
 
 函数方法的相关参数见 :doc:`类方法汇总`
 
@@ -922,6 +982,9 @@ GPS数据字段要求如下：
 * increment_buffer
     增量半径, 默认20.0m
 
+* top_k
+    选取每个GPS点buffer范围内的最近的top_k个路段，默认20
+
 * beta
     该值越大, 状态转移概率对于距离(m)越不敏感, 默认20.0m
 
@@ -937,11 +1000,41 @@ GPS数据字段要求如下：
 * lower_n
     降频倍率, 默认2
 
+* del_dwell
+    是否进行停留点识别并且删除停留点，默认True
+
+* dwell_l_length
+    停留点识别距离阈值, 默认10m
+
+* dwell_n
+    连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点，默认3
+
+* is_rolling_average
+    是否启用滑动窗口平均对GPS数据进行降噪, 默认False
+
+* window
+    滑动窗口大小, 默认2
+
+* dense_gps
+    是否对GPS数据进行增密, 默认False
+
+* dense_interval
+    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认25.0
+
+.. image:: _static/images/gps_process.png
+    :align: center
+
+----------------------------------------
+
+
 * use_heading_inf
     是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者 低频定位数据(配合加密参数), 默认False
 
 * heading_para_array
     差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.00001, 0.00001, 0.000001, 0.000001])
+
+* omitted_l
+    单位米，如果前后序GPS点的平均距离小于该值，则认为该GPS点的航向角不准确，不会在该点应用航向角限制
 
 对方向修正系数的解释：
 
@@ -954,19 +1047,6 @@ GPS数据字段要求如下：
     :align: center
 
 ----------------------------------------
-
-
-* dense_gps
-    是否对GPS数据进行增密, 默认False
-
-* dense_interval
-    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认25.0
-
-* is_rolling_average
-    是否启用滑动窗口平均对GPS数据进行降噪, 默认False
-
-* window
-    滑动窗口大小, 默认2
 
 * export_html
     是否输出网页可视化结果html文件, 默认True
@@ -986,9 +1066,17 @@ GPS数据字段要求如下：
 * node_num_threshold
     默认2000
 
+* multi_core
+    是否启用多核匹配, 默认True
+
+* core_num
+    用几个核, 默认1
+
+* gps_radius
+    HTML可视化中GPS点的半径大小，单位米，默认8米
+
 
 地图匹配结果表字段含义为：
-
 
 .. csv-table:: 地图匹配结果表字段说明
     :header: "字段名称", "字段含义", "字段类型"
@@ -1062,7 +1150,7 @@ GPS数据字段要求如下：
         my_net.init_net()  # net初始化
 
 
-6.1. 使用jupyter报net对象无planar_crs属性
+6.2. 使用jupyter报net对象无planar_crs属性
 ``````````````````````````````````````````````
 
 
@@ -1073,3 +1161,21 @@ GPS数据字段要求如下：
 
 
 解决方案：使用pycharm
+
+
+6.3. pyogrio.errors.FieldError
+``````````````````````````````````````````````
+
+fiona版本或者GDAL版本不兼容
+
+.. image:: _static/images/fiona_bug.png
+    :align: center
+
+--------------------------------------------------------
+
+
+
+解决方案：相关地理信息库推荐以下版本：
+
+
+gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)、keplergl(0.3.2)

@@ -56,6 +56,7 @@ class GpsArray(object):
 
         # 存储最原始的GPS信息
         self.__source_gps_points_gdf = self.gps_points_gdf.copy()
+        self.check()
 
     def check(self):
         _gap = {agent_field, lng_field, lat_field, time_field} - set(self.gps_gdf.columns)

@@ -159,6 +159,12 @@ crs
 * save_preliminary
     是否保留重复路段处理前的文件，默认False
 
+* multi_core_merge
+    是否启用多进程进行合并，默认False
+
+* merge_core_num
+    启用几个核，默认1
+
 
 **第五组（重叠路段处理参数）：**
 

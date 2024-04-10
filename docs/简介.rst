@@ -36,8 +36,6 @@
 -------------------------------------
 
 
-
-
 **交流群**
 
 .. image:: _static/images/wxq.jpg
@@ -71,11 +69,16 @@
 持续完善中...
 
 
-4. 匹配原理可视化
+4. 相关视频教程
 --------------------
-算法原理的动画版可参见B站视频：
 
- `基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！ <https://www.bilibili.com/video/BV1gQ4y1w7dC/?vd_source=7389960e7356c27a5d1849f7ee9ae6f2>`_
+ `基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！ <https://www.bilibili.com/video/BV1gQ4y1w7dC>`_
+
+ `一个python包搞定路网获取+地图匹配！ <https://www.bilibili.com/video/BV1nC411z7Vg>`_
+
+ `gotrackit地图匹配包参数详解与问题排查 <https://www.bilibili.com/video/BV1qK421Y7hV>`_
+
+ `QGIS路网拓扑显示、底图加载、样式复用、map保存 <https://www.bilibili.com/video/BV1Sq421F7QX>`_
 
 
 .. [Ref] 《Hidden Markov map matching through noise and sparseness》,Paul Newson & John Krumm

@@ -6,8 +6,6 @@
 
 """生产路网的相关方法"""
 
-
-
 import time
 import os.path
 import pandas as pd
@@ -17,6 +15,7 @@ from .RoadNet.conn import Conn
 from .GlobalVal import NetField
 from .format_od import FormatOD
 from .RoadNet import net_reverse
+from ..gps.GpsTrip import GpsTrip
 from .RoadNet.increment import increment
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
@@ -54,12 +53,12 @@ class NetReverse(Reverse):
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
-                 multi_core_merge: bool = False, core_num: int = 3,
+                 multi_core_merge: bool = False, merge_core_num: int = 2,
                  save_preliminary: bool = False, save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
                  dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
-                 is_multi_core: bool = False, used_core_num: int = 2):
+                 multi_core_parse: bool = False, parse_core_num: int = 2):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -97,7 +96,7 @@ class NetReverse(Reverse):
         self.save_preliminary = save_preliminary
         self.save_done_topo = save_done_topo
         self.multi_core_merge = multi_core_merge
-        self.core_num = core_num
+        self.merge_core_num = merge_core_num
 
         # process dup
         self.is_process_dup_link = is_process_dup_link
@@ -115,8 +114,8 @@ class NetReverse(Reverse):
         self.__region_gdf = gpd.GeoDataFrame()
 
         # if uses multi core
-        self.is_multi_core = is_multi_core
-        self.used_core_num = used_core_num
+        self.multi_core_parse = multi_core_parse
+        self.parse_core_num = parse_core_num
 
     def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
@@ -160,8 +159,8 @@ class NetReverse(Reverse):
                           ignore_head_tail=self.ignore_head_tail,
                           check=False, generate_rod=self.generate_rod,
                           min_rod_length=self.min_rod_length,
-                          is_multi_core=self.is_multi_core,
-                          used_core_num=self.used_core_num)
+                          is_multi_core=self.multi_core_parse,
+                          used_core_num=self.parse_core_num)
 
         split_path_gdf = pgd.parse_path_main_multi()
 
@@ -233,7 +232,7 @@ class NetReverse(Reverse):
                                                      process_dup_link_buffer=self.process_dup_link_buffer,
                                                      min_length=self.min_length,
                                                      dup_link_buffer_ratio=self.dup_link_buffer_ratio,
-                                                     multi_core=self.multi_core_merge, core_num=self.core_num)
+                                                     multi_core=self.multi_core_merge, core_num=self.merge_core_num)
         if out_fldr is not None:
             save_file(data_item=link_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_link')
             save_file(data_item=node_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_node')
@@ -364,7 +363,7 @@ class NetReverse(Reverse):
                                  conn_buffer=self.conn_buffer,
                                  conn_period=self.conn_period,
                                  multi_core_merge=self.multi_core_merge,
-                                 core_num=self.core_num)
+                                 core_num=self.merge_core_num)
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
@@ -464,3 +463,16 @@ class NetReverse(Reverse):
         single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
         del link_gdf
         self.__generate_net_from_split_path(split_path_gdf=single_link_gdf)
+
+    @staticmethod
+    def generate_od_by_gps(gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
+                           plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
+                           min_distance_threshold: float = 10.0, way_points_num: int = 5,
+                           dwell_accu_time: float = 150.0) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+        gtp = GpsTrip(gps_df=gps_df, time_unit=time_unit, time_format=time_format, plain_crs=plain_crs,
+                      group_gap_threshold=group_gap_threshold, n=n, min_distance_threshold=min_distance_threshold,
+                      way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)
+        gtp.add_main_group()
+        od_df, od_line = gtp.generate_od()
+        return od_df, od_line
+

@@ -10,7 +10,7 @@ from shapely.geometry import Point
 from itertools import chain
 
 from src.gotrackit.gps.GpsTrip import GpsTrip
-
+from src.gotrackit.netreverse import NetGen
 
 def get_sample_data():
     sz_gps_df = pd.read_csv(r'../../../data/output/gps/real_sz/TaxiData2.csv')
@@ -67,34 +67,43 @@ def first_in_index():
     pass
 
 
-def simplify_0402():
+def gps_od_0402():
     from src.gotrackit.tools.coord_trans import LngLatTransfer
     con = LngLatTransfer()
 
     sz_test_gps_gdf = pd.read_csv(r'./data/input/net/test/0402BUG/gps/gps.csv')
     sz_test_gps_gdf[['lng', 'lat']] = sz_test_gps_gdf.apply(lambda row: con.loc_convert(lng=row['lng'],
-                                                                                        lat=row['lat'], con_type='84-gc'), axis=1, result_type='expand')
-    gtp = GpsTrip(gps_df=sz_test_gps_gdf, min_distance_threshold=20, n=5, way_points_num=5)
-    gtp.add_main_group()
-    od_df = gtp.generate_od()
-    od_df.to_csv(r'./data/input/net/test/0402BUG/gps/gps_diy_od.csv', index=False)
+                                                                                        lat=row['lat'],
+                                                                                        con_type='84-gc'), axis=1,
+                                                            result_type='expand')
+    nv = NetGen.NetReverse()
+    gps_od = nv.generate_od_by_gps(gps_df=sz_test_gps_gdf)
+    print(gps_od)
 
-    from shapely.geometry import LineString
-    od_df['geometry'] = \
-        od_df.apply(lambda row: LineString(
-            [(float(row['o_x']), float(row['o_y']))] + [tuple(map(float, item.split(','))) for item in
-                                                        row['way_points'].split(';')] + [
-                (float(row['d_x']), float(row['d_y']))]), axis=1)
 
-    od_line = gpd.GeoDataFrame(od_df, geometry='geometry', crs='EPSG:4326')
-    del od_line['way_points']
-
-    od_line.to_file(r'./data/input/net/test/0402BUG/gps/gps_od.shp',encoding='gbk')
-
+def gps_od_sz():
+    from src.gotrackit.tools.coord_trans import LngLatTransfer
+    con = LngLatTransfer()
+    sz_test_gps_gdf = pd.read_csv(r'./data/output/gps/real_sz/TaxiData2.csv')
+    # sz_test_gps_gdf = pd.read_csv(r'./data/input/net/test/0402BUG/gps/gps.csv')
+    sz_test_gps_gdf.rename(
+        columns={'VehicleNum': 'agent_id', 'longitude': 'lng', 'latitude': 'lat', 'timestamp': 'time'}, inplace=True)
+    # sz_test_gps_gdf = sz_test_gps_gdf[sz_test_gps_gdf['agent_id'] == 24514]
+    print(sz_test_gps_gdf)
+    sz_test_gps_gdf[['lng', 'lat']] = sz_test_gps_gdf.apply(lambda row: con.loc_convert(lng=row['lng'],
+                                                                                        lat=row['lat'],
+                                                                                        con_type='84-gc'), axis=1,
+                                                            result_type='expand')
+    nv = NetGen.NetReverse()
+    gps_od, od_line = nv.generate_od_by_gps(gps_df=sz_test_gps_gdf, way_points_num=7)
+    print(gps_od)
+    gps_od.to_csv(r'./data/output/gps/real_sz/gps_od.csv', encoding='utf_8_sig', index=False)
+    od_line.to_file(r'./data/output/gps/real_sz/gps_od.shp')
 
 
 if __name__ == '__main__':
     # get_sample_data()
     # simplify()
-    simplify_0402()
+    gps_od_sz()
+    # gps_od_0402()
 

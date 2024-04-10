@@ -95,10 +95,12 @@ def redivide_link_node():
     # origin_link = gpd.read_file(r'./data/input/net/test/0317/divide_link.geojson')
     print(origin_link)
 
+    # multi_core_merge=True表示启用多进程进行拓扑优化
+    # merge_core_num表示启用两个核
     origin_link = ng.NetReverse.clean_link_geo(gdf=origin_link, l_threshold=1.0, plain_crs='EPSG:32650')
     nv = ng.NetReverse(net_out_fldr=r'./data/input/net/test/0402BUG/redivide',
                        plain_prj='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
-                       core_num=5, save_streets_after_modify_minimum=True)
+                       merge_core_num=2, save_streets_after_modify_minimum=True)
 
     # 处理geometry
     nv.redivide_link_node(link_gdf=origin_link)
@@ -112,11 +114,12 @@ def t_merge_multi():
     origin_node = origin_node.to_crs('EPSG:4326')
     origin_node['node_id'] = origin_node['node_id'].astype(int)
     l, n, _ = merge_links_multi(link_gdf=origin_link, node_gdf=origin_node, limit_col_name='name',
-                             accu_l_threshold=90, core_num=3)
+                                accu_l_threshold=90, core_num=3)
     print(l.columns)
     print(n)
     l.to_file(r'./data/input/net/test/0317/multi_merge_link.shp')
     n.to_file(r'./data/input/net/test/0317/multi_merge_node.shp')
+
 
 if __name__ == '__main__':
     # func2()

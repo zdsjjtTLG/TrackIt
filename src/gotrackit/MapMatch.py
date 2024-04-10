@@ -35,7 +35,7 @@ class MapMatch(object):
                  export_geo_res: bool = False, geo_res_fldr: str = None,
                  node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = True,
                  core_num: int = 1, link_width: float = 1.5, node_radius: float = 1.5,
-                 match_link_width: float = 5.0, gps_radius: float = 3.0):
+                 match_link_width: float = 5.0, gps_radius: float = 6.0):
         """
 
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
@@ -67,6 +67,9 @@ class MapMatch(object):
         :param geo_res_fldr: 存储几何可视化文件的目录, 默认当前目录
         :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
+        :param multi_core: 是否启用多核匹配, 默认True
+        :param core_num: 用几个核, 默认1
+        :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
