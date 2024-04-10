@@ -13,7 +13,6 @@ from ..map.Net import Net
 from datetime import timedelta
 from ..tools.geo_process import prj_inf
 from ..tools.geo_process import segmentize
-from ..tools.geo_process import angle_base_north
 from ..GlobalVal import GpsField, NetField, PrjConst
 from shapely.geometry import Point, Polygon, LineString
 
@@ -90,7 +89,6 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
-        # self.__gps_points_gdf.to_csv(r'gps.csv')
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.to_plane_prj()
         # self.calc_gps_point_dis()
@@ -177,10 +175,8 @@ class GpsPointsGdf(object):
         :param n: 降频倍数
         :return:
         """
-        self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].apply(lambda x: x % n)
-        self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'] == 0].copy()
-        # self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-        # self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] % n
+        self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
         self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
 
     def rolling_average(self, window: int = 2):
@@ -268,44 +264,18 @@ class GpsPointsGdf(object):
             lambda row: np.array([row[next_p_field].x, row[next_p_field].y]), axis=1)
         self.__gps_points_gdf['pre_loc'] = self.__gps_points_gdf.apply(
             lambda row: np.array([row[pre_p_field].x, row[pre_p_field].y]), axis=1)
-        self.__gps_points_gdf['loc'] = self.__gps_points_gdf.apply(
-            lambda row: np.array([row[geometry_field].x, row[geometry_field].y]), axis=1)
-        self.__gps_points_gdf[diff_vec] = self.__gps_points_gdf.apply(
-            lambda row: (row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc']) / 2,
-            axis=1)
+
+        # self.__gps_points_gdf['loc'] = self.__gps_points_gdf.apply(
+        #     lambda row: np.array([row[geometry_field].x, row[geometry_field].y]), axis=1)
+        # self.__gps_points_gdf[diff_vec] = self.__gps_points_gdf.apply(
+        #     lambda row: (row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc']) / 2,
+        #     axis=1)
+
+        self.__gps_points_gdf[diff_vec] = (self.__gps_points_gdf['next_loc'] - self.__gps_points_gdf['pre_loc']) / 2
 
         self.__gps_points_gdf.drop(
-            columns=[next_p_field, pre_p_field, 'next_loc', 'pre_loc', 'loc', ], axis=1,
-            inplace=True)
+            columns=[next_p_field, pre_p_field, 'next_loc', 'pre_loc'], axis=1, inplace=True)
         self.done_diff_heading = True
-
-    @staticmethod
-    def calc_angle(vec1: np.ndarray = None, vec2: np.ndarray = None):
-        a, b = False, False
-
-        if np.linalg.norm(vec1) == 0:
-            a = True
-        vec1 = vec1 / np.linalg.norm(vec1)
-
-        if np.linalg.norm(vec2) == 0:
-            b = True
-        vec2 = vec2 / np.linalg.norm(vec2)
-
-        c_vec = np.ndarray
-
-        if a and b:
-            return -1
-
-        if a or b:
-            if a:
-                c_vec = vec2
-            elif b:
-                c_vec = vec1
-        else:
-            c_vec = vec1 + vec2
-
-        res = angle_base_north(v=c_vec)
-        return res
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:
@@ -329,7 +299,7 @@ class GpsPointsGdf(object):
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
-        if gps_buffer_gdf.crs != self.plane_crs:
+        if gps_buffer_gdf.crs.srs != self.plane_crs:
             gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
 
         single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
@@ -369,7 +339,7 @@ class GpsPointsGdf(object):
         return candidate_link, remain_gps_list
 
     def to_plane_prj(self) -> None:
-        if self.__gps_points_gdf.crs == self.plane_crs:
+        if self.__gps_points_gdf.crs.srs == self.plane_crs:
             self.__crs = self.plane_crs
             pass
         else:
@@ -377,7 +347,7 @@ class GpsPointsGdf(object):
             self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
-        if self.__gps_points_gdf.crs == self.geo_crs:
+        if self.__gps_points_gdf.crs.srs == self.geo_crs:
             self.__crs = self.geo_crs
             pass
         else:
@@ -420,26 +390,6 @@ class GpsPointsGdf(object):
         """
         prj_p, p_prj_l, prj_route_l, line_length, _, prj_vec = prj_inf(p=gps_point, line=line)
         return prj_p, p_prj_l, prj_route_l, line_length, prj_vec
-
-        # distance = line.project(gps_point)
-        #
-        # if distance <= 0.0:
-        #     prj_p = Point(list(line.coords)[0])
-        #     return prj_p, prj_p.distance(gps_point), distance, line.length
-        # elif distance >= line.length:
-        #     prj_p = Point(list(line.coords)[-1])
-        #     return prj_p, prj_p.distance(gps_point), distance, line.length
-        # else:
-        #     coords = list(line.coords)
-        #     for i, p in enumerate(coords):
-        #         xd = line.project(Point(p))
-        #         if xd == distance:
-        #             prj_p = Point(coords[i])
-        #             return prj_p, prj_p.distance(gps_point), distance, line.length
-        #         if xd > distance:
-        #             cp = line.interpolate(distance)
-        #             prj_p = Point((cp.x, cp.y))
-        #             return prj_p, prj_p.distance(gps_point), distance, line.length
 
     @property
     def gps_list_length(self) -> int:
