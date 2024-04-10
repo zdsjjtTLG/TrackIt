@@ -13,27 +13,24 @@
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
-**2024.03.28已经更新: v0.1.9**
+**即将更新: v0.2.0**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 增加GPS增密功能
+- 增加多进程匹配参数
 
-- 引入GPS点差分方向向量来修正发射概率
+- GPS候选路段的选择：除开buffer选择外引入了top_k参数，用于指定buffer内最近的top_k个路段作为候选路段
 
-- 地图匹配接口升级，使用更加简单，暴露了更多的[可调参数](https://gotrackit.readthedocs.io/en/latest/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8.html#id36)
+- 增加GPS点停留点识别功能
 
-- 构建Net对象限制为：输入的link和node的数据必须为WGS-84 EPSG:4326地理坐标，平面投影坐标系不再需要手动指定，可自动进行6度带的确定
+- 修正匹配结果中坐标不一致的BUG，现统一为EPSG:4326
 
-- 增加了路网处理函数：路段划分功能
+- 增加依据GPS数据提取带途径点OD的功能
 
-- 增加了路网处理函数：路段-link_id字段、from_node字段、to_node字段，节点-node_id字段重映射函数
+- 增加了路网处理函数：路段、节点重塑
 
-- 修复GPS生成接口中速度为负数的BUG
+- 修复了部分BUG
 
-- 修复Net初始化过程中由于节点ID过大导致内存溢出的问题
-
-- 新增路径缓存开关、ID缓存开关参数
 
 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
 
@@ -118,7 +115,7 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 ### 1.2 用户手册与视频教程
 
-[用户手册](https://gotrackit.readthedocs.io/en/latest/)、
+[用户手册](https://gotrackit.readthedocs.io/en/latest/)
 
 [基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！](https://www.bilibili.com/video/BV1gQ4y1w7dC)
 
