@@ -175,7 +175,7 @@ class GpsPointsGdf(object):
         :param n: 降频倍数
         :return:
         """
-        self.__gps_points_gdf['label'] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] % n
+        self.__gps_points_gdf['label'] = pd.Series([i for i in range(len(self.__gps_points_gdf))]) % n
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
         self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
 

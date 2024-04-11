@@ -89,7 +89,6 @@ class Net(object):
             self.__node.init_node()
         else:
             pass
-
         if is_check:
             self.check()
     @property

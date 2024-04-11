@@ -31,7 +31,6 @@ geometry_field = net_field.GEOMETRY_FIELD
 link_vec_field = net_field.LINK_VEC_FIELD
 
 
-
 class Link(object):
     def __init__(self, link_gdf: gpd.GeoDataFrame = None, planar_crs: str = None,
                  weight_field: str = None, is_check: bool = True, not_conn_cost: float = 999.0,
@@ -40,19 +39,8 @@ class Link(object):
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
         self.planar_crs = planar_crs
-
-        _gap = {link_id_field, dir_field, from_node_field, to_node_field, length_field, geometry_field} - set(
-            link_gdf.columns)
-        if _gap:
-            raise ValueError(rf'缺少必须字段:{_gap}')
-        for col in [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD,
-                    net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]:
-            link_gdf[col] = link_gdf[col].astype(int)
         self.link_gdf = link_gdf.copy()
         self.link_gdf.index = self.link_gdf[link_id_field]
-        for col in [net_field.DIRECTION_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
-                    net_field.TO_NODE_FIELD]:
-            link_gdf[col] = link_gdf[col].astype(int)
         self.weight_field = weight_field
         self.__available_link_id = []
         if is_check:
@@ -95,6 +83,11 @@ class Link(object):
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
 
     def renew_length(self):
+        _idx = list(self.link_gdf.index)[0]
+        length_a, length_b = \
+            self.link_gdf.at[_idx, net_field.GEOMETRY_FIELD].length, self.link_gdf.at[_idx, net_field.LENGTH_FIELD]
+        if 0.8 <= length_a / length_b <= 1.2:
+            return None
         self.link_gdf[length_field] = self.link_gdf.apply(lambda row: row[geometry_field].length, axis=1)
 
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):

@@ -71,7 +71,7 @@ class GpsArray(object):
         return self.__crs
 
     def to_plane_prj(self) -> None:
-        if self.gps_points_gdf.crs == self.plane_crs:
+        if self.gps_points_gdf.crs.srs == self.plane_crs:
             self.__crs = self.plane_crs
             pass
         else:
@@ -79,7 +79,7 @@ class GpsArray(object):
             self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
-        if self.gps_points_gdf.crs == self.geo_crs:
+        if self.gps_points_gdf.crs.srs == self.geo_crs:
             self.__crs = self.geo_crs
             pass
         else:

@@ -63,8 +63,7 @@ class GpsTrip(GpsArray):
                 lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
 
             # 切分主行程
-            group_gps_gdf['main_label'] = group_gps_gdf.apply(
-                lambda row: 1 if row[time_gap_field] > self.group_gap_threshold else 0, axis=1)
+            group_gps_gdf['main_label'] = (group_gps_gdf[time_gap_field] > self.group_gap_threshold).astype(int)
             self.add_group(label_field='main_label', df=group_gps_gdf, agent_id=agent_id)
             group_gps_gdf.drop(columns=['main_label'], axis=1, inplace=True)
 
@@ -72,6 +71,7 @@ class GpsTrip(GpsArray):
                 _gps_df['sub_label'] = (_gps_df[dis_gap_field] >= self.min_distance_threshold).astype(int)
                 self.del_consecutive_zero(df=_gps_df, col='sub_label', n=self.n)
                 self.__clean_gps_gdf = pd.concat([self.__clean_gps_gdf, _gps_df])
+        self.__clean_gps_gdf.reset_index(inplace=True, drop=True)
 
     @staticmethod
     def add_group(df: pd.DataFrame = None, label_field: str = 'label', agent_id: str = None):

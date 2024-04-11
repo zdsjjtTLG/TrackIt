@@ -311,7 +311,7 @@ def bug_0402():
                    omitted_l=20.1, del_dwell=True, dwell_l_length=6.0,
                    export_html=True, export_geo_res=True, top_k=20,
                    html_fldr=r'./data/output/match_visualization/0402BUG/',
-                   use_gps_source=False,
+                   use_gps_source=True,
                    geo_res_fldr=r'./data/output/match_visualization/0402BUG/', dense_gps=True, multi_core=True,
                    core_num=4, gps_radius=10.0)
 

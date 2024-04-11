@@ -147,13 +147,14 @@ class MapMatch(object):
                                    dense_gps=self.dense_gps, dense_interval=self.dense_interval,
                                    dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
             del _gps_df
+
+            if self.del_dwell:
+                gps_obj.del_dwell_points()
+
             # 降频处理
             if self.is_lower_f:
                 print(rf'lower {self.lower_n} - frequency')
                 gps_obj.lower_frequency(n=self.lower_n)
-
-            if self.del_dwell:
-                gps_obj.del_dwell_points()
 
             if self.is_rolling_average:
                 print(rf'rolling average by window size - {self.rolling_window}')

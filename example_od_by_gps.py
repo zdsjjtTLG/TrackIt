@@ -3,11 +3,11 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
 from itertools import chain
+from shapely.geometry import Point
+
 
 from src.gotrackit.gps.GpsTrip import GpsTrip
 from src.gotrackit.netreverse import NetGen

@@ -994,12 +994,6 @@ GPS数据字段要求如下：
 * dis_para
     距离(m)的折减系数, 默认0.1
 
-* is_lower_f
-    是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
-
-* lower_n
-    降频倍率, 默认2
-
 * del_dwell
     是否进行停留点识别并且删除停留点，默认True
 
@@ -1008,6 +1002,12 @@ GPS数据字段要求如下：
 
 * dwell_n
     连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点，默认3
+
+* is_lower_f
+    是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
+
+* lower_n
+    降频倍率, 默认2
 
 * is_rolling_average
     是否启用滑动窗口平均对GPS数据进行降噪, 默认False
@@ -1021,7 +1021,7 @@ GPS数据字段要求如下：
 * dense_interval
     当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认25.0
 
-.. image:: _static/images/gps_process.png
+.. image:: _static/images/gps_process.jpg
     :align: center
 
 ----------------------------------------

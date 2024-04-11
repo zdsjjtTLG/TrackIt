@@ -13,11 +13,11 @@
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
-**即将更新: v0.2.0**
+**04.12 即将更新: v0.2.0**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 增加多进程匹配参数
+- 匹配过程增加多进程参数，拓扑优化过程增加多进程参数
 
 - GPS候选路段的选择：除开buffer选择外引入了top_k参数，用于指定buffer内最近的top_k个路段作为候选路段
 
