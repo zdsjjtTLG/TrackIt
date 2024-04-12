@@ -134,26 +134,28 @@ class GpsTrip(GpsArray):
                 return o_x, o_y, d_x, d_y, ';'.join(_sle['loc'].to_list())
 
         res_df = self.clean_res()
+        od_line = gpd.GeoDataFrame()
         res_df.rename(columns={'final': 'trip_id'}, inplace=True)
 
         od_df = res_df.groupby('trip_id').apply(lambda df:
                                                 generate_way_point(df)).reset_index(drop=False).rename(
             columns={0: 'item'})
         if od_df.empty:
-            return pd.DataFrame(), gpd.GeoDataFrame()
+            return pd.DataFrame(), od_line
         else:
             od_df.dropna(subset=['item'], inplace=True)
             od_df[['o_x', 'o_y', 'd_x', 'd_y', 'way_points']] = od_df.apply(lambda row: row['item'], axis=1,
                                                                             result_type='expand')
             od_df['od_id'] = [i for i in range(1, len(od_df) + 1)]
             del od_df['item']
-
-            od_df['geometry'] = \
-                od_df.apply(lambda row: LineString(
-                    [(float(row['o_x']), float(row['o_y']))] + [tuple(map(float, item.split(','))) for item in
-                                                                row['way_points'].split(';')] + [
-                        (float(row['d_x']), float(row['d_y']))]), axis=1)
-
-            od_line = gpd.GeoDataFrame(od_df, geometry='geometry', crs='EPSG:4326')
-            del od_line['way_points']
+            try:
+                od_df['geometry'] = \
+                    od_df.apply(lambda row: LineString(
+                        [(float(row['o_x']), float(row['o_y']))] + [tuple(map(float, item.split(','))) for item in
+                                                                    row['way_points'].split(';')] + [
+                            (float(row['d_x']), float(row['d_y']))]), axis=1)
+                od_line = gpd.GeoDataFrame(od_df, geometry='geometry', crs='EPSG:4326')
+                del od_line['way_points']
+            except Exception as e:
+                print(repr(e))
             return od_df, od_line

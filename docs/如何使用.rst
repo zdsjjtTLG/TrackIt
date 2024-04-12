@@ -677,6 +677,28 @@ GPS数据字段要求如下：
         gps_od.to_csv(r'./data/output/gps/real_sz/gps_od.csv', encoding='utf_8_sig', index=False)
         od_line.to_file(r'./data/output/gps/real_sz/gps_od.shp')
 
+nv.generate_od_by_gps的相关参数如下：
+
+返回的第一个数据是OD表(pd.DataFrame)，第二个数据是OD线(gpd.GeoDataFrame)
+
+* gps_df、time_unit、time_format、plain_crs
+    GPS数据相关参数，与地图匹配接口一样的数据要求
+
+* group_gap_threshold
+    时间阈值，单位秒，如果前后GPS点的定位时间超过该阈，则在该点出切分主行程，默认360s
+
+* min_distance_threshold
+    子行程切分距离阈值，单位米，默认10.0m
+
+* dwell_accu_time
+    时间阈值，秒，默认60秒
+
+* n
+    整数，如果超过连续n个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程，默认5
+
+* way_points_num
+    整数，OD的途径点数目，必须≤9，默认5个途径点
+
 
 4.6. 基于已有路网线层, 生产点层
 `````````````````````````````````````````
@@ -763,7 +785,7 @@ GPS数据字段要求如下：
         df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
 
         # 处理geometry
-        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0,)
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
 
 
 4.9. 路段划分
@@ -859,7 +881,7 @@ GPS数据字段要求如下：
         # merge_core_num表示启用两个核
         nv = ng.NetReverse(net_out_fldr=r'./data/input/net/test/0402BUG/redivide',
                            plain_prj='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
-                           merge_core_num=2, save_streets_after_modify_minimum=True)
+                           merge_core_num=2)
 
         # 路段、节点重新划分、联通性修复，新的网络文件在net_out_fldr下生成
         nv.redivide_link_node(link_gdf=origin_link)
@@ -923,24 +945,17 @@ GPS数据字段要求如下：
                      node_path=r'./data/input/net/xian/modifiedConn_node.shp')
         my_net.init_net()  # net初始化
 
-        # 3.新建一个地图匹配对象, 指定其使用net对象, gps数据
-        # 按照以下参数进行匹配: 匹配程序会报warning, 由于GPS的定位误差较大, 差分航向角的误差也很大
-        # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-        #                use_sub_net=True, use_heading_inf=True,
-        #                export_html=True, export_geo_res=True,
-        #                html_fldr=r'./data/output/match_visualization/xa_sample',
-        #                use_gps_source=True,
-        #                geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
-
-        # 3.这个地图匹配对象, 指定一些额外的参数, 可以全部匹配成功
-        # is_rolling_average=True, 启用了滑动窗口平均来对GPS数据进行降噪
-        # window=3, 滑动窗口大小为3
+        # 3. 匹配
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-                       use_sub_net=True, use_heading_inf=False,
-                       is_rolling_average=True, window=3,
-                       export_html=True, export_geo_res=True,
-                       html_fldr=r'./data/output/match_visualization/xa_sample',
-                       geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False)
+               use_sub_net=True, use_heading_inf=True,
+               omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+               lower_n=2, is_lower_f=True,
+               is_rolling_average=True, window=3,
+               dense_gps=False,
+               export_html=True, export_geo_res=True, use_gps_source=False,
+               html_fldr=r'./data/output/match_visualization/xa_sample',
+               geo_res_fldr=r'./data/output/match_visualization/xa_sample',
+               gps_radius=10.0)
 
         # 第一个返回结果是匹配结果表
         # 第二个是发生警告的路段节点编号
@@ -965,10 +980,10 @@ GPS数据字段要求如下：
     GPS数据, 必须指定
 
 * time_format
-    GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"
 
 * time_unit
-    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'
 
 * gps_buffer
     GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为候选路段, 默认90.0m
@@ -1025,7 +1040,6 @@ GPS数据字段要求如下：
     :align: center
 
 ----------------------------------------
-
 
 * use_heading_inf
     是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者 低频定位数据(配合加密参数), 默认False
@@ -1173,9 +1187,35 @@ fiona版本或者GDAL版本不兼容
 
 --------------------------------------------------------
 
-
-
 解决方案：相关地理信息库推荐以下版本：
 
-
 gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)、keplergl(0.3.2)
+
+
+6.4.  shapely库警告
+````````````````````````````````````````````````````````````````````````````````````````````````````````````````
+出现警告信息：RuntimeWarning:invalid value encountered in line locate pointreturn lib.line locate point(line, other)
+
+
+该警告会影响匹配结果，出现该警告的原因是因为你的路网线层的几何中有重复点
+
+.. image:: _static/images/dup_points_warning.png
+    :align: center
+
+--------------------------------------------------------
+
+
+解决方案：先使用路网线层的清洗接口进行预处理
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+
+        # 读取数据
+        df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+
+        # 处理geometry
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)

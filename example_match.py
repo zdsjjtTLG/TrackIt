@@ -68,6 +68,7 @@ def t_lane_match():
                    flag_name='check_0325', export_html=True, export_geo_res=True,
                    html_fldr=r'./data/output/match_visualization/lane',
                    use_heading_inf=True, is_lower_f=True, lower_n=5,
+                   del_dwell=False,
                    geo_res_fldr=r'./data/output/match_visualization/lane', dense_gps=False, top_k=15, omitted_l=6.0)
     res, _ = mpm.execute()
 
@@ -136,13 +137,13 @@ def t_sample_match():
     # window=3, 滑动窗口大小为3
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
                    use_sub_net=True, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
                    lower_n=2, is_lower_f=True,
-                   heading_para_array=np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.00001, 0.000001, 0.000001]),
                    is_rolling_average=True, window=3,
                    export_html=True, export_geo_res=True, use_gps_source=False,
                    html_fldr=r'./data/output/match_visualization/xa_sample',
                    geo_res_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
-                   gps_radius=10.0, omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1)
+                   gps_radius=10.0)
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
     match_res, warn_info = mpm.execute()

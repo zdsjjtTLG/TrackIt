@@ -468,7 +468,7 @@ class NetReverse(Reverse):
     def generate_od_by_gps(gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
                            min_distance_threshold: float = 10.0, way_points_num: int = 5,
-                           dwell_accu_time: float = 150.0) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+                           dwell_accu_time: float = 60.0) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
         gtp = GpsTrip(gps_df=gps_df, time_unit=time_unit, time_format=time_format, plain_crs=plain_crs,
                       group_gap_threshold=group_gap_threshold, n=n, min_distance_threshold=min_distance_threshold,
                       way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)

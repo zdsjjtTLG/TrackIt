@@ -26,8 +26,8 @@ def xa_test():
 def t_xa_bug():
     nv = ng.NetReverse(plain_prj='EPSG:32649', flag_name='all_xian',
                        net_out_fldr=r'./data/output/xa_bug/', save_tpr_link=True, save_done_topo=True,
-                       is_multi_core=True,
-                       used_core_num=7)
+                       multi_core_parse=True,
+                       parse_core_num=7)
     nv.generate_net_from_pickle(binary_path_fldr=r'./data/input/net/test/xa_bug/path')
 
 
@@ -48,7 +48,7 @@ def aaa():
     link_gdf = link_gdf.to_crs('EPSG:4326')
     node_gdf = node_gdf.to_crs('EPSG:4326')
     nv = ng.NetReverse(plain_prj='EPSG:32649', conn_buffer=0.8, net_out_fldr=r'./data/input/net/xian/',
-                       multi_core_merge=True, core_num=2)
+                       multi_core_merge=True, merge_core_num=2)
 
     new_link_gdf, new_node_gdf = nv.modify_conn(link_gdf=link_gdf, node_gdf=node_gdf, generate_mark=True,
                                                 book_mark_name='xa_test')

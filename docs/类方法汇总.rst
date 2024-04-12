@@ -396,6 +396,19 @@ crs
     有标准字段的路网点层
 
 
+(4) redivide_link_node
+:::::::::::::::::::::::::::::
+
+路段、节点重塑、连通性修复
+
+.. py:class:: NetReverse.redivide_link_node(self, link_gdf: gpd.GeoDataFrame = None) -> None
+
+
+* link_gdf
+    至少包含geometry字段的线层数据
+
+生成的新路网在net_out_fldr(NetReverse类初始化参数)下存储
+
 
 3. HiddenMarkov类
 --------------------

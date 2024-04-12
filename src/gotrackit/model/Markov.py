@@ -74,7 +74,7 @@ class HiddenMarkov(object):
         self.top_k = top_k
         self.omitted_l = omitted_l
         self.multi_core = multi_core
-        self.core_num = int(core_num) if core_num <= os.cpu_count() else os.cpu_count()
+        self.core_num = int(core_num) if int(core_num) <= os.cpu_count() else os.cpu_count()
         self.gps_candidate_link = None
 
     def generate_markov_para(self):
@@ -477,9 +477,9 @@ class HiddenMarkov(object):
                                 cache_path: bool = True, not_conn_cost: float = 999.0) -> float:
         """"""
         from_prj_p, from_prj_dis, from_route_dis, from_l_length, from_p_vec = prj_done_dict[
-            (from_gps_seq, from_link_id, )]
+            (from_gps_seq, from_link_id)]
         to_prj_p, to_prj_dis, to_route_dis, to_l_length, to_p_vec = prj_done_dict[
-            (to_gps_seq, to_link_id,)]
+            (to_gps_seq, to_link_id)]
 
         # same link
         if from_link_id == to_link_id:

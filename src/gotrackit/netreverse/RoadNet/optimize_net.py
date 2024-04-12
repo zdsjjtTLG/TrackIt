@@ -44,7 +44,8 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
     :param core_num
     :return:
     """
-
+    link_gdf.reset_index(inplace=True, drop=True)
+    node_gdf.reset_index(inplace=True, drop=True)
     # 1.按照规则合并2度节点
     if multi_core:
         new_link, new_node, merge_info_dict = merge_links_multi(link_gdf=link_gdf, limit_col_name=limit_col_name,

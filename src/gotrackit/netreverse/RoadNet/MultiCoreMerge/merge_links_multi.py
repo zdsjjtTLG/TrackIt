@@ -20,9 +20,9 @@ from shapely.geometry import Point, LineString
 from .limit.attr_limit import limit_attr_alpha
 from .limit.direction_limit import limit_direction
 from .limit.same_head_tail_limit import same_ht_limit
+from ....tools.group import cut_group, cut_group_for_df
 from .limit.same_head_tail_limit import get_head_tail_root
 from .limit.two_degrees_group import get_two_degrees_node_seq
-from ....tools.group import cut_group, cut_group_for_df, cut_iter
 
 net_field = NetField()
 
@@ -156,7 +156,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     node_gdf.drop(index=list(set(sum_del_node_list)), axis=0, inplace=True)
     node_gdf.reset_index(inplace=True, drop=False)
     link_gdf.drop(index=target_link_index, inplace=True, axis=0)
-    new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs, geometry='geometry')
+    new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs.srs, geometry='geometry')
     del new_link_df
 
     link_gdf = pd.concat([link_gdf, new_link_gdf])
