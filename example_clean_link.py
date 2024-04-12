@@ -13,7 +13,7 @@
 import time
 import geopandas as gpd
 # import src.gotrackit.netreverse.NetGen as ng
-import src.gotrackit.netreverse.NetGen as ng
+import gotrackit.netreverse.NetGen as ng
 
 
 def func1():
@@ -122,11 +122,11 @@ def t_merge_multi():
 
 
 if __name__ == '__main__':
-    # func2()
+    func2()
     # remap_id_of_link_node()
     # clean()
     # simplify_trace()
-    redivide_link_node()
+    # redivide_link_node()
     # t_merge_multi()
     # import itertools
     # my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

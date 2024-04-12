@@ -11,10 +11,10 @@ import time
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from src.gotrackit.map.Net import Net
-from src.gotrackit.MapMatch import MapMatch
-# from gotrackit.map.Net import Net
-# from gotrackit.MapMatch import MapMatch
+# from src.gotrackit.map.Net import Net
+# from src.gotrackit.MapMatch import MapMatch
+from gotrackit.map.Net import Net
+from gotrackit.MapMatch import MapMatch
 
 
 # test 1
@@ -325,16 +325,16 @@ def bug_0402():
 
 
 if __name__ == '__main__':
-    # t_lane_match()
+    t_lane_match()
 
-    # t_cq_match()
+    t_cq_match()
 
     # t_sample_match()
     # check_0325()
     # dense_example()
     # t_0326_taxi()
     # bug_0329()
-    bug_0402()
+    # bug_0402()
 
     # l = gpd.read_file(r'./data/input/net/test/0402BUG/load/link.shp')
     # l = l.to_crs('EPSG:32650')

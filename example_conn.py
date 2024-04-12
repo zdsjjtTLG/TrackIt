@@ -7,7 +7,7 @@
 
 import geopandas as gpd
 # import src.gotrackit.netreverse.NetGen as ng
-import src.gotrackit.netreverse.NetGen as ng
+import gotrackit.netreverse.NetGen as ng
 
 
 def xa_test():

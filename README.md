@@ -9,11 +9,10 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/gotrackit)
 
 
-
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
-**04.12 即将更新: v0.2.0**
+**04.12已更新: v0.2.0**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 

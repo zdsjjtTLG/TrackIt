@@ -10,7 +10,6 @@ from .map.Net import Net
 from .gps.LocGps import GpsPointsGdf
 from .model.Markov import HiddenMarkov
 from .GlobalVal import NetField, GpsField
-from .WrapsFunc import function_time_cost
 from .visualization import VisualizationCombination
 
 gps_field = GpsField()
@@ -128,7 +127,6 @@ class MapMatch(object):
         self.match_link_width = match_link_width
         self.gps_radius = gps_radius
 
-    @function_time_cost
     def execute(self):
 
         match_res_df = pd.DataFrame()
