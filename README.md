@@ -58,8 +58,9 @@
 </div>
 
 
-![car_gps.png](docs/_static/images/wxq.jpg)
-
+<div align="center">
+    <img src="docs/_static/images/wxq.jpg" />
+</div>
 
 
 ## 1. 简介
