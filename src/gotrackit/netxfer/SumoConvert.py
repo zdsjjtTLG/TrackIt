@@ -64,7 +64,7 @@ class SumoConvert(object):
         # 先解析节点
         node_tree = ET.parse(plain_node_path)
         node_root = node_tree.getroot()
-        node_df = self.parse_node_palin(plain_node_root=node_root)
+        node_df = self.parse_node_plain(plain_node_root=node_root)
 
         node_loc_dict = {node_id: (x, y) for node_id, x, y in
                          zip(node_df[NODE_ID_KEY], node_df[NODE_X_KEY], node_df[NODE_Y_KEY])}
@@ -77,7 +77,7 @@ class SumoConvert(object):
         # 再解析edge
         edge_tree = ET.parse(plain_edge_path)
         edge_root = edge_tree.getroot()
-        edge_df = self.parse_edge_palin(plain_edge_root=edge_root, node_loc_dict=node_loc_dict)
+        edge_df = self.parse_edge_plain(plain_edge_root=edge_root, node_loc_dict=node_loc_dict)
 
         # 生产几何列
         edge_df['geometry'] = edge_df[EDGE_SHAPE_KEY].apply(lambda shape: LineString(shape))
@@ -89,7 +89,7 @@ class SumoConvert(object):
         return edge_gdf, node_gdf
 
     @staticmethod
-    def parse_node_palin(plain_node_root: ET.Element = None) -> pd.DataFrame:
+    def parse_node_plain(plain_node_root: ET.Element = None) -> pd.DataFrame:
         """
         解析node文件
         :param plain_node_root:
@@ -105,7 +105,7 @@ class SumoConvert(object):
         return pd.DataFrame(item_list, columns=[NODE_ID_KEY, NODE_X_KEY, NODE_Y_KEY, NODE_TYPE_KEY])
 
     @staticmethod
-    def parse_edge_palin(plain_edge_root: ET.Element = None, node_loc_dict: dict = None) -> pd.DataFrame:
+    def parse_edge_plain(plain_edge_root: ET.Element = None, node_loc_dict: dict = None) -> pd.DataFrame:
         """
         解析edge文件
         :param plain_edge_root:
