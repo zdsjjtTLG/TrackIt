@@ -55,6 +55,15 @@ class GpsField(object):
         self.DIFF_VEC = 'diff_vec'
 
 
+class RouteField(object):
+    """"""
+    def __init__(self):
+        self.PATH_ID_FIELD = 'path_id'
+        self.TIME_COST_FIELD = 'time_cost'
+        self.SEQ_FIELD = 'seq'
+        self.O_TIME_FIELD = 'o_time'
+
+
 class MarkovField(object):
     """HMM模型字段"""
     def __init__(self):
