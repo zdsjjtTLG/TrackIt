@@ -406,11 +406,15 @@ class GpsPointsGdf(object):
             (self.__gps_points_gdf[dis_gap_field] > self.dwell_l_length).astype(int)
 
         self.__gps_points_gdf = self.del_consecutive_zero(df=self.__gps_points_gdf, col='dwell_label', n=self.dwell_n)
-        self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)
+        try:
+            self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)
+        except KeyError:
+            pass
 
     @staticmethod
     def del_consecutive_zero(df: pd.DataFrame or gpd.GeoDataFrame = None,
-                             col: str = None, n: int = 3) -> pd.DataFrame or gpd.GeoDataFrame:
+                             col: str = None, n: int = 3,
+                             del_all_dwell: bool = True) -> pd.DataFrame or gpd.GeoDataFrame:
         """
         标记超过连续n行为0的行, 并且只保留最后一行
         :param df:
@@ -423,11 +427,15 @@ class GpsPointsGdf(object):
                          .transform('count').gt(n + 1)
                          & (~m)
                          )
-        df['__a__'] = df['__del__'].ne(1).cumsum()
-        df['__cut__'] = df['__a__'] & df['__del__']
-        df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
-        df[sub_group_field] = df['__cut__'].ne(0).cumsum()
-        df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
+        if del_all_dwell:
+            df.drop(index=df[df['__del__']].index, inplace=True, axis=0)
+            df.drop(columns=['__del__'], axis=1, inplace=True)
+        else:
+            df['__a__'] = df['__del__'].ne(1).cumsum()
+            df['__cut__'] = df['__a__'] & df['__del__']
+            df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
+            df[sub_group_field] = df['__cut__'].ne(0).cumsum()
+            df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
         return df
 
 
