@@ -78,7 +78,10 @@ class Net(object):
                                not_conn_cost=self.not_conn_cost)
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
-        self.__link.renew_length()
+        try:
+            self.__link.renew_length()
+        except:
+            pass
         if not init_from_existing:
             if create_single:
                 self.__link.init_link()
