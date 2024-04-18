@@ -134,12 +134,13 @@ def t_create_node():
     print(l)
     print(n)
 
+
 if __name__ == '__main__':
     # func2()
     # remap_id_of_link_node()
     # clean()
     # simplify_trace()
-    # redivide_link_node()
+    redivide_link_node()
     # t_merge_multi()
     # import itertools
     # my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -148,4 +149,4 @@ if __name__ == '__main__':
     # for item in result:
     #     # print(item)
     #     print('aaa')
-    t_create_node()
+    # t_create_node()
