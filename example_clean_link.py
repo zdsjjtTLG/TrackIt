@@ -58,6 +58,7 @@ def remap_id_of_link_node():
     nv.remapping_link_node_id(l, n)
     print(l[['link_id', 'from_node', 'to_node']])
     print(n[['node_id']])
+    print(n['node_id'].max())
 
 def clean():
     l = gpd.read_file(r'./data/input/net/test/0326fyx/load/modifiedConn_link.shp')
@@ -121,8 +122,20 @@ def t_merge_multi():
     n.to_file(r'./data/input/net/test/0317/multi_merge_node.shp')
 
 
+def t_create_node():
+    link = gpd.read_file(r'C:\Users\Administrator\Downloads\load_5\load_5\modifiedConn_link.shp')
+    link = link[['dir', 'geometry']].copy()
+
+    nv = ng.NetReverse()
+    l, n, _ = nv.create_node_from_link(link_gdf=link,
+                                       update_link_field_list=['link_id', 'from_node', 'to_node', 'dir', 'length'],
+                                       fill_dir=1, out_fldr=r'C:\Users\Administrator\Downloads\load_5',
+                                       plain_prj='EPSG:32650')
+    print(l)
+    print(n)
+
 if __name__ == '__main__':
-    func2()
+    # func2()
     # remap_id_of_link_node()
     # clean()
     # simplify_trace()
@@ -135,3 +148,4 @@ if __name__ == '__main__':
     # for item in result:
     #     # print(item)
     #     print('aaa')
+    t_create_node()
