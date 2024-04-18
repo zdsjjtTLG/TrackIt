@@ -10,11 +10,11 @@ from .map.Net import Net
 from .gps.LocGps import GpsPointsGdf
 from .model.Markov import HiddenMarkov
 from .GlobalVal import NetField, GpsField
-from .visualization import VisualizationCombination
+from .visualization import export_visualization
 
 gps_field = GpsField()
 net_field = NetField()
-agent_if_field = gps_field.AGENT_ID_FIELD
+agent_id_field = gps_field.AGENT_ID_FIELD
 node_id_field = net_field.NODE_ID_FIELD
 
 
@@ -26,17 +26,17 @@ class MapMatch(object):
                  beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
-                 dense_gps: bool = True, dense_interval: float = 50.0,
+                 dense_gps: bool = True, dense_interval: float = 80.0,
                  dwell_l_length: float = 10.0, dwell_n: int = 3, del_dwell: bool = True,
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
-                 export_geo_res: bool = False, geo_res_fldr: str = None,
+                 export_geo_res: bool = False,
                  node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = True,
                  core_num: int = 1, link_width: float = 1.5, node_radius: float = 1.5,
-                 match_link_width: float = 5.0, gps_radius: float = 6.0):
+                 match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
+                 visualization_cache_times: int = 50, multi_core_save: bool = False):
         """
-
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
         :param use_sub_net: 是否在子网络上进行计算, 默认True
@@ -63,12 +63,14 @@ class MapMatch(object):
         :param use_gps_source: 是否在可视化结果中使用GPS源数据进行展示, 默认False
         :param html_fldr: 保存网页可视化结果的文件目录, 默认当前目录
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
-        :param geo_res_fldr: 存储几何可视化文件的目录, 默认当前目录
         :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
         :param multi_core: 是否启用多核匹配, 默认True
         :param core_num: 用几个核, 默认1
         :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
+        :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
+        :param visualization_cache_times: 每匹配完几辆车再进行结果的统一存储, 默认50
+        :param multi_core_save: 是否启用多进程进行结果存储
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -109,7 +111,6 @@ class MapMatch(object):
 
         self.export_html = export_html
         self.export_geo_res = export_geo_res
-        self.geo_res_fldr = geo_res_fldr
         self.html_fldr = html_fldr
 
         self.may_error_list = dict()
@@ -127,16 +128,23 @@ class MapMatch(object):
         self.match_link_width = match_link_width
         self.gps_radius = gps_radius
 
-    def execute(self):
+        self.export_all_agents = export_all_agents
+        self.visualization_cache_times = visualization_cache_times
+        self.multi_core_save = multi_core_save
 
+    def execute(self):
         match_res_df = pd.DataFrame()
+        hmm_res_list = []  # save hmm_res
         if len(self.my_net.get_node_data()[node_id_field].unique()) <= self.node_num_threshold:
             self.use_sub_net = False
-
+        self.gps_df.dropna(subset=[agent_id_field], inplace=True)
+        agent_num = len(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
+        if agent_num == 0:
+            raise ValueError('去除agent_id列空值行后, gps数据为空...')
         # 对每辆车的轨迹进行匹配
+        agent_count = 0
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
-            file_name = '-'.join([self.flag_name, str(agent_id)])
-            print(rf'agent: {agent_id}')
+            print(rf'gotrackit ------ agent: {agent_id} ------ gotrackit')
             _gps_df.reset_index(inplace=True, drop=True)
             gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                    buffer=self.gps_buffer, time_unit=self.time_unit,
@@ -183,27 +191,22 @@ class MapMatch(object):
             hmm_obj.generate_markov_para()
             hmm_obj.solve()
             _match_res_df = hmm_obj.acquire_res()
+            hmm_obj.format_war_info()
             if hmm_obj.is_warn:
-                self.may_error_list[agent_id] = hmm_obj.warn_info
-
-            if self.export_geo_res:
-                hmm_obj.acquire_geo_res(out_fldr=self.geo_res_fldr,
-                                        flag_name=file_name)
-
+                self.may_error_list[agent_id] = hmm_obj.format_warn_info
             match_res_df = pd.concat([match_res_df, _match_res_df])
+            agent_count += 1
 
-            if self.export_html:
-                # 4.初始化一个匹配结果管理器
-                vc = VisualizationCombination(use_gps_source=self.use_gps_source)
-                vc.collect_hmm(hmm_obj)
-                try:
-                    vc.visualization(zoom=15, out_fldr=self.html_fldr,
-                                     file_name=file_name, link_width=self.link_width,
-                                     node_radius=self.node_radius, match_link_width=self.match_link_width,
-                                     gps_radius=self.gps_radius)
-                except Exception as e:
-                    print(repr(e))
-                    print(rf'输出HTML可视化文件, 出现某些错误, 输出失败...')
-                del vc
-        match_res_df.reset_index(inplace=True, drop=True)
+            # if export files
+            if self.export_html or self.export_geo_res:
+                hmm_res_list.append(hmm_obj)
+                if len(hmm_res_list) >= self.visualization_cache_times or agent_count == agent_num:
+                    export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
+                                         export_geo=self.export_geo_res,
+                                         gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
+                                         out_fldr=self.html_fldr, flag_name=self.flag_name,
+                                         multi_core_save=self.multi_core_save)
+                    del hmm_res_list
+                    hmm_res_list = []
+
         return match_res_df, self.may_error_list
