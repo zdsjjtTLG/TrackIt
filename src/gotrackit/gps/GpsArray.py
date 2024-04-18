@@ -46,8 +46,7 @@ class GpsArray(object):
         try:
             self.gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
-        except Exception as e:
-            print(repr(e))
+        except ValueError:
             self.gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
         self.gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
