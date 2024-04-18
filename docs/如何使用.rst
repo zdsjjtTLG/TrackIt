@@ -1015,7 +1015,7 @@ nv.generate_od_by_gps的相关参数如下：
     停留点识别距离阈值, 默认10m
 
 * dwell_n
-    连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点，默认3
+    超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点，默认2
 
 * is_lower_f
     是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
@@ -1033,7 +1033,7 @@ nv.generate_od_by_gps的相关参数如下：
     是否对GPS数据进行增密, 默认False
 
 * dense_interval
-    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认25.0
+    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认80.0
 
 .. image:: _static/images/gps_process.jpg
     :align: center
@@ -1071,7 +1071,7 @@ nv.generate_od_by_gps的相关参数如下：
     是否输出匹配结果的几何可视化文件, 默认False
 
 * visualization_cache_times
-    每匹配完几辆车再进行结果的统一存储, 默认50
+    每匹配完visualization_cache_times辆车再进行结果的统一存储(可并发存储), 默认50
 
 * multi_core_save
     是否启用多进程进行结果存储，默认False
@@ -1086,10 +1086,10 @@ nv.generate_od_by_gps的相关参数如下：
     默认2000
 
 * multi_core
-    是否启用多核匹配, 默认True
+    是否启用多核匹配, 默认True, 这个多核匹配指的是在单条轨迹上的多进程匹配
 
 * core_num
-    用几个核, 默认1
+    用几个核进行匹配, 默认1
 
 * gps_radius
     HTML可视化中GPS点的半径大小，单位米，默认8米
