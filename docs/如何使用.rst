@@ -959,7 +959,9 @@ nv.generate_od_by_gps的相关参数如下：
         # 第一个返回结果是匹配结果表
         # 第二个是发生警告的路段节点编号
         match_res, warn_info = mpm.execute()
-        print(warn_info)
+        for may_error_agent in warn_info.keys():
+            print(may_error_agent)
+            print(warn_info[may_error_agent])
         print(match_res)
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
