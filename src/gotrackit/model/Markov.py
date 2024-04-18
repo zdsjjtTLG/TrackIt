@@ -59,34 +59,33 @@ class HiddenMarkov(object):
         self.gps_match_res_gdf = None
         # {(from_seq, to_seq): pd.DataFrame()}
         self.__s2s_route_l = dict()
-        self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = None, None, None
+        self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error = None, None, None, None
         self.path_cost_df = pd.DataFrame()
         self.is_warn = False
         self.not_conn_cost = not_conn_cost
         self.use_heading_inf = use_heading_inf
         if heading_para_array is None:
-            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.00001, 0.00001, 0.000001, 0.000001])
+            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.0001, 0.0001, 0.00001, 0.000001, 0.000001])
         else:
             self.heading_para_array = heading_para_array
         self.angle_slice = 180 / len(self.heading_para_array)
         self.dis_para = dis_para
-        self.warn_info = list()
+        self.warn_info = {'from_ft': [], 'to_ft': []}
+        self.format_warn_info = pd.DataFrame()
         self.top_k = top_k
         self.omitted_l = omitted_l
         self.multi_core = multi_core
         self.core_num = int(core_num) if int(core_num) <= os.cpu_count() else os.cpu_count()
         self.gps_candidate_link = None
 
+    @function_time_cost
     def generate_markov_para(self):
-
-        # self.__generate_markov_para()
         if self.multi_core and self.core_num >= 1:
             self.__generate_transition_mat_alpha_multi()
         else:
             self.__generate_transition_mat()
         self.__generate_emission_mat()
 
-    @function_time_cost
     def __generate_transition_mat(self):
 
         # 计算 初步候选
@@ -136,7 +135,6 @@ class HiddenMarkov(object):
 
         # print(_)
 
-    @function_time_cost
     def __generate_emission_mat(self):
 
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
@@ -237,10 +235,8 @@ class HiddenMarkov(object):
                                 t_mat_dict=self.__ft_transition_dict, use_log_p=use_lop_p)
         self.__solver.init_model()
         self.index_state_list = self.__solver.iter_model()
+        # print(self.index_state_list)
 
-        print(self.index_state_list)
-
-    @function_time_cost
     def __generate_transition_mat_alpha_multi(self):
         n = self.core_num
 
@@ -752,13 +748,20 @@ class HiddenMarkov(object):
             if ((now_from_node, now_to_node) == (next_from_node, next_to_node)) or now_to_node == next_from_node:
                 pass
             else:
+                pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
+                next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                 if ft_state in self.__adj_seq_path_dict.keys():
-                    pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
-                    next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
+                    # pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
+                    # next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
-                        warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
-                        self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                        warnings.warn(
+                            rf'gps seq: {pre_seq} -> {next_seq} 状态转移出现问题, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                        # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                        self.warn_info['from_ft'].append(
+                            (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                        self.warn_info['to_ft'].append(
+                            (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
                         _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
                                              range(0, len(node_seq) - 1)]
                     else:
@@ -784,8 +787,13 @@ class HiddenMarkov(object):
                         [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
                 else:
                     self.is_warn = True
-                    warnings.warn(rf'相邻link状态不连通...ft:{(now_from_node, now_to_node)} -> ft:{(next_from_node, next_to_node)}, 可能是GPS太稀疏或者路网本身不连通')
-                    self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                    warnings.warn(
+                        rf'gps seq: {pre_seq} -> {next_seq} 状态转移出现问题, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                    # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                    self.warn_info['from_ft'].append(
+                        (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    self.warn_info['to_ft'].append(
+                        (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,
@@ -803,11 +811,13 @@ class HiddenMarkov(object):
 
     def acquire_visualization_res(self, use_gps_source: bool = False,
                                   link_width: float = 1.5, node_radius: float = 1.5,
-                                  match_link_width: float = 5.0, gps_radius: float = 3.0) -> tuple[
-                                        gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+                                  match_link_width: float = 5.0, gps_radius: float = 3.0) -> tuple[gpd.GeoDataFrame,
+                                  gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """获取可视化结果"""
         if self.__plot_mix_gdf is None:
+            print('初次计算')
             single_link_gdf = self.net.get_link_data()
+            single_link_gdf.reset_index(inplace=True, drop=True)
             node_gdf = self.net.get_node_data()
             net_crs = self.net.crs
             plain_crs = self.net.planar_crs
@@ -833,8 +843,7 @@ class HiddenMarkov(object):
             plot_gps_gdf.drop(columns=[gps_field.LNG_FIELD, gps_field.LAT_FIELD], axis=1, inplace=True)
             if plot_gps_gdf.crs != plain_crs:
                 plot_gps_gdf = plot_gps_gdf.to_crs(plain_crs)
-            plot_gps_gdf[net_field.GEOMETRY_FIELD] = \
-                plot_gps_gdf[net_field.GEOMETRY_FIELD].apply(lambda p: p.buffer(gps_radius))
+            plot_gps_gdf[net_field.GEOMETRY_FIELD] = plot_gps_gdf[net_field.GEOMETRY_FIELD].buffer(gps_radius)
             plot_gps_gdf[gps_field.TYPE_FIELD] = 'gps'
 
             # 匹配路段GDF
@@ -848,8 +857,8 @@ class HiddenMarkov(object):
             plot_match_link_gdf.reset_index(drop=True, inplace=True)
             if is_geo_crs:
                 plot_match_link_gdf = plot_match_link_gdf.to_crs(plain_crs)
-            plot_match_link_gdf[net_field.GEOMETRY_FIELD] = plot_match_link_gdf[net_field.GEOMETRY_FIELD].apply(
-                lambda l: l.buffer(match_link_width))
+            plot_match_link_gdf[net_field.GEOMETRY_FIELD] = \
+                plot_match_link_gdf[net_field.GEOMETRY_FIELD].buffer(match_link_width)
             plot_match_link_gdf.drop(columns=[gps_field.LNG_FIELD, gps_field.LAT_FIELD], axis=1, inplace=True)
 
             plot_gps_gdf = plot_gps_gdf.to_crs(self.net.geo_crs)
@@ -857,24 +866,48 @@ class HiddenMarkov(object):
             gps_link_gdf = pd.concat([plot_gps_gdf, plot_match_link_gdf])
             gps_link_gdf.reset_index(inplace=True, drop=True)
 
+            # 错误信息
+            may_error_gdf = gpd.GeoDataFrame()
+            if self.format_warn_info.empty:
+                pass
+            else:
+                self.format_warn_info[['from_single', 'to_single', 'ft_gps']] = self.format_warn_info.apply(
+                    lambda row: (row['from_ft'][0], row['to_ft'][0], row['from_ft'][3]),
+                    axis=1, result_type='expand')
+                format_warn_df = pd.concat([self.format_warn_info[['from_single', 'ft_gps']].rename(
+                    columns={'from_single': net_field.SINGLE_LINK_ID_FIELD}),
+                                            self.format_warn_info[['to_single', 'ft_gps']].rename(
+                                                columns={'to_single': net_field.SINGLE_LINK_ID_FIELD})])
+                format_warn_df.reset_index(inplace=True, drop=True)
+                may_error_gdf = pd.merge(format_warn_df,
+                                         single_link_gdf, on=net_field.SINGLE_LINK_ID_FIELD, how='left')
+                may_error_gdf = gpd.GeoDataFrame(may_error_gdf, geometry=net_field.GEOMETRY_FIELD,
+                                                 crs=single_link_gdf.crs.srs)
+
             # 路网底图
             origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first').copy()
+            del single_link_gdf
             if is_geo_crs:
                 origin_link_gdf = origin_link_gdf.to_crs(plain_crs)
                 node_gdf = node_gdf.to_crs(plain_crs)
-            origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].apply(
-                lambda x: x.buffer(link_width))
-            node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].apply(
-                lambda x: x.buffer(node_radius))
+                may_error_gdf = may_error_gdf.to_crs(plain_crs)
+            origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
+            node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].buffer(node_radius)
+
+            if not may_error_gdf.empty:
+                may_error_gdf[net_field.GEOMETRY_FIELD] = may_error_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
 
             origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
+            if not may_error_gdf.empty:
+                may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
             node_gdf = node_gdf.to_crs(self.net.geo_crs)
 
-            self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf = gps_link_gdf, origin_link_gdf, node_gdf
-            return gps_link_gdf, origin_link_gdf, node_gdf
-
+            self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error = \
+                gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
+            return gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
         else:
-            return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf
+            print('利用重复值')
+            return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error
 
     def acquire_geo_res(self, out_fldr: str = None, flag_name: str = 'flag'):
         """获取矢量结果文件, 可以在qgis中可视化"""
@@ -924,6 +957,11 @@ class HiddenMarkov(object):
         for gdf, name in zip([gps_layer, prj_p_layer, prj_l_layer, match_link_gdf],
                              ['gps', 'prj_p', 'prj_l', 'match_link']):
             gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
+
+    def format_war_info(self):
+        if self.warn_info['from_ft']:
+            self.format_warn_info = pd.DataFrame(self.warn_info)
+        del self.warn_info
 
 
 if __name__ == '__main__':
