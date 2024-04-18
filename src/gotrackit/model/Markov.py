@@ -587,7 +587,7 @@ class HiddenMarkov(object):
                 (gps_seq, single_link_id)]
         else:
             # new calc and cache
-            print('# new calc and cache')
+            # print('# new calc and cache')
             (prj_p, prj_dis, route_dis, l_length, p_vec) = self.get_gps_prj_info(
                 target_link_id=single_link_id,
                 gps_seq=gps_seq)
@@ -815,7 +815,7 @@ class HiddenMarkov(object):
                                   gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """获取可视化结果"""
         if self.__plot_mix_gdf is None:
-            print('初次计算')
+            # print('初次计算')
             single_link_gdf = self.net.get_link_data()
             single_link_gdf.reset_index(inplace=True, drop=True)
             node_gdf = self.net.get_node_data()
@@ -906,7 +906,7 @@ class HiddenMarkov(object):
                 gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
             return gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
         else:
-            print('利用重复值')
+            # print('利用重复值')
             return self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error
 
     def acquire_geo_res(self, out_fldr: str = None, flag_name: str = 'flag'):
