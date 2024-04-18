@@ -43,12 +43,12 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
     """
     out_fldr = './' if out_fldr is None else out_fldr
 
-    if not multi_core_save or len(hmm_obj_list) <= 3 or os.cpu_count() <= 1:
-        print('single export')
+    if not multi_core_save or len(hmm_obj_list) <= 10 or os.cpu_count() <= 1:
+        # print('single export')
         export_vs(hmm_obj_list=hmm_obj_list, use_gps_source=use_gps_source, gps_radius=gps_radius,
                   out_fldr=out_fldr, export_geo=export_geo, export_html=export_html, flag_name=flag_name)
     else:
-        print('multi export')
+        # print('multi export')
         core_num = 3 if os.cpu_count() >= 3 else os.cpu_count()
         hmm_group = cut_group(obj_list=hmm_obj_list, n=core_num)
         del hmm_obj_list
@@ -66,7 +66,7 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
         for res in res_list:
             hmm_obj_list.extend(res.get())
 
-    if export_all_agents:
+    if export_all_agents and export_html:
         # 初始化一个匹配结果管理器
         all_vc = VisualizationCombination(use_gps_source=use_gps_source)
         all_vc.hmm_obj_list = hmm_obj_list
