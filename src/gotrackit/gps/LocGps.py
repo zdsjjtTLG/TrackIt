@@ -71,7 +71,9 @@ class GpsPointsGdf(object):
         self.dwell_l_length = dwell_l_length
         self.dwell_n = dwell_n
         self.__gps_point_dis_dict = dict()
+        gps_points_df.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf = gps_points_df
+        self.agent_id = self.__gps_points_gdf.at[0, gps_field.AGENT_ID_FIELD]
         self.check()
         if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
             self.__gps_points_gdf[gps_field.HEADING_FIELD] = 0.0
@@ -82,8 +84,7 @@ class GpsPointsGdf(object):
         try:
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
-        except Exception as e:
-            print(repr(e))
+        except ValueError:
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
@@ -99,6 +100,7 @@ class GpsPointsGdf(object):
         self.done_diff_heading = False
 
     def check(self):
+        assert len(self.__gps_points_gdf) > 1, f'agent: {self.agent_id} GPS样本数据不足两个...'
         assert {gps_field.LNG_FIELD, gps_field.LAT_FIELD,
                 gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
             set(self.__gps_points_gdf.columns)), \
@@ -420,6 +422,7 @@ class GpsPointsGdf(object):
         :param df:
         :param col:
         :param n:
+        :param del_all_dwell
         :return:
         """
         m = df[col].ne(0)
