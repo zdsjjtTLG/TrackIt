@@ -144,8 +144,7 @@ class MapMatch(object):
         # 对每辆车的轨迹进行匹配
         agent_count = 0
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
-            print(rf'gotrackit ------ agent: {agent_id} ------ gotrackit')
-            _gps_df.reset_index(inplace=True, drop=True)
+            print(rf'- gotrackit ------> agent: {agent_id} ')
             gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                    buffer=self.gps_buffer, time_unit=self.time_unit,
                                    plane_crs=self.plain_crs,
@@ -202,7 +201,7 @@ class MapMatch(object):
                 hmm_res_list.append(hmm_obj)
                 if len(hmm_res_list) >= self.visualization_cache_times or agent_count == agent_num:
                     export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
-                                         export_geo=self.export_geo_res,
+                                         export_geo=self.export_geo_res, export_html=self.export_html,
                                          gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
                                          out_fldr=self.html_fldr, flag_name=self.flag_name,
                                          multi_core_save=self.multi_core_save)
