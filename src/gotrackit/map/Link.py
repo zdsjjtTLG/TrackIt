@@ -86,9 +86,13 @@ class Link(object):
         _idx = list(self.link_gdf.index)[0]
         length_a, length_b = \
             self.link_gdf.at[_idx, net_field.GEOMETRY_FIELD].length, self.link_gdf.at[_idx, net_field.LENGTH_FIELD]
-        if 0.8 <= length_a / length_b <= 1.2:
-            return None
-        self.link_gdf[length_field] = self.link_gdf.apply(lambda row: row[geometry_field].length, axis=1)
+        if isinstance(length_a, (gpd.GeoSeries, pd.Series)):
+            if 0.8 <= max(length_a / length_b) <= 1.2:
+                return None
+        else:
+            if 0.8 <= length_a / length_b <= 1.2:
+                return None
+        self.link_gdf[length_field] = self.link_gdf[geometry_field].length
 
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):
         """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
