@@ -33,31 +33,31 @@
 
 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
 
-<div align="center">
-    <img src="docs/_static/images/l_f.gif" />
-</div>
+
+稀疏轨迹匹配与路径补全：
 
 <div align="center">
-    <img src="docs/_static/images/m_h_f.gif" />
-</div>
-
-稀疏轨迹增密匹配：
-
-<div align="center">
-    <img src="docs/_static/images/dense_gps.gif" />
+    <img src="docs/_static/images/极稀疏轨迹匹配.gif" />
 </div>
 
 
 <div align="center">
-    <img src="docs/_static/images/taxi_xishu.gif" />
+    <img src="docs/_static/images/匹配动画样例3.gif" />
 </div>
 
+
+常规匹配：
 
 <div align="center">
-    <img src="docs/_static/images/xa_sample.gif" />
+    <img src="docs/_static/images/匹配动画样例1.gif" />
+</div>
+
+<div align="center">
+    <img src="docs/_static/images/匹配动画样例2.gif" />
 </div>
 
 
+用户交流群：
 <div align="center">
     <img src="docs/_static/images/wxq.jpg" />
 </div>

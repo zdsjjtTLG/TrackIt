@@ -195,7 +195,8 @@ def dense_example():
                    gps_buffer=400,
                    html_fldr=r'./data/output/match_visualization/dense_example',
                    dense_gps=True,
-                   use_sub_net=True, dense_interval=50.0, use_gps_source=False, use_heading_inf=True, multi_core=True)
+                   use_sub_net=True, dense_interval=50.0, use_gps_source=False, use_heading_inf=True, multi_core=True,
+                   gps_radius=15.0)
     res, _ = mpm.execute()
     print(res)
     res.to_csv(r'./data/output/match_visualization/dense_example/match_res.csv', encoding='utf_8_sig', index=False)
@@ -337,10 +338,10 @@ if __name__ == '__main__':
     # t_lane_match()
 
     # t_cq_match()
-    t_sample_match()
+    # t_sample_match()
 
     # check_0325()
-    # dense_example()
+    dense_example()
     # t_0326_taxi()
     # bug_0329()
     # bug_0402()
