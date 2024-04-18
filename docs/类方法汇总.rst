@@ -260,7 +260,7 @@ crs
     区域边界buffer，米，可选
 
 * od_type
-    用于构造od的方法，rand_od、region_od、diy_od或者gps_based
+    用于构造od的方法，rand_od、region_od、diy_od
 
 * od_num
     需要请求的od数，默认300，只有od_type为rand_od时起效
