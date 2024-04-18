@@ -12,23 +12,17 @@
 作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
 
 
-**04.12已更新: v0.2.0**
+**04.18已更新: v0.2.1**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 匹配过程增加多进程参数，拓扑优化过程增加多进程参数
+- 地图匹配接口移除geo_res_fldr, geojson文件和html存储在一个目录下，指定html_fldr即可，以及增加其他存储参数(见文档)
 
-- GPS候选路段的选择：除开buffer选择外引入了top_k参数，用于指定buffer内最近的top_k个路段作为候选路段
+- HTML文件中新增警告路段信息，若该次匹配中出现警告, 则在HTML文件中会多一个图层，该图层记录了GPS状态转移出错的路段
 
-- 增加GPS点停留点识别功能
+- 停留点识别功能改进
 
-- 修正匹配结果中坐标不一致的BUG，现统一为EPSG:4326
-
-- 增加依据GPS数据提取带途径点OD的功能
-
-- 增加了路网处理函数：路段、节点重塑
-
-- 修复了部分BUG
+- BUG修复
 
 
 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
@@ -54,6 +48,11 @@
 
 <div align="center">
     <img src="docs/_static/images/匹配动画样例2.gif" />
+</div>
+
+
+<div align="center">
+    <img src="docs/_static/images/匹配动画样例4.gif" />
 </div>
 
 
