@@ -391,6 +391,7 @@ class KeplerConfig(object):
 
         self.BASE_LINK_NAME = 'base_link'
         self.BASE_NODE_NAME = 'base_node'
+        self.ERROR_XFER = 'error_xfer'
         self.MIX_NAME = 'mix'
         self.GPS_NAME = 'gps'
         self.MATCH_LINK_NAME = 'match_link'
