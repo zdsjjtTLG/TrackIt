@@ -24,13 +24,25 @@
     地图匹配所要求的路网输入和TransCAD路网格式非常类似,尤其适合交通模型、交通大数据行业从业者。
 
 
-.. image:: _static/images/l_f.gif
+.. image:: _static/images/极稀疏轨迹匹配.gif
     :align: center
 
 -------------------------------------
 
 
-.. image:: _static/images/m_h_f.gif
+.. image:: _static/images/匹配动画样例1.gif
+    :align: center
+
+-------------------------------------
+
+
+.. image:: _static/images/匹配动画样例2.gif
+    :align: center
+
+-------------------------------------
+
+
+.. image:: _static/images/匹配动画样例3.gif
     :align: center
 
 -------------------------------------
