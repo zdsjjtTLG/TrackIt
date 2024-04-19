@@ -7,21 +7,23 @@
 
 安装前确保python环境中有以下前置依赖库，括号中为作者使用版本(基于python3.11)，仅供参考
 
-* geopandas(0.14.1)
-
 * geopy(2.4.1)
 
 * gdal(3.4.3)
 
-* networkx(3.2.1)
+* shapely(2.0.3)
 
-* shapely(2.0.2)
+* fiona(1.9.5)
+
+* pyproj(3.6.1)
+
+* geopandas(0.14.3)
+
+* networkx(3.2.1)
 
 * pandas(2.0.3)
 
 * numpy(1.26.2)
-
-* pyproj(3.6.1)
 
 * keplergl(0.3.2)
 
