@@ -55,6 +55,9 @@
     <img src="docs/_static/images/匹配动画样例4.gif" />
 </div>
 
+<div align="center">
+    <img src="docs/_static/images/geojson_res.jpg" />
+</div>
 
 用户交流群：
 <div align="center">
