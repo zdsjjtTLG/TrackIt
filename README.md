@@ -1,6 +1,12 @@
 
-![car_gps.png](docs/_static/images/gotrackit.png)
 
+<div align="center">
+    <img src="docs/_static/images/gotrackit.png" />
+</div>
+
+<br>
+
+<div align=center>
 
 [![Documentation Status](https://readthedocs.org/projects/gotrackit/badge/?version=latest)](https://gotrackit.readthedocs.io/en/latest/?badge=latest)
 ![PyPI - Version](https://img.shields.io/pypi/v/gotrackit)
@@ -8,11 +14,14 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/gotrackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/gotrackit)
 
+~ 一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位 ~
 
-作者: 唐铠, 794568794@qq.com, tangkai@zhechengdata.com
+唐铠, 794568794@qq.com, tangkai@zhechengdata.com
+</div>
+<br>
 
 
-**04.18已更新: v0.2.1**
+**版本状态：04.18已更新: v0.2.1**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
@@ -25,10 +34,14 @@
 - BUG修复
 
 
-遇到BUG无法解决请进群交流，别忘了给项目一颗star哦~
+<br>
 
+<div align=center>
+~ 稀疏轨迹匹配与路径补全 ~
+</div>
 
-稀疏轨迹匹配与路径补全：
+<br>
+
 
 <div align="center">
     <img src="docs/_static/images/极稀疏轨迹匹配.gif" />
@@ -40,7 +53,13 @@
 </div>
 
 
-常规匹配：
+<br>
+
+<div align=center>
+~ 常规匹配 ~
+</div>
+
+<br>
 
 <div align="center">
     <img src="docs/_static/images/匹配动画样例1.gif" />
@@ -59,7 +78,14 @@
     <img src="docs/_static/images/geojson_res.jpg" />
 </div>
 
-用户交流群：
+<br>
+
+<div align=center>
+~ 用户交流群, 遇到BUG无法解决请进群交流, 别忘了给项目一颗star哦, 您的支持是我迭代的动力 ~
+</div>
+
+<br>
+
 <div align="center">
     <img src="docs/_static/images/wxq.jpg" />
 </div>
@@ -141,5 +167,3 @@ __如何依据GPS数据推算车辆的实际路径？__
 ![main.png](docs/_static/images/viterbi.png)
 
 ![main.png](docs/_static/images/trace.png)
-
-
