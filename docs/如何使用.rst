@@ -1003,10 +1003,10 @@ nv.generate_od_by_gps的相关参数如下：
     选取每个GPS点buffer范围内的最近的top_k个路段，默认20
 
 * beta
-    该值越大, 状态转移概率对于距离(m)越不敏感, 默认20.0m
+    该值越大, 状态转移概率对于距离差(米, 相邻投影点路径长度 与 相邻GPS点球面距离 的距离差)越不敏感, 默认20.0m
 
 * gps_sigma
-    该值越大, 发射概率对距离(m)越不敏感, 默认20.0m
+    该值越大, 发射概率对距离(米, GPS点到候选路段的距离)越不敏感, 默认20.0m
 
 * dis_para
     距离(m)的折减系数, 默认0.1
@@ -1021,7 +1021,7 @@ nv.generate_od_by_gps的相关参数如下：
     超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点，默认2
 
 * is_lower_f
-    是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
+    是否对GPS数据进行数据降频, 适用于: 高频-高定位误差 GPS数据, 默认False
 
 * lower_n
     降频倍率, 默认2
@@ -1036,7 +1036,7 @@ nv.generate_od_by_gps的相关参数如下：
     是否对GPS数据进行增密, 默认False
 
 * dense_interval
-    当相邻GPS点的直线距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认80.0
+    当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认80.0
 
 .. image:: _static/images/gps_process.jpg
     :align: center
