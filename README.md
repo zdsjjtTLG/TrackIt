@@ -25,9 +25,9 @@
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 地图匹配接口移除geo_res_fldr, geojson文件和html存储在一个目录下，指定html_fldr即可，以及增加其他存储参数(见文档)
+- 地图匹配接口移除geo_res_fldr，geojson文件和html存储在一个目录下，指定html_fldr即可，以及增加其他存储参数(见文档)
 
-- HTML文件中新增警告路段信息，若该次匹配中出现警告, 则在HTML文件中会多一个图层，该图层记录了GPS状态转移出错的路段
+- HTML文件中新增警告路段信息，若该次匹配中出现警告，则在HTML文件中会多一个图层，该图层记录了GPS状态转移出错的路段
 
 - 停留点识别功能改进
 
@@ -81,7 +81,7 @@
 <br>
 
 <div align=center>
-~ 用户交流群, 遇到BUG无法解决请进群交流, 别忘了给项目一颗star哦, 您的支持是我迭代的动力 ~
+~ 用户交流群， 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦， 您的支持是我迭代的动力 ~
 </div>
 
 <br>
