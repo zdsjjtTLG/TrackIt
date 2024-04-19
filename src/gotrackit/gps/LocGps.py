@@ -289,6 +289,7 @@ class GpsPointsGdf(object):
 
     def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon:
         """输出gps路径的buffer范围面域"""
+        assert len(self.__gps_points_gdf) > 1, '经过预处理后该辆车只有一个gps观测点, 无法进行匹配'
         gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
         simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
         gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
