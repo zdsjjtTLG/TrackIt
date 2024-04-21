@@ -31,6 +31,20 @@
 
 - BUG修复
 
+<br>
+
+<div align=center>
+~ v0.2.2效率将大幅度提升 ~
+</div>
+
+<br>
+
+
+<div align="center">
+    <img src="docs/_static/images/speed_up.jpg" />
+</div>
+
+
 
 <br>
 
