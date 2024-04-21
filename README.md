@@ -21,15 +21,13 @@
 <br>
 
 
-**版本状态：04.18已更新: v0.2.1**
+**版本状态：04.25即将更新更新: v0.2.2**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 地图匹配接口移除geo_res_fldr，geojson文件和html存储在一个目录下，指定html_fldr即可，以及增加其他存储参数(见文档)
+- 向量化改造, 引入FMM(Fast Map Matching)路径预存储机制, 大规模路网匹配效率大幅度提升
 
-- HTML文件中新增警告路段信息，若该次匹配中出现警告，则在HTML文件中会多一个图层，该图层记录了GPS状态转移出错的路段
-
-- 停留点识别功能改进
+- 完善报错机制, 遇到GPS脏数据不再报错停止, 而是跳过, 并且在所有的agents计算完毕后输出有问题的agent编号
 
 - BUG修复
 
