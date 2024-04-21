@@ -343,14 +343,20 @@ def route2gps():
 
     # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_path=r'./data/output/reverse/0318cd/FinalLink.shp',
-                 node_path=r'./data/output/reverse/0318cd/FinalNode.shp', not_conn_cost=1500, fmm_cache=True)
-    my_net.init_net()  # net初始化
+                 node_path=r'./data/output/reverse/0318cd/FinalNode.shp', not_conn_cost=1500.0, fmm_cache=True,
+                 max_cut_off=20000.0, cut_off=1500)
+    my_net.init_net(recalc_cache=True, fmm_cache_fldr=r'./data/output/reverse/0318cd', n=1)  # net初始化
+
+    # my_net = Net(link_path=r'./data/output/reverse/0318cd/FinalLink.shp',
+    #              node_path=r'./data/output/reverse/0318cd/FinalNode.shp', not_conn_cost=1500)
+    # my_net.init_net()  # net初始化
+
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=50, flag_name='cd_route2gps',
                    use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='"%Y-%m-%d %H:%M:%S"', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=True, dwell_l_length=20.0, dwell_n=0,
-                   export_html=False, export_geo_res=False, top_k=3,
+                   export_html=True, export_geo_res=False, top_k=5,
                    html_fldr=r'./data/output/match_visualization/0318cd_route2gps/',
                    use_gps_source=False, multi_core=True,
                    core_num=1, gps_radius=10.0, export_all_agents=True, multi_core_save=True)
@@ -405,12 +411,12 @@ if __name__ == '__main__':
     # t_lane_match()
 
     # t_cq_match()
-    t_sample_match()
+    # t_sample_match()
 
     # check_0325()
-    # dense_example()
-    # t_0326_taxi()
-    # bug_0402()
+    dense_example()
+    t_0326_taxi()
+    bug_0402()
 
     # l = gpd.read_file(r'./data/input/net/test/0402BUG/load/link.shp')
     # l = l.to_crs('EPSG:32650')
