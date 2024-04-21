@@ -12,8 +12,8 @@
 
 import time
 import geopandas as gpd
-# import src.gotrackit.netreverse.NetGen as ng
-import gotrackit.netreverse.NetGen as ng
+import src.gotrackit.netreverse.NetGen as ng
+# import gotrackit.netreverse.NetGen as ng
 
 
 def func1():
@@ -134,13 +134,39 @@ def t_create_node():
     print(l)
     print(n)
 
+def simple_0419_net():
+    l = gpd.read_file(r'./data/input/net/test/0419test/link.shp')
+    nv = ng.NetReverse()
+    link, node, _ = nv.create_node_from_link(link_gdf=l,
+                                             update_link_field_list=['link_id', 'from_node', 'to_node', 'dir',
+                                                                     'length'],
+                                             fill_dir=1, out_fldr=r'./data/input/net/test/0419test/',
+                                             plain_prj='EPSG:32650')
+
+
+def simplify_sz():
+    # nv = ng.NetReverse(angle_threshold=70, restrict_angle=True, restrict_length=False,
+    #                    ignore_dir=False, allow_ring=False, multi_core_merge=True,
+    #                    merge_core_num=3)
+    # link_gdf = gpd.read_file(r'./data/input/net/test/0402BUG/load/new_link.shp')
+    # node_gdf = gpd.read_file(r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp')
+    # nv.topology_optimization(out_fldr='./data/input/net/test/0402BUG/load',
+    #                          link_gdf=link_gdf, node_gdf=node_gdf)
+
+    l = gpd.read_file('./data/input/net/test/0402BUG/load/opt_link.shp')
+    l = l.to_crs('EPSG:32650')
+    l['geometry'] = l['geometry'].simplify(5.0)
+    l['length'] = l['geometry'].length
+    l = l.to_crs('EPSG:4326')
+    l.to_file(r'./data/input/net/test/0402BUG/load/opt_link_5.shp')
+
 
 if __name__ == '__main__':
     # func2()
     # remap_id_of_link_node()
     # clean()
     # simplify_trace()
-    redivide_link_node()
+    # redivide_link_node()
     # t_merge_multi()
     # import itertools
     # my_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -150,3 +176,5 @@ if __name__ == '__main__':
     #     # print(item)
     #     print('aaa')
     # t_create_node()
+    # simple_0419_net()
+    simplify_sz()

@@ -99,10 +99,13 @@ class MapMatch(object):
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
         self.heading_para_array = heading_para_array
+        if not omitted_l < dense_interval / 2:
+            omitted_l = dense_interval / 2 - 0.1
         self.omitted_l = omitted_l
         self.top_k = top_k
+        if not dup_threshold < (self.gps_buffer + self.gps_route_buffer_gap) / 3:
+            dup_threshold = (self.gps_buffer + self.gps_route_buffer_gap) / 3 - 0.1
         self.dup_threshold = dup_threshold
-        assert dup_threshold < (self.gps_buffer + self.gps_route_buffer_gap) / 3
 
         self.beta = beta  # 状态转移概率参数, 概率与之成正比
         self.gps_sigma = gps_sigma  # 发射概率参数, 概率与之成正比
@@ -114,11 +117,12 @@ class MapMatch(object):
         self.html_fldr = html_fldr
 
         self.may_error_list = dict()
+        self.error_list = list()
 
         self.my_net = net
         self.not_conn_cost = self.my_net.not_conn_cost
         self.use_gps_source = use_gps_source
-        assert omitted_l < dense_interval / 2, 'omitted_l 必须小于 dense_interval / 2'
+
         self.multi_core = multi_core
         self.core_num = core_num
 
@@ -140,11 +144,14 @@ class MapMatch(object):
         self.gps_df.dropna(subset=[agent_id_field], inplace=True)
         agent_num = len(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
         if agent_num == 0:
-            raise ValueError('去除agent_id列空值行后, gps数据为空...')
+            print('去除agent_id列空值行后, gps数据为空...')
+            return match_res_df, self.may_error_list, self.error_list
+
         # 对每辆车的轨迹进行匹配
         agent_count = 0
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
-            print(rf'- gotrackit ------> agent: {agent_id} ')
+            agent_count += 1
+            print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
             gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                    buffer=self.gps_buffer, time_unit=self.time_unit,
                                    plane_crs=self.plain_crs,
@@ -175,6 +182,9 @@ class MapMatch(object):
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap,
                                                                   dup_threshold=self.dup_threshold))
+                if used_net is None:
+                    self.error_list.append(agent_id)
+                    continue
             else:
                 used_net = self.my_net
                 print(rf'using whole net')
@@ -187,14 +197,15 @@ class MapMatch(object):
                                    core_num=self.core_num)
 
             # 求解参数
-            hmm_obj.generate_markov_para()
+            is_success = hmm_obj.generate_markov_para()
+            if not is_success:
+                continue
             hmm_obj.solve()
             _match_res_df = hmm_obj.acquire_res()
             hmm_obj.format_war_info()
             if hmm_obj.is_warn:
                 self.may_error_list[agent_id] = hmm_obj.format_warn_info
             match_res_df = pd.concat([match_res_df, _match_res_df])
-            agent_count += 1
 
             # if export files
             if self.export_html or self.export_geo_res:
@@ -208,4 +219,4 @@ class MapMatch(object):
                     del hmm_res_list
                     hmm_res_list = []
 
-        return match_res_df, self.may_error_list
+        return match_res_df, self.may_error_list, self.error_list

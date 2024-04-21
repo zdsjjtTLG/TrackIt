@@ -107,6 +107,6 @@ def gps_od_sz():
 if __name__ == '__main__':
     # get_sample_data()
     # simplify()
-    # gps_od_sz()
-    gps_od_0402()
+    gps_od_sz()
+    # gps_od_0402()
 

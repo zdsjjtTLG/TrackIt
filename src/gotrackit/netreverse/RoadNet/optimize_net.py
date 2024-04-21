@@ -14,7 +14,7 @@ from .MultiCoreMerge.merge_links_multi import merge_links_multi
 
 
 def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, ignore_dir: bool = False,
-             allow_ring: bool = False, limit_col_name: str = 'road_name', plain_prj: str = 'EPSG:32650',
+             allow_ring: bool = False, limit_col_name: str = None, plain_prj: str = 'EPSG:32650',
              accu_l_threshold: float = 500.0, angle_threshold: float = 15.0, restrict_length: bool = True,
              restrict_angle: bool = True, save_preliminary: bool = True, out_fldr: str = None,
              is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.75, min_length: float = 50.0,

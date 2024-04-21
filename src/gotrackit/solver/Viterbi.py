@@ -59,7 +59,6 @@ class Viterbi(object):
 
         # print(rf'初始化后:{self.zeta_array_dict[0]}')
 
-    @function_time_cost
     def iter_model(self) -> list[int]:
         """动态规划迭代求解"""
 

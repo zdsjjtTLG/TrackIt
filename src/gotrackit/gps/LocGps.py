@@ -100,14 +100,14 @@ class GpsPointsGdf(object):
         self.done_diff_heading = False
 
     def check(self):
-        assert len(self.__gps_points_gdf) > 1, f'agent: {self.agent_id} GPS样本数据不足两个...'
         assert {gps_field.LNG_FIELD, gps_field.LAT_FIELD,
                 gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
             set(self.__gps_points_gdf.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
 
-    def dense(self):
-
+    def dense(self) -> None:
+        if len(self.__gps_points_gdf) <= 1:
+            return None
         # 时间差和距离差
         self.calc_adj_dis_gap()
         self.calc_adj_time_gap()
@@ -287,13 +287,16 @@ class GpsPointsGdf(object):
     def crs(self):
         return self.__crs
 
-    def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon:
+    def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon or None:
         """输出gps路径的buffer范围面域"""
-        assert len(self.__gps_points_gdf) > 1, '经过预处理后该辆车只有一个gps观测点, 无法进行匹配'
-        gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
-        simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
-        gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
-        return gps_array_buffer
+        if len(self.__gps_points_gdf) <= 1:
+            print(r'经过数据预处理后GPS观测点数据不足2个')
+            return None
+        else:
+            gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
+            simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
+            gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
+            return gps_array_buffer
 
     def generate_candidate_link(self, net: Net = None) -> tuple[pd.DataFrame, list[int]]:
         """
@@ -407,7 +410,7 @@ class GpsPointsGdf(object):
         self.calc_adj_dis_gap()
         self.__gps_points_gdf['dwell_label'] = \
             (self.__gps_points_gdf[dis_gap_field] > self.dwell_l_length).astype(int)
-
+        self.__gps_points_gdf.loc[len(self.__gps_points_gdf) - 1, 'dwell_label'] = 1
         self.__gps_points_gdf = self.del_consecutive_zero(df=self.__gps_points_gdf, col='dwell_label', n=self.dwell_n)
         try:
             self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)

@@ -216,7 +216,8 @@ class NetReverse(Reverse):
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
                               out_fldr: str = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
-        assert self.limit_col_name in link_gdf.columns, rf'limit_col_name: {self.limit_col_name}, 该字段不在线层表中...'
+        if self.limit_col_name not in link_gdf.columns:
+            self.limit_col_name = None
         link_gdf, node_gdf, dup_info_dict = optimize(link_gdf=link_gdf, node_gdf=node_gdf,
                                                      ignore_dir=self.ignore_dir,
                                                      allow_ring=self.allow_ring,

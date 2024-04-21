@@ -6,13 +6,18 @@
 """
 路网信息存储与相关方法
 """
-
+import os
+import pickle
+import time
+import sys
 import numpy as np
 import pandas as pd
+import multiprocessing
 from .Link import Link
 from .Node import Node
 import networkx as nx
 import geopandas as gpd
+from ..tools.group import cut_group
 from shapely.geometry import LineString
 from ..tools.geo_process import prj_inf
 from ..tools.save_file import save_file
@@ -40,7 +45,8 @@ class Net(object):
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
-                 not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True):
+                 not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True,
+                 is_sub_net: bool = False, fmm_cache: bool = False, cut_off: float = 500.0, max_cut_off: float = 5000.0):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -52,16 +58,25 @@ class Net(object):
         :param search_method: 路径搜索方法, 'dijkstra' or 'bellman-ford'
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
         :param not_conn_cost: 不连通路径的阻抗(m)
+        :param is_sub_net: 是否是子网络
+        :param fmm_cache: 是否启用路径预存储
+        :param cut_off:
+
         """
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
         self.search_method = search_method
         self.weight_field = weight_field
         self.all_pair_path_df = pd.DataFrame()
-        self.__stp_cache = dict()
-        self.__done_path_cost = dict()
+        self.__stp_cache = dict() or pd.DataFrame
+        self.__done_path_cost = dict() or pd.DataFrame
+        self.__done_stp_cost_df = pd.DataFrame()
         self.cache_path = cache_path
         self.cache_id = cache_id
+        self.__is_sub_net = is_sub_net
+        self.fmm_cache = fmm_cache
+        self.cut_off = cut_off
+        self.max_cut_off = max_cut_off
 
         if node_gdf is None:
             self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, init_available_node=self.cache_id)
@@ -94,6 +109,7 @@ class Net(object):
             pass
         if is_check:
             self.check()
+
     @property
     def planar_crs(self):
         return self.__planar_crs
@@ -104,6 +120,16 @@ class Net(object):
         self.__link.planar_crs = val
         self.__node.planar_crs = val
 
+    @property
+    def is_sub_net(self) -> bool:
+        return self.__is_sub_net
+
+    def get_path_cache(self) -> pd.DataFrame:
+        return self.__done_stp_cost_df
+
+    def set_path_cache(self, stp_cost_df: pd.DataFrame = None) -> None:
+        self.__done_stp_cost_df = stp_cost_df
+
     def check(self) -> None:
         """检查点层线层的关联一致性"""
         node_set = set(self.__node.get_node_data().index)
@@ -111,9 +137,14 @@ class Net(object):
                         set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
 
-    @function_time_cost
-    def init_net(self) -> None:
+    def init_net(self, n: int = 2, fmm_cache_fldr: str = None, flag_name: str = 'cache',
+                 stp_cost_cache_df: pd.DataFrame = None, recalc_cache: bool = False) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
+        if self.fmm_cache:
+            if self.is_sub_net:
+                self.set_path_cache(stp_cost_cache_df)
+            else:
+                self.fmm_path_cache(n=n, out_fldr=fmm_cache_fldr, flag_name=flag_name, recalc_cache=recalc_cache)
 
     def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
         """
@@ -262,6 +293,8 @@ class Net(object):
         :param gps_array_buffer:
         :return:
         """
+        if gps_array_buffer is None:
+            return None
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.planar_crs)
         sub_single_link_gdf = gpd.sjoin(self.get_link_data(), gps_array_buffer_gdf)
@@ -277,8 +310,8 @@ class Net(object):
                       weight_field=self.weight_field,
                       init_from_existing=True, is_check=False,
                       search_method=self.search_method, cache_path=self.cache_path, cache_id=self.cache_id,
-                      not_conn_cost=self.not_conn_cost)
-        sub_net.init_net()
+                      not_conn_cost=self.not_conn_cost, is_sub_net=True, fmm_cache=self.fmm_cache)
+        sub_net.init_net(stp_cost_cache_df=self.get_path_cache())
         return sub_net
 
     @property
@@ -492,3 +525,87 @@ class Net(object):
     def get_greater_than_threshold(self, l_threshold: float = None) -> set[int]:
         link_gdf = self.__link.link_gdf
         return set(link_gdf[link_gdf[length_field] > l_threshold][link_id_field])
+
+    @function_time_cost
+    def fmm_path_cache(self, n: int = 2, out_fldr=None, flag_name: str = 'cache', recalc_cache: bool = False):
+        if out_fldr is None:
+            out_fldr = r'./'
+        if not recalc_cache:
+            try:
+                with open(os.path.join(out_fldr, rf'{flag_name}_path_cache'), 'rb') as f:
+                    done_stp_cache_df = pickle.load(f)
+                self.set_path_cache(done_stp_cache_df)
+                print(rf'using local fmm cache...')
+                return None
+            except Exception as e:
+                print(repr(e))
+
+        link = self.__link.get_bilateral_link_data()
+        g = self.graph
+        node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
+        print(rf'calc fmm cache...')
+        if n <= 1:
+            done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, int(2 * n))
+        else:
+            done_stp_cost_df = pd.DataFrame()
+            node_group = cut_group(obj_list=node_list, n=n)
+            pool = multiprocessing.Pool(processes=len(node_group))
+            result_list = []
+            for i in range(0, len(node_group)):
+                result = pool.apply_async(self.single_source_cache,
+                                          args=(node_group[i], g, self.cut_off, self.weight_field, int(2 * n)))
+                result_list.append(result)
+            pool.close()
+            pool.join()
+            for res in result_list:
+                done_stp_cost_df = pd.concat([done_stp_cost_df, res.get()])
+            done_stp_cost_df.reset_index(inplace=True, drop=False)
+            print(len(done_stp_cost_df))
+        with open(os.path.join(out_fldr, rf'{flag_name}_path_cache'), 'wb') as f:
+            pickle.dump(done_stp_cost_df, f)
+        self.set_path_cache(done_stp_cost_df)
+
+    @staticmethod
+    def slice_save(done_stp_cache: dict = None, done_cost_cache: dict = None, n=3) -> pd.DataFrame:
+        temp_stp_list = [{} for i in range(n)]
+        temp_cost_list = [{} for i in range(n)]
+        _ = [temp_stp_list[i % n].update({key: done_stp_cache[key]}) for i, key in enumerate(done_stp_cache.keys())]
+        _ = [temp_cost_list[i % n].update({key: done_cost_cache[key]}) for i, key in enumerate(done_cost_cache.keys())]
+
+        stp_cost_res = pd.DataFrame()
+        del done_stp_cache, done_cost_cache
+        i = 0
+        print(n)
+        for stp_cache, cost_cache in zip(temp_stp_list, temp_cost_list):
+            i += 1
+            done_stp_cache_df = pd.DataFrame(stp_cache).stack().reset_index(drop=False).rename(
+                columns={'level_0': 'd_node', 'level_1': 'o_node', 0: 'path'})
+            done_stp_cache_df.dropna(subset=['o_node', 'd_node'], how='any', inplace=True)
+
+            done_cost_cache_df = pd.DataFrame(cost_cache).stack().reset_index(drop=False).rename(
+                columns={'level_0': 'd_node', 'level_1': 'o_node', 0: 'cost'})
+            done_cost_cache_df.dropna(subset=['o_node', 'd_node'], how='any', inplace=True)
+            done_cost_cache_df['cost'] = np.around(done_cost_cache_df['cost'], decimals=1)
+
+            stp_cost_cache_df = pd.merge(done_cost_cache_df, done_stp_cache_df, on=['o_node', 'd_node'])
+            del done_stp_cache_df, done_cost_cache_df
+            stp_cost_res = pd.concat([stp_cost_res, stp_cost_cache_df])
+            del stp_cost_cache_df
+        stp_cost_res.reset_index(inplace=True, drop=True)
+        return stp_cost_res
+
+    def single_source_cache(self, node_list: list = None, g: nx.DiGraph = None,
+                            cut_off: float = 500.0, weight_field: str = 'length', n: int = 2) -> pd.DataFrame:
+        done_cost_cache, done_stp_cache = {}, {}
+        for node in node_list:
+            try:
+                done_cost_cache[node], done_stp_cache[node] = nx.single_source_dijkstra(g, node, weight=weight_field,
+                                                                                        cutoff=cut_off)
+            except nx.exception.NodeNotFound as e:
+                print(repr(e))
+
+        done_stp_cost_df = self.slice_save(done_stp_cache=done_stp_cache,
+                                           done_cost_cache=done_cost_cache,
+                                           n=n)
+        return done_stp_cost_df
+
