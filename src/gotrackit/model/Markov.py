@@ -214,7 +214,6 @@ class HiddenMarkov(object):
                                                inplace=True)
         preliminary_candidate_link = preliminary_candidate_link.groupby(gps_field.POINT_SEQ_FIELD).head(
             top_k).reset_index(drop=True)
-        print(len(preliminary_candidate_link))
         prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
                          zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
                              preliminary_candidate_link['single_link_geo'])]
@@ -223,6 +222,7 @@ class HiddenMarkov(object):
         del prj_df['split_line']
         preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True, right_index=True)
         k_candidate_link = preliminary_candidate_link
+        print(k_candidate_link)
 
         del prj_df
         # preliminary_candidate_link.sort_values(by=[gps_field.POINT_SEQ_FIELD, 'prj_dis'], ascending=[True, True],
@@ -483,6 +483,7 @@ class HiddenMarkov(object):
                                      top_k=self.top_k)
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
             net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
+
         ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
         ft_idx_map.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
 
@@ -491,24 +492,30 @@ class HiddenMarkov(object):
         del pre_seq_candidate
         del used_gps_seq
         seq_k_candidate = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD).agg(
-            {net_field.SINGLE_LINK_ID_FIELD: list})
+            {net_field.SINGLE_LINK_ID_FIELD: list, gps_field.POINT_SEQ_FIELD: list}).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g_s'})
 
         gps_match_link_route_dis = seq_k_candidate_info[
             [gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'route_dis']].copy()
         s = time.time()
-        seq_k_candidate.rename(columns={net_field.SINGLE_LINK_ID_FIELD: markov_field.FROM_STATE}, inplace=True)
+        seq_k_candidate.rename(columns={net_field.SINGLE_LINK_ID_FIELD: markov_field.FROM_STATE,
+                                        'g_s': gps_field.FROM_GPS_SEQ}, inplace=True)
+
         seq_k_candidate[markov_field.TO_STATE] = seq_k_candidate[markov_field.FROM_STATE].shift(-1)
+        seq_k_candidate[gps_field.TO_GPS_SEQ] = seq_k_candidate[gps_field.FROM_GPS_SEQ].shift(-1)
+
         seq_k_candidate.dropna(subset=[markov_field.TO_STATE], inplace=True)
-        from_state = seq_k_candidate[[markov_field.FROM_STATE]].reset_index(drop=False).rename(
-            columns={gps_field.POINT_SEQ_FIELD: gps_field.FROM_GPS_SEQ}).explode(
-            column=[markov_field.FROM_STATE], ignore_index=True)
+
+        from_state = seq_k_candidate[[markov_field.FROM_STATE, gps_field.FROM_GPS_SEQ]].reset_index(drop=False).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g'}).explode(
+            column=[markov_field.FROM_STATE, gps_field.FROM_GPS_SEQ], ignore_index=True)
+
         to_state = seq_k_candidate[
-            [markov_field.TO_STATE]].reset_index(drop=False).rename(
-            columns={gps_field.POINT_SEQ_FIELD: gps_field.TO_GPS_SEQ}).explode(column=[markov_field.TO_STATE],
-                                                                               ignore_index=True)
-        transition_df = pd.merge(from_state, to_state, left_on=gps_field.FROM_GPS_SEQ,
-                                 right_on=gps_field.TO_GPS_SEQ, how='outer')
-        transition_df[gps_field.TO_GPS_SEQ] = transition_df[gps_field.TO_GPS_SEQ] + 1
+            [markov_field.TO_STATE, gps_field.TO_GPS_SEQ]].reset_index(drop=False).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g'}).explode(column=[markov_field.TO_STATE, gps_field.TO_GPS_SEQ],
+                                                              ignore_index=True)
+
+        transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
         print(rf'构造: {time.time() - s}')
         t = time.time()
@@ -533,6 +540,7 @@ class HiddenMarkov(object):
                                        left_key=[gps_field.TO_GPS_SEQ, markov_field.TO_STATE],
                                        right_key=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
                                        label='to', merge_type='prj')
+
         t1 = time.time()
         print(rf'diy merge{t1 - t}')
 
@@ -564,7 +572,6 @@ class HiddenMarkov(object):
         transition_df = pd.merge(transition_df, done_stp_cost_df, left_on=['from_link_f', 'to_link_f'],
                                  right_on=['o_node', 'd_node'], how='left')
         del transition_df['o_node'], transition_df['d_node']
-
         # sub_net do not share path within different agents
         if is_sub_net or fmm_cache or not cache_path:
             del done_stp_cost_df
@@ -612,7 +619,7 @@ class HiddenMarkov(object):
         transition_df[markov_field.DIS_GAP] = np.abs(
             -transition_df[markov_field.ROUTE_LENGTH] + transition_df[gps_field.ADJ_DIS])
         t4 = time.time()
-
+        print(transition_df[markov_field.DIS_GAP])
         print(rf'向量化总时间: {t4 - z}')
         print(rf'apply: {t3 - t2}')
         print(rf'总计算: {t4 - t}')
