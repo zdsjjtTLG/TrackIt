@@ -338,8 +338,7 @@ class GpsPointsGdf(object):
             # add link geo
             single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
             candidate_link = pd.merge(candidate_link,
-                                      single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo',
-                                                       net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]],
+                                      single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
                                       on=net_field.SINGLE_LINK_ID_FIELD, how='left')
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list

@@ -121,8 +121,8 @@ def t_sample_match():
     # my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
     #              node_path=r'./data/input/net/xian/modifiedConn_node.shp')
     my_net = Net(link_gdf=l,
-                 node_gdf=n, fmm_cache=True)
-    my_net.init_net(fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False, n=2)  # net初始化
+                 node_gdf=n, fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False)
+    my_net.init_net()  # net初始化
 
     # my_net = Net(link_gdf=l,
     #              node_gdf=n)
@@ -198,8 +198,9 @@ def t_sample_xa_xishu_match():
 def dense_example():
     gps_df = gpd.read_file(r'./data/output/gps/dense_example/test999.geojson')
     my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                 node_path=r'./data/input/net/xian/modifiedConn_node.shp', cache_path=True, fmm_cache=True)
-    my_net.init_net(recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian', n=1)
+                 node_path=r'./data/input/net/xian/modifiedConn_node.shp', fmm_cache=True,
+                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian', cache_cn=1)
+    my_net.init_net()
 
     # match
     mpm = MapMatch(net=my_net, gps_df=gps_df, is_rolling_average=True, window=2, flag_name='dense_example',
@@ -224,8 +225,8 @@ def t_0326_taxi():
 
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp',
-                 not_conn_cost=2000, cut_off=1000.0, fmm_cache=True)
-    my_net.init_net(recalc_cache=False, n=6)
+                 not_conn_cost=2000, cut_off=1000.0, fmm_cache=True, recalc_cache=False)
+    my_net.init_net()
 
     # match
     mpm = MapMatch(net=my_net, gps_df=gps_df,
@@ -312,8 +313,9 @@ def bug_0402():
     #              cut_off=300)
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=1500,
-                 fmm_cache=True)
-    my_net.init_net(fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', n=6, recalc_cache=False)  # net初始化
+                 fmm_cache=True, fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=6,
+                 recalc_cache=False)
+    my_net.init_net()  # net初始化
     # my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
     #              node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=1500)
     # my_net.init_net()  # net初始化
@@ -335,6 +337,12 @@ def bug_0402():
 
 @function_time_cost
 def route2gps():
+    from shapely.geometry import Point, LineString
+    a = gpd.GeoSeries([Point(0, 0), Point(1,2), Point(7,12)])
+    b = gpd.GeoSeries([LineString([(1,1), (2,2)]), LineString([(3,5), (1, 12)]), LineString([(3,5), (1, 12)])])
+    print(b.project(a))
+
+
     # 1.读取GPS数据
     # 这是一个有10辆车的GPS数据的文件, 已经做过了数据清洗以及行程切分
     # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
@@ -344,8 +352,8 @@ def route2gps():
     # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_path=r'./data/output/reverse/0318cd/FinalLink.shp',
                  node_path=r'./data/output/reverse/0318cd/FinalNode.shp', not_conn_cost=1500.0, fmm_cache=True,
-                 max_cut_off=20000.0, cut_off=1500)
-    my_net.init_net(recalc_cache=True, fmm_cache_fldr=r'./data/output/reverse/0318cd', n=1)  # net初始化
+                 max_cut_off=20000.0, cut_off=1500, recalc_cache=False, fmm_cache_fldr=r'./data/output/reverse/0318cd')
+    my_net.init_net()  # net初始化
 
     # my_net = Net(link_path=r'./data/output/reverse/0318cd/FinalLink.shp',
     #              node_path=r'./data/output/reverse/0318cd/FinalNode.shp', not_conn_cost=1500)
@@ -414,8 +422,8 @@ if __name__ == '__main__':
     # t_sample_match()
 
     # check_0325()
-    dense_example()
-    t_0326_taxi()
+    # dense_example()
+    # t_0326_taxi()
     bug_0402()
 
     # l = gpd.read_file(r'./data/input/net/test/0402BUG/load/link.shp')

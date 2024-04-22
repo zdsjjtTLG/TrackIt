@@ -8,8 +8,6 @@
 """
 import os
 import pickle
-import time
-import sys
 import numpy as np
 import pandas as pd
 import multiprocessing
@@ -46,7 +44,10 @@ class Net(object):
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
                  not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True,
-                 is_sub_net: bool = False, fmm_cache: bool = False, cut_off: float = 500.0, max_cut_off: float = 5000.0):
+                 is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
+                 fmm_cache_fldr: str = None,
+                 cache_name: str = 'cache', recalc_cache: bool = True,
+                 cut_off: float = 500.0, max_cut_off: float = 5000.0):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -60,6 +61,11 @@ class Net(object):
         :param not_conn_cost: 不连通路径的阻抗(m)
         :param is_sub_net: 是否是子网络
         :param fmm_cache: 是否启用路径预存储
+        :param cache_cn: 使用几个核能进行路径预计算
+        :param fmm_cache_fldr: 存储路径预处理结果的文件目录
+        :param cache_name: 路径预存储的标志名称
+        :param recalc_cache: 是否重新计算FMM路径缓存
+        :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
         :param cut_off:
 
         """
@@ -77,6 +83,13 @@ class Net(object):
         self.fmm_cache = fmm_cache
         self.cut_off = cut_off
         self.max_cut_off = max_cut_off
+        self.cache_cn = cache_cn
+        self.cache_name = cache_name
+        self.fmm_cache_fldr = fmm_cache_fldr
+        self.recalc_cache = recalc_cache
+        self.cache_slice = cache_slice
+        if self.cache_slice is None:
+            self.cache_slice = 2 * self.cache_cn
 
         if node_gdf is None:
             self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, init_available_node=self.cache_id)
@@ -137,14 +150,13 @@ class Net(object):
                         set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
 
-    def init_net(self, n: int = 2, fmm_cache_fldr: str = None, flag_name: str = 'cache',
-                 stp_cost_cache_df: pd.DataFrame = None, recalc_cache: bool = False) -> None:
+    def init_net(self, stp_cost_cache_df: pd.DataFrame = None) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
         if self.fmm_cache:
             if self.is_sub_net:
                 self.set_path_cache(stp_cost_cache_df)
             else:
-                self.fmm_path_cache(n=n, out_fldr=fmm_cache_fldr, flag_name=flag_name, recalc_cache=recalc_cache)
+                self.fmm_path_cache()
 
     def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
         """
@@ -527,12 +539,12 @@ class Net(object):
         return set(link_gdf[link_gdf[length_field] > l_threshold][link_id_field])
 
     @function_time_cost
-    def fmm_path_cache(self, n: int = 2, out_fldr=None, flag_name: str = 'cache', recalc_cache: bool = False):
-        if out_fldr is None:
-            out_fldr = r'./'
-        if not recalc_cache:
+    def fmm_path_cache(self):
+        if self.fmm_cache_fldr is None:
+            self.fmm_cache_fldr = r'./'
+        if not self.recalc_cache:
             try:
-                with open(os.path.join(out_fldr, rf'{flag_name}_path_cache'), 'rb') as f:
+                with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'rb') as f:
                     done_stp_cache_df = pickle.load(f)
                 self.set_path_cache(done_stp_cache_df)
                 print(rf'using local fmm cache...')
@@ -544,16 +556,16 @@ class Net(object):
         g = self.graph
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
         print(rf'calc fmm cache...')
-        if n <= 1:
-            done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, int(2 * n))
+        if self.cache_cn <= 1:
+            done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, self.cache_slice)
         else:
             done_stp_cost_df = pd.DataFrame()
-            node_group = cut_group(obj_list=node_list, n=n)
+            node_group = cut_group(obj_list=node_list, n=self.cache_cn)
             pool = multiprocessing.Pool(processes=len(node_group))
             result_list = []
             for i in range(0, len(node_group)):
                 result = pool.apply_async(self.single_source_cache,
-                                          args=(node_group[i], g, self.cut_off, self.weight_field, int(2 * n)))
+                                          args=(node_group[i], g, self.cut_off, self.weight_field, self.cache_slice))
                 result_list.append(result)
             pool.close()
             pool.join()
@@ -561,7 +573,7 @@ class Net(object):
                 done_stp_cost_df = pd.concat([done_stp_cost_df, res.get()])
             done_stp_cost_df.reset_index(inplace=True, drop=False)
             print(len(done_stp_cost_df))
-        with open(os.path.join(out_fldr, rf'{flag_name}_path_cache'), 'wb') as f:
+        with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
             pickle.dump(done_stp_cost_df, f)
         self.set_path_cache(done_stp_cost_df)
 
@@ -575,7 +587,6 @@ class Net(object):
         stp_cost_res = pd.DataFrame()
         del done_stp_cache, done_cost_cache
         i = 0
-        print(n)
         for stp_cache, cost_cache in zip(temp_stp_list, temp_cost_list):
             i += 1
             done_stp_cache_df = pd.DataFrame(stp_cache).stack().reset_index(drop=False).rename(
