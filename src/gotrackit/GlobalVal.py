@@ -21,6 +21,8 @@ class NetField(object):
         self.NODE_PATH_FIELD = 'node_path'
         self.COST_FIELD = 'cost'
         self.LINK_VEC_FIELD = 'dir_vec'
+        self.SEG_COUNT = 'seg_count'
+        self.SEG_ACCU_LENGTH = 'seg_accu_length'
 
 class GpsField(object):
     """gps数据字段"""

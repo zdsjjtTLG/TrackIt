@@ -83,15 +83,6 @@ class Link(object):
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
 
     def renew_length(self):
-        _idx = list(self.link_gdf.index)[0]
-        length_a, length_b = \
-            self.link_gdf.at[_idx, net_field.GEOMETRY_FIELD].length, self.link_gdf.at[_idx, net_field.LENGTH_FIELD]
-        if isinstance(length_a, (gpd.GeoSeries, pd.Series)):
-            if 0.8 <= max(length_a / length_b) <= 1.2:
-                return None
-        else:
-            if 0.8 <= length_a / length_b <= 1.2:
-                return None
         self.link_gdf[length_field] = self.link_gdf[geometry_field].length
 
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):

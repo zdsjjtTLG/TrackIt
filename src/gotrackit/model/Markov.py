@@ -145,16 +145,19 @@ class HiddenMarkov(object):
         self.gps_candidate_link = gps_candidate_link
         return seq_list
 
-    @staticmethod
     @function_time_cost
-    def filter_k_candidates(preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
-                            top_k: int = 10) -> gpd.GeoDataFrame or pd.DataFrame:
+    def filter_k_candidates(self, preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
+                            top_k: int = 10, using_cache: bool = True,
+                            cache_prj_inf: dict = None) -> gpd.GeoDataFrame or pd.DataFrame:
         """
         对Buffer范围内的初步候选路段进行二次筛选, 需按照投影距离排名前K位, 并且得到计算发射概率需要的数据
         :param preliminary_candidate_link:
         :param top_k
+        :param using_cache
+        :param cache_prj_inf
         :return:
         """
+        using_cache = True
         preliminary_candidate_link.reset_index(inplace=True, drop=True)
         preliminary_candidate_link['quick_stl'] = preliminary_candidate_link[gps_field.GEOMETRY_FIELD].shortest_line(
             preliminary_candidate_link['single_link_geo']).length
@@ -162,16 +165,72 @@ class HiddenMarkov(object):
                                                inplace=True)
         preliminary_candidate_link = preliminary_candidate_link.groupby(gps_field.POINT_SEQ_FIELD).head(
             top_k).reset_index(drop=True)
-        prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
-                         zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
-                             preliminary_candidate_link['single_link_geo'])]
-        prj_df = pd.DataFrame(prj_info_list,
-                              columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line', 'p_vec'])
-        del prj_df['split_line']
-        preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True, right_index=True)
-        k_candidate_link = preliminary_candidate_link
-        del prj_df
-        return k_candidate_link
+        if not using_cache:
+            prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
+                             zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
+                                 preliminary_candidate_link['single_link_geo'])]
+            prj_df = pd.DataFrame(prj_info_list,
+                                  columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line', 'p_vec'])
+            del prj_df['split_line']
+            del preliminary_candidate_link['quick_stl']
+            preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True, right_index=True)
+            k_candidate_link = preliminary_candidate_link
+            del prj_df
+            return k_candidate_link
+        else:
+            return self.filter_k_candidates_by_cache(preliminary_candidate_link=preliminary_candidate_link,
+                                                     cache_prj_inf=cache_prj_inf)
+
+    @staticmethod
+    def filter_k_candidates_by_cache(preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
+                                     cache_prj_inf: dict = None):
+        del preliminary_candidate_link[net_field.LENGTH_FIELD]
+        preliminary_candidate_link['route_dis'] = preliminary_candidate_link['single_link_geo'].project(
+            preliminary_candidate_link[gps_field.GEOMETRY_FIELD])
+        preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
+            preliminary_candidate_link['route_dis'])
+
+        cache_prj_gdf_a = cache_prj_inf[1]
+        preliminary_candidate_link = pd.merge(preliminary_candidate_link, cache_prj_gdf_a, how='left',
+                                              on=[net_field.FROM_NODE_FIELD,
+                                                  net_field.TO_NODE_FIELD])
+        a_info = preliminary_candidate_link[~preliminary_candidate_link[net_field.SEG_ACCU_LENGTH].isna()].copy()
+        preliminary_candidate_link = preliminary_candidate_link[
+            preliminary_candidate_link[net_field.SEG_ACCU_LENGTH].isna()].copy()
+        preliminary_candidate_link.drop(columns=[net_field.SEG_ACCU_LENGTH, 'topo_seq', net_field.LENGTH_FIELD,
+                                                 'dir_vec', net_field.SEG_COUNT], axis=1, inplace=True)
+        if preliminary_candidate_link.empty:
+            preliminary_candidate_link = a_info
+        else:
+            cache_prj_gdf_b = cache_prj_inf[2]
+            b_info = pd.merge(preliminary_candidate_link, cache_prj_gdf_b, how='inner', on=[net_field.FROM_NODE_FIELD,
+                                                                                            net_field.TO_NODE_FIELD])
+            b_info['ratio'] = b_info['route_dis'] / b_info[net_field.SEG_ACCU_LENGTH]
+
+            c_info = b_info[b_info['ratio'] >= 1].copy()
+            if not c_info.empty:
+                c_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+                                       'topo_seq'], ascending=True)
+                c_info = c_info.groupby(
+                    [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).tail(n=1)
+                del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH]
+            d_info = b_info[b_info['ratio'] < 1].copy()
+            if not d_info.empty:
+                d_info['ck'] = d_info.groupby([gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[
+                    [net_field.FROM_NODE_FIELD]].transform('count')
+                d_info = d_info[d_info['ck'] == d_info[net_field.SEG_COUNT]].copy()
+
+                d_info = d_info.groupby(
+                    [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).head(n=1)
+                del d_info['ck'], d_info['topo_seq'], d_info['ratio'], d_info[net_field.SEG_ACCU_LENGTH]
+
+            preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
+        preliminary_candidate_link.reset_index(inplace=True, drop=True)
+        preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis', 'dir_vec': 'p_vec'}, inplace=True)
+
+        return preliminary_candidate_link
+
+
 
     def solve(self, use_lop_p: bool = True):
         """
@@ -215,10 +274,14 @@ class HiddenMarkov(object):
         if is_sub_net:
             if fmm_cache:
                 done_stp_cost_df = self.net.get_path_cache()
+                cache_prj_info = self.net.get_prj_cache()
             else:
                 done_stp_cost_df = pd.DataFrame()
+                cache_prj_info = dict()
         else:
             done_stp_cost_df = self.net.get_path_cache()
+            cache_prj_info = self.net.get_prj_cache()
+
         if n > 1:
             print(f'using multiprocessing - {n} cores')
             ft_group = cut_group(obj_list=ft_list, n=n)
@@ -231,7 +294,7 @@ class HiddenMarkov(object):
                                                 gps_pre_next_dis_df, g,
                                                 self.net.search_method, self.net.weight_field, self.net.cache_path,
                                                 self.net.not_conn_cost, done_stp_cost_df, is_sub_net,
-                                                self.net.fmm_cache, cut_off, max_cut_off))
+                                                self.net.fmm_cache, cut_off, max_cut_off, cache_prj_info))
                 result_list.append(result)
             pool.close()
             pool.join()
@@ -259,7 +322,7 @@ class HiddenMarkov(object):
                                                    gps_pre_next_dis_df, g, self.net.search_method,
                                                    self.net.weight_field, self.net.cache_path, self.net.not_conn_cost,
                                                    done_stp_cost_df, is_sub_net, self.net.fmm_cache,
-                                                   cut_off, max_cut_off)
+                                                   cut_off, max_cut_off, cache_prj_info)
             print(len(done_stp_cost_df))
 
         ft_idx_map.reset_index(inplace=True, drop=True)
@@ -441,7 +504,7 @@ class HiddenMarkov(object):
                                      cache_path: bool = True, not_conn_cost: float = 999.0,
                                      done_stp_cost_df: pd.DataFrame = None,
                                      is_sub_net: bool = True, fmm_cache: bool = False, cut_off: float = 600.0,
-                                     max_cut_off: float = 2000.0) -> \
+                                     max_cut_off: float = 2000.0, cache_prj_inf: dict = None) -> \
             tuple[dict, dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
         ft_transition_dict = dict()
@@ -453,7 +516,7 @@ class HiddenMarkov(object):
             pre_seq_candidate[gps_field.POINT_SEQ_FIELD].isin(used_gps_seq)].copy()
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate,
-                                     top_k=self.top_k)
+                                     top_k=self.top_k, cache_prj_inf=cache_prj_inf)
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
                                           net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
 

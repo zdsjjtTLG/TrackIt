@@ -77,6 +77,7 @@ class Net(object):
         self.__stp_cache = dict() or pd.DataFrame
         self.__done_path_cost = dict() or pd.DataFrame
         self.__done_stp_cost_df = pd.DataFrame()
+        self.__cache_prj_inf = dict()
         self.cache_path = cache_path
         self.cache_id = cache_id
         self.__is_sub_net = is_sub_net
@@ -106,10 +107,7 @@ class Net(object):
                                not_conn_cost=self.not_conn_cost)
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
-        try:
-            self.__link.renew_length()
-        except:
-            pass
+        self.__link.renew_length()
         if not init_from_existing:
             if create_single:
                 self.__link.init_link()
@@ -143,6 +141,12 @@ class Net(object):
     def set_path_cache(self, stp_cost_df: pd.DataFrame = None) -> None:
         self.__done_stp_cost_df = stp_cost_df
 
+    def get_prj_cache(self) -> dict:
+        return self.__cache_prj_inf
+
+    def set_prj_cache(self, cache_prj_inf: dict = None) -> None:
+        self.__cache_prj_inf = cache_prj_inf
+
     def check(self) -> None:
         """检查点层线层的关联一致性"""
         node_set = set(self.__node.get_node_data().index)
@@ -150,13 +154,15 @@ class Net(object):
                         set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
 
-    def init_net(self, stp_cost_cache_df: pd.DataFrame = None) -> None:
+    def init_net(self, stp_cost_cache_df: pd.DataFrame = None, cache_prj_inf: dict = None) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
         if self.fmm_cache:
             if self.is_sub_net:
                 self.set_path_cache(stp_cost_cache_df)
+                self.set_prj_cache(cache_prj_inf)
             else:
                 self.fmm_path_cache()
+                self.cache_prj_info()
 
     def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
         """
@@ -323,7 +329,7 @@ class Net(object):
                       init_from_existing=True, is_check=False,
                       search_method=self.search_method, cache_path=self.cache_path, cache_id=self.cache_id,
                       not_conn_cost=self.not_conn_cost, is_sub_net=True, fmm_cache=self.fmm_cache)
-        sub_net.init_net(stp_cost_cache_df=self.get_path_cache())
+        sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
         return sub_net
 
     @property
@@ -620,3 +626,56 @@ class Net(object):
                                            n=n)
         return done_stp_cost_df
 
+    def cache_prj_info(self):
+        if self.fmm_cache_fldr is None:
+            self.fmm_cache_fldr = r'./'
+        if not self.recalc_cache:
+            try:
+                with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'rb') as f:
+                    cache_prj_inf = pickle.load(f)
+                self.set_prj_cache(cache_prj_inf)
+                return None
+            except Exception as e:
+                print(repr(e))
+
+        single_link_gdf = self.__link.get_link_data()
+        single_link_gdf = single_link_gdf[
+            [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.GEOMETRY_FIELD, net_field.LENGTH_FIELD]].copy()
+        cache_prj_gdf = self.split_segment(single_link_gdf)
+        cache_prj_gdf[['f_loc', 't_loc']] = cache_prj_gdf.apply(lambda row: list(row['geometry'].coords), axis=1,
+                                                                result_type='expand')
+        cache_prj_gdf[net_field.LINK_VEC_FIELD] = cache_prj_gdf.apply(
+            lambda row: np.array(row['t_loc']) - np.array(row['f_loc']), axis=1)
+        cache_prj_gdf.drop(columns=['f_loc', 't_loc', net_field.GEOMETRY_FIELD], axis=1, inplace=True)
+        cache_prj_gdf[net_field.SEG_COUNT] = \
+            cache_prj_gdf.groupby([net_field.FROM_NODE_FIELD,
+                                   net_field.TO_NODE_FIELD])[net_field.LINK_VEC_FIELD].transform('count')
+        cache_prj_inf = {1: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] == 1].copy().reset_index(drop=True),
+                         2: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] > 1].copy().reset_index(drop=True)}
+        del cache_prj_gdf
+        self.set_prj_cache(cache_prj_inf)
+        with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'wb') as f:
+            pickle.dump(cache_prj_inf, f)
+
+    @staticmethod
+    def split_segment(path_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
+        """
+        拆解轨迹坐标, 并且粗去重(按照路段的起终点坐标)
+        :param path_gdf: gpd.GeoDataFrame(), 必需参数, 必须字段: [geometry], crs要求EPSG:4326
+        :return: gpd.GeoDataFrame(),
+        """
+        origin_crs = path_gdf.crs.srs
+        path_gdf['point_list'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: list(x.coords))
+        path_gdf['line_list'] = path_gdf['point_list'].apply(
+            lambda x: [LineString((x[i], x[i + 1])) for i in range(0, len(x) - 1)])
+        path_gdf['topo_seq'] = path_gdf['line_list'].apply(lambda x: [i for i in range(len(x))])
+        path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], axis=1, inplace=True)
+        path_gdf = pd.DataFrame(path_gdf)
+        path_gdf = path_gdf.explode(column=['line_list', 'topo_seq'], ignore_index=True)
+        path_gdf.rename(columns={'line_list': net_field.GEOMETRY_FIELD}, inplace=True)
+        path_gdf = gpd.GeoDataFrame(path_gdf, crs=origin_crs, geometry=net_field.GEOMETRY_FIELD)
+        path_gdf['__l__'] = path_gdf[net_field.GEOMETRY_FIELD].length
+        path_gdf[net_field.SEG_ACCU_LENGTH] = \
+            path_gdf.groupby([net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[['__l__']].cumsum()
+        del path_gdf['__l__']
+        return path_gdf

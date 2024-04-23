@@ -225,7 +225,8 @@ def t_0326_taxi():
 
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp',
-                 not_conn_cost=2000, cut_off=1000.0, fmm_cache=True, recalc_cache=False)
+                 not_conn_cost=2000, cut_off=1000.0, fmm_cache=True, recalc_cache=False,
+                 fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=6)
     my_net.init_net()
 
     # match
@@ -423,8 +424,8 @@ if __name__ == '__main__':
 
     # check_0325()
     # dense_example()
-    # t_0326_taxi()
-    bug_0402()
+    t_0326_taxi()
+    # bug_0402()
 
     # l = gpd.read_file(r'./data/input/net/test/0402BUG/load/link.shp')
     # l = l.to_crs('EPSG:32650')
