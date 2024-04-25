@@ -917,8 +917,8 @@ nv.generate_od_by_gps的相关参数如下：
 
 .. _地图匹配代码示例:
 
-5.2. 代码示例
-`````````````````
+5.2. 常规匹配代码示例
+````````````````````````
 
 用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data>`_
 
@@ -958,11 +958,9 @@ nv.generate_od_by_gps的相关参数如下：
                gps_radius=10.0)
 
         # 第一个返回结果是匹配结果表
-        # 第二个是发生警告的路段节点编号
-        match_res, warn_info = mpm.execute()
-        for may_error_agent in warn_info.keys():
-            print(may_error_agent)
-            print(warn_info[may_error_agent])
+        # 第二个是发生警告的相关信息
+        # 第三个是匹配错误的agent的id编号列表
+        match_res, may_error_info, error_info = mpm.execute()
         print(match_res)
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
@@ -1092,10 +1090,109 @@ nv.generate_od_by_gps的相关参数如下：
     是否启用多核匹配, 默认True, 这个多核匹配指的是在单条轨迹上的多进程匹配
 
 * core_num
-    用几个核进行匹配, 默认1
+    用几个核进行匹配, 默认1, 推荐1, 单调轨迹开启多核效果一般, 建议使用路径预计算进行加速
 
 * gps_radius
     HTML可视化中GPS点的半径大小，单位米，默认8米
+
+5.3. 启用路径预存储进行加速
+``````````````````````````````
+
+在地图匹配的过程中, 在以下两个计算过程中开销较大：
+
+* GPS点到邻近候选路段的投影参数
+
+* 候选路段到候选路段之间的最短路径计算开销
+
+然而，这部分的计算，在不同的agents车辆匹配过程中，很多部分都是重复计算项，那么我们能否基于一种预计算的思想，先将所有可能的最短路计算、投影参数计算预先计算出来呢？我们可能仅仅只需要在匹配前稍微多花一点时间来进行预计算，然后将这些预计算的结果存储在磁盘上，以后每次匹配只需要读取指定路径的预计算结果将其加载到内存, 我们即可以O(1)的时间复杂度获得这些最短路结果以及投影参数结果，gotrackit实现了这一过程，以下代码为使用预计算的匹配方式：
+
+
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        # 构建net时指定fmm_cache参数为True, 表示在这次构建net对象时进行预计算
+        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+                     node_path=r'./data/input/net/xian/modifiedConn_node.shp',
+                     fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=True,
+                     cut_off=500.0,
+                     cache_slice=6)
+        my_net.init_net()  # net初始化
+
+        # fmm_cache_fldr用于指定存储预计算结果的文件目录
+        # cut_off为500m, 表示最短路径搜索过程中, 只计算最短路径距离小于500的路径(考虑到相邻GPS点距离跨度不会太大)
+        # cache_slice=6, 表示使用将路径结果切分为6部分进行数据标准化(大规模路网防止内存溢出)
+
+        # 此时传入的net就带有预计算的结果, 匹配速度会提升
+        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+                   use_sub_net=False, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+                   lower_n=2, is_lower_f=True,
+                   is_rolling_average=True, window=3,
+                   export_html=False, export_geo_res=False, use_gps_source=False,
+                   html_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
+                   gps_radius=20.0)
+        match_res, may_error_info, error_info = mpm.execute()
+
+
+
+以上的路网构建的代码执行结束后, 会在r'./data/input/net/test/0402BUG/load/'下生成两个预计算结果文件, 笔者用深圳的路网(9w条link, 8w个节点), 预计算的时间大概为两分钟, 在使用的路网没有任何变化的情况下，下次使用该路网进行匹配可以直接指定预计算结果的路径即可, 此时直接指定recalc_cache=False, 意思为直接从fmm_cache_fldr中读取预计算结果, 不再重复预计算的过程
+
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        # 构建net时指定fmm_cache参数为True, 表示在这次构建net对象时进行预计算,
+        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+                     node_path=r'./data/input/net/xian/modifiedConn_node.shp',
+                     fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False)
+        my_net.init_net()  # net初始化
+
+        # recalc_cache=False意思为直接从fmm_cache_fldr中读取预计算结果, 不再重复预计算的过程
+
+        # 此时传入的net就带有预计算的结果, 匹配速度会提升
+        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+                   use_sub_net=False, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+                   lower_n=2, is_lower_f=True,
+                   is_rolling_average=True, window=3,
+                   export_html=False, export_geo_res=False, use_gps_source=False,
+                   html_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
+                   gps_radius=20.0)
+        match_res, may_error_info, error_info = mpm.execute()
+        print(res)
+
+
+
+
+构建Net时预计算相关的参数含义如下：
+
+* fmm_cache
+    是否启用路径缓存预计算, 默认False
+
+* cache_cn
+    使用几个核能进行路径预计算, 默认2
+
+* fmm_cache_fldr
+    存储路径预计算结果的文件目录, 默认./
+
+* recalc_cache
+    是否重新计算路径缓存, 默认True
+
+* cut_off
+    路径搜索截断长度, 米, 默认800.0m
+
+* max_cut_off
+    最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
+
+* cache_name
+    路径预存储的标志名称, 默认cache, 两个缓存文件的名称: {cache_name}_path_cache, {cache_name}_prj
+
+* cache_slice
+    对缓存进行切片(切为cache_slice份)后转换格式, 进行存储(防止大规模路网导致内存溢出), 默认2 * cache_cn, 如果内存溢出可以增大该值
+
 
 
 地图匹配结果表字段含义为：
@@ -1124,6 +1221,7 @@ nv.generate_od_by_gps的相关参数如下：
     :align: center
 
 --------------------------------------------------------------------------------
+
 
 
 匹配结果HTML可视化：打开生成的html文件，按照下图点开时间轴播放器
