@@ -34,7 +34,7 @@ class MapMatch(object):
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
-                 export_geo_res: bool = False, core_num: int = 1,
+                 export_geo_res: bool = False,
                  node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
@@ -68,7 +68,6 @@ class MapMatch(object):
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
         :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
-        :param core_num: 用几个核, 默认1
         :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
         :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
         :param visualization_cache_times: 每匹配完几辆车再进行结果的统一存储, 默认50
@@ -134,7 +133,6 @@ class MapMatch(object):
         self.export_all_agents = export_all_agents
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
-        self.core_num = core_num
 
     def execute(self):
         match_res_df = pd.DataFrame()
@@ -224,9 +222,9 @@ class MapMatch(object):
 
         return match_res_df, self.may_error_list, self.error_list
 
-    def multi_core_execute(self):
+    def multi_core_execute(self, core_num: int = 2):
         agent_id_list = list(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
-        core_num = os.cpu_count() if self.core_num > os.cpu_count() else self.core_num
+        core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
         agent_group = cut_group(agent_id_list, n=core_num)
         n = len(agent_group)
         print(f'using multiprocessing - {n} cores')
@@ -257,14 +255,14 @@ class MapMatch(object):
                            window=self.rolling_window,
                            export_html=self.export_html,
                            use_gps_source=self.use_gps_source, html_fldr=core_html_fldr,
-                           export_geo_res=self.export_geo_res, core_num=self.core_num,
+                           export_geo_res=self.export_geo_res,
                            node_num_threshold=self.node_num_threshold,
                            top_k=self.top_k, omitted_l=self.omitted_l, link_width=self.link_width,
                            node_radius=self.node_radius,
                            match_link_width=self.match_link_width, gps_radius=self.gps_radius,
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
-                           multi_core_save=self.multi_core_save)
+                           multi_core_save=False)
             result = pool.apply_async(mmp.execute,
                                       args=())
             result_list.append(result)
