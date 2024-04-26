@@ -35,6 +35,9 @@ to_node_field = net_field.TO_NODE_FIELD
 length_field = net_field.LENGTH_FIELD
 geometry_field = net_field.GEOMETRY_FIELD
 node_id_field = net_field.NODE_ID_FIELD
+path_field = net_field.NODE_PATH_FIELD
+cost_field = net_field.COST_FIELD
+o_node_field, d_node_field = net_field.S_NODE, net_field.T_NODE
 
 
 class Net(object):
@@ -43,11 +46,12 @@ class Net(object):
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
+                 ft_link_mapping: dict = None, double_single_mapping: dict = None, link_ft_mapping: dict = None,
                  not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None,
                  cache_name: str = 'cache', recalc_cache: bool = True,
-                 cut_off: float = 500.0, max_cut_off: float = 5000.0):
+                 cut_off: float = 800.0, max_cut_off: float = 5000.0):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -56,17 +60,21 @@ class Net(object):
         :param node_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net点层
         :param weight_field: 搜路权重字段
         :param create_single: 是否在初始化的时候创建single层
-        :param search_method: 路径搜索方法, 'dijkstra' or 'bellman-ford'
+        :param search_method: 路径搜索方法, 'dijkstra'
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
-        :param not_conn_cost: 不连通路径的阻抗(m)
-        :param is_sub_net: 是否是子网络
-        :param fmm_cache: 是否启用路径预存储
-        :param cache_cn: 使用几个核能进行路径预计算
-        :param fmm_cache_fldr: 存储路径预处理结果的文件目录
-        :param cache_name: 路径预存储的标志名称
-        :param recalc_cache: 是否重新计算FMM路径缓存
+        :param double_single_mapping:
+        :param link_ft_mapping:
+        :param ft_link_mapping:
+        :param not_conn_cost: 不连通路径的阻抗(m), 默认999.0米
+        :param is_sub_net: 是否是子网络, 默认False
+        :param fmm_cache: 是否启用路径预存储, 默认False
+        :param cache_cn: 使用几个核能进行路径预计算, 默认2
+        :param fmm_cache_fldr: 存储路径预处理结果的文件目录, 默认./
+        :param recalc_cache: 是否重新计算FMM路径缓存, 默认True
         :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
-        :param cut_off:
+        :param cut_off: 路径搜索截断长度, 米, 默认1000m
+        :param max_cut_off: 最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
+        :param cache_name: 路径预存储的标志名称, 默认cache
 
         """
         self.not_conn_cost = not_conn_cost
@@ -84,6 +92,8 @@ class Net(object):
         self.fmm_cache = fmm_cache
         self.cut_off = cut_off
         self.max_cut_off = max_cut_off
+        if cache_cn > os.cpu_count():
+            cache_cn = os.cpu_count()
         self.cache_cn = cache_cn
         self.cache_name = cache_name
         self.fmm_cache_fldr = fmm_cache_fldr
@@ -107,13 +117,18 @@ class Net(object):
                                not_conn_cost=self.not_conn_cost)
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
-        self.__link.renew_length()
+        if not self.is_sub_net:
+            self.__link.renew_length()
         if not init_from_existing:
             if create_single:
                 self.__link.init_link()
         else:
             if create_single:
-                self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf)
+                # for sub net
+                self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf,
+                                                                double_single_mapping=double_single_mapping,
+                                                                ft_link_mapping=ft_link_mapping,
+                                                                link_ft_mapping=link_ft_mapping)
         if not init_from_existing:
             self.__node.init_node()
         else:
@@ -305,10 +320,17 @@ class Net(object):
         return self.__link.get_ft_link_mapping()
 
     @function_time_cost
-    def create_computational_net(self, gps_array_buffer:Polygon = None):
+    def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
+                                 cache_path: bool = True, cache_id: bool = True, not_conn_cost=999.0,
+                                 fmm_cache: bool = False):
         """
 
         :param gps_array_buffer:
+        :param weight_field:
+        :param cache_path:
+        :param cache_id:
+        :param not_conn_cost:
+        :param fmm_cache:
         :return:
         """
         if gps_array_buffer is None:
@@ -325,10 +347,12 @@ class Net(object):
         sub_node_gdf = self.__node.get_node_data().loc[sub_node_list, :].copy()
         sub_net = Net(link_gdf=sub_single_link_gdf,
                       node_gdf=sub_node_gdf,
-                      weight_field=self.weight_field,
-                      init_from_existing=True, is_check=False,
-                      search_method=self.search_method, cache_path=self.cache_path, cache_id=self.cache_id,
-                      not_conn_cost=self.not_conn_cost, is_sub_net=True, fmm_cache=self.fmm_cache)
+                      weight_field=weight_field,
+                      init_from_existing=True, is_check=False, cache_path=cache_path, cache_id=cache_id,
+                      not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache,
+                      ft_link_mapping=self.get_ft_node_link_mapping(),
+                      link_ft_mapping=self.link_ft_map,
+                      double_single_mapping=self.bilateral_unidirectional_mapping)
         sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
         return sub_net
 
@@ -561,6 +585,7 @@ class Net(object):
         link = self.__link.get_bilateral_link_data()
         g = self.graph
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
+        del link
         print(rf'calc fmm cache...')
         if self.cache_cn <= 1:
             done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, self.cache_slice)
@@ -578,13 +603,21 @@ class Net(object):
             for res in result_list:
                 done_stp_cost_df = pd.concat([done_stp_cost_df, res.get()])
             done_stp_cost_df.reset_index(inplace=True, drop=False)
-            print(len(done_stp_cost_df))
+        _ = self.__link.get_link_data()[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+                                         self.weight_field]].rename(
+            columns={net_field.FROM_NODE_FIELD: o_node_field, net_field.TO_NODE_FIELD: d_node_field,
+                     self.weight_field: cost_field})
+        _[path_field] = _.apply(lambda row: [int(row[o_node_field]), int(row[d_node_field])], axis=1)
+        done_stp_cost_df = pd.concat([_, done_stp_cost_df])
+        del _
+        done_stp_cost_df.drop_duplicates(subset=[o_node_field, d_node_field], keep='first', inplace=True)
+        done_stp_cost_df.reset_index(inplace=True, drop=True)
         with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
             pickle.dump(done_stp_cost_df, f)
         self.set_path_cache(done_stp_cost_df)
 
     @staticmethod
-    def slice_save(done_stp_cache: dict = None, done_cost_cache: dict = None, n=3) -> pd.DataFrame:
+    def slice_save(done_stp_cache: dict = None, done_cost_cache: dict = None, n: int = 3) -> pd.DataFrame:
         temp_stp_list = [{} for i in range(n)]
         temp_cost_list = [{} for i in range(n)]
         _ = [temp_stp_list[i % n].update({key: done_stp_cache[key]}) for i, key in enumerate(done_stp_cache.keys())]
@@ -592,19 +625,17 @@ class Net(object):
 
         stp_cost_res = pd.DataFrame()
         del done_stp_cache, done_cost_cache
-        i = 0
         for stp_cache, cost_cache in zip(temp_stp_list, temp_cost_list):
-            i += 1
             done_stp_cache_df = pd.DataFrame(stp_cache).stack().reset_index(drop=False).rename(
-                columns={'level_0': 'd_node', 'level_1': 'o_node', 0: 'path'})
-            done_stp_cache_df.dropna(subset=['o_node', 'd_node'], how='any', inplace=True)
+                columns={'level_0': d_node_field, 'level_1': o_node_field, 0: path_field})
+            done_stp_cache_df.dropna(subset=[o_node_field, d_node_field], how='any', inplace=True)
 
             done_cost_cache_df = pd.DataFrame(cost_cache).stack().reset_index(drop=False).rename(
-                columns={'level_0': 'd_node', 'level_1': 'o_node', 0: 'cost'})
-            done_cost_cache_df.dropna(subset=['o_node', 'd_node'], how='any', inplace=True)
-            done_cost_cache_df['cost'] = np.around(done_cost_cache_df['cost'], decimals=1)
+                columns={'level_0': d_node_field, 'level_1': o_node_field, 0: cost_field})
+            done_cost_cache_df.dropna(subset=[o_node_field, d_node_field], how='any', inplace=True)
+            done_cost_cache_df[cost_field] = np.around(done_cost_cache_df[cost_field], decimals=1)
 
-            stp_cost_cache_df = pd.merge(done_cost_cache_df, done_stp_cache_df, on=['o_node', 'd_node'])
+            stp_cost_cache_df = pd.merge(done_cost_cache_df, done_stp_cache_df, on=[o_node_field, d_node_field])
             del done_stp_cache_df, done_cost_cache_df
             stp_cost_res = pd.concat([stp_cost_res, stp_cost_cache_df])
             del stp_cost_cache_df
@@ -625,6 +656,11 @@ class Net(object):
                                            done_cost_cache=done_cost_cache,
                                            n=n)
         return done_stp_cost_df
+
+    def single_link_ft_cost(self) -> pd.DataFrame:
+        return self.__link.get_link_data()[
+            [net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, self.weight_field,
+             'path']].copy()
 
     def cache_prj_info(self):
         if self.fmm_cache_fldr is None:
