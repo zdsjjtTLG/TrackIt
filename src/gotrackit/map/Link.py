@@ -85,23 +85,16 @@ class Link(object):
     def renew_length(self):
         self.link_gdf[length_field] = self.link_gdf[geometry_field].length
 
-    def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None):
+    def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None,
+                                            ft_link_mapping: dict = None,
+                                            double_single_mapping: dict = None, link_ft_mapping: dict = None):
         """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
         self.__single_link_gdf = single_link_gdf.copy()
-        self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
-                                        single_link_id, link_id, direction, f, t in
-                                        zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.LINK_ID_FIELD],
-                                            self.__single_link_gdf[net_field.DIRECTION_FIELD],
-                                            self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                            self.__single_link_gdf[net_field.TO_NODE_FIELD])}
-        self.__ft_link_mapping = {(f, t): single_link for f, t, single_link in
-                                  zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.TO_NODE_FIELD],
-                                      self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
 
+        self.__double_single_mapping = double_single_mapping
+        self.__ft_link_mapping = ft_link_mapping
         # single_link: (f, t)
-        self.__link_ft_mapping = {v: k for k, v in self.__ft_link_mapping.items()}
+        self.__link_ft_mapping = link_ft_mapping
 
     def create_single_link(self, link_gdf: gpd.GeoDataFrame):
         """
@@ -120,6 +113,8 @@ class Link(object):
             self.__single_link_gdf = pd.concat([link_gdf, neg_link])
             self.__single_link_gdf.reset_index(inplace=True, drop=True)
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
+        self.__single_link_gdf['path'] = self.__single_link_gdf.apply(
+            lambda row: [row[net_field.FROM_NODE_FIELD], row[net_field.TO_NODE_FIELD]], axis=1)
         self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
                                         single_link_id, link_id, direction, f, t in
                                         zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
@@ -384,7 +379,7 @@ class Link(object):
 
     @property
     def link_ft_map(self) -> dict[int, tuple[int, int]]:
-        return self.__link_ft_mapping.copy()
+        return self.__link_ft_mapping
 
     def vertex_degree(self, node: int = None) -> int:
         """无向图的节点度"""
