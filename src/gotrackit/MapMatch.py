@@ -2,15 +2,18 @@
 # @Time    : 2024/3/25 14:13
 # @Author  : TangKai
 # @Team    : ZheChengData
-
+import os
 
 import numpy as np
 import pandas as pd
+import multiprocessing
 from .map.Net import Net
+from .tools.group import cut_group
 from .gps.LocGps import GpsPointsGdf
 from .model.Markov import HiddenMarkov
 from .GlobalVal import NetField, GpsField
 from .visualization import export_visualization
+
 
 gps_field = GpsField()
 net_field = NetField()
@@ -31,9 +34,9 @@ class MapMatch(object):
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
-                 export_geo_res: bool = False,
-                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0, multi_core: bool = True,
-                 core_num: int = 1, link_width: float = 1.5, node_radius: float = 1.5,
+                 export_geo_res: bool = False, core_num: int = 1,
+                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0,
+                 link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 50, multi_core_save: bool = False):
         """
@@ -65,7 +68,6 @@ class MapMatch(object):
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
         :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
-        :param multi_core: 是否启用多核匹配, 默认True
         :param core_num: 用几个核, 默认1
         :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
         :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
@@ -123,9 +125,6 @@ class MapMatch(object):
         self.not_conn_cost = self.my_net.not_conn_cost
         self.use_gps_source = use_gps_source
 
-        self.multi_core = multi_core
-        self.core_num = core_num
-
         # 网页可视化参数
         self.link_width = link_width
         self.node_radius = node_radius
@@ -135,6 +134,7 @@ class MapMatch(object):
         self.export_all_agents = export_all_agents
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
+        self.core_num = core_num
 
     def execute(self):
         match_res_df = pd.DataFrame()
@@ -149,6 +149,7 @@ class MapMatch(object):
 
         # 对每辆车的轨迹进行匹配
         agent_count = 0
+        add_single_ft = [True]
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
             agent_count += 1
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
@@ -181,7 +182,10 @@ class MapMatch(object):
                 print(rf'using sub net')
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap,
-                                                                  dup_threshold=self.dup_threshold))
+                                                                  dup_threshold=self.dup_threshold),
+                    fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
+                    cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
+                    not_conn_cost=self.my_net.not_conn_cost)
                 if used_net is None:
                     self.error_list.append(agent_id)
                     continue
@@ -193,11 +197,10 @@ class MapMatch(object):
             hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                    not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                   top_k=self.top_k, omitted_l=self.omitted_l, multi_core=self.multi_core,
-                                   core_num=self.core_num)
+                                   top_k=self.top_k, omitted_l=self.omitted_l)
 
             # 求解参数
-            is_success = hmm_obj.generate_markov_para()
+            is_success = hmm_obj.generate_markov_para(add_single_ft)
             if not is_success:
                 continue
             hmm_obj.solve()
@@ -220,3 +223,50 @@ class MapMatch(object):
                     hmm_res_list = []
 
         return match_res_df, self.may_error_list, self.error_list
+
+    def multi_core_execute(self):
+        agent_id_list = list(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
+        core_num = os.cpu_count() if self.core_num > os.cpu_count() else self.core_num
+        agent_group = cut_group(agent_id_list, n=core_num)
+        n = len(agent_group)
+        print(f'using multiprocessing - {n} cores')
+        pool = multiprocessing.Pool(processes=n)
+        result_list = []
+        for i in range(0, n):
+            core_html_fldr = os.path.join(self.html_fldr, rf'core{i}')
+            if os.path.exists(core_html_fldr):
+                pass
+            else:
+                os.makedirs(core_html_fldr)
+
+            agent_id_list = agent_group[i]
+            print(agent_id_list)
+            gps_df = self.gps_df[self.gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
+            mmp = MapMatch(gps_df=gps_df, net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
+                           time_unit=self.time_unit, gps_buffer=self.gps_buffer,
+                           gps_route_buffer_gap=self.gps_route_buffer_gap,
+                           max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
+                           beta=self.beta,
+                           gps_sigma=self.gps_sigma, dis_para=self.dis_para, is_lower_f=self.is_lower_f,
+                           lower_n=self.lower_n,
+                           use_heading_inf=self.use_heading_inf, heading_para_array=self.heading_para_array,
+                           dense_gps=self.dense_gps,
+                           dense_interval=self.dense_interval, dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n,
+                           del_dwell=self.del_dwell,
+                           dup_threshold=self.dup_threshold, is_rolling_average=self.is_rolling_average,
+                           window=self.rolling_window,
+                           export_html=self.export_html,
+                           use_gps_source=self.use_gps_source, html_fldr=core_html_fldr,
+                           export_geo_res=self.export_geo_res, core_num=self.core_num,
+                           node_num_threshold=self.node_num_threshold,
+                           top_k=self.top_k, omitted_l=self.omitted_l, link_width=self.link_width,
+                           node_radius=self.node_radius,
+                           match_link_width=self.match_link_width, gps_radius=self.gps_radius,
+                           export_all_agents=self.export_all_agents,
+                           visualization_cache_times=self.visualization_cache_times,
+                           multi_core_save=self.multi_core_save)
+            result = pool.apply_async(mmp.execute,
+                                      args=())
+            result_list.append(result)
+        pool.close()
+        pool.join()
