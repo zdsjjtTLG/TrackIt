@@ -22,7 +22,7 @@
 
 
 
-**版本状态：04.27即将更新更新: v0.2.2**
+**版本状态：04.27已经更新: v0.2.2**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
