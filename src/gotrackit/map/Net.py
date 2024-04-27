@@ -321,7 +321,7 @@ class Net(object):
 
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
-                                 cache_path: bool = True, cache_id: bool = True, not_conn_cost=999.0,
+                                 cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
                                  fmm_cache: bool = False):
         """
 
