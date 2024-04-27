@@ -1112,7 +1112,7 @@ nv.generate_od_by_gps的相关参数如下：
         my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
                      node_path=r'./data/input/net/xian/modifiedConn_node.shp',
                      fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=True,
-                     cut_off=500.0,
+                     cut_off=800.0,
                      cache_slice=6)
         my_net.init_net()  # net初始化
 
@@ -1223,8 +1223,6 @@ nv.generate_od_by_gps的相关参数如下：
 
 * core_num
     用几个核进行匹配, 默认1
-
-
 
 
 
