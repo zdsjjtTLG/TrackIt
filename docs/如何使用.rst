@@ -898,7 +898,7 @@ nv.generate_od_by_gps的相关参数如下：
 函数方法的相关参数见 :doc:`类方法汇总`
 
 
-5. 地图匹配(v0.2.2文档, python包还未更新)
+5. 地图匹配
 -------------------------------------------------
 
 5.1. 所需数据
@@ -986,16 +986,16 @@ nv.generate_od_by_gps的相关参数如下：
     GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'
 
 * gps_buffer
-    GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为候选路段, 默认90.0m
+    GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为候选路段, 默认200.0m
 
 * gps_route_buffer_gap
-    半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0m
+    半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认15.0m
 
 * max_increment_times
     增量搜索次数, 默认2
 
 * increment_buffer
-    增量半径, 默认20.0m
+    增量半径, 默认15.0m
 
 * top_k
     选取每个GPS点buffer范围内的最近的top_k个路段，默认20
@@ -1117,7 +1117,7 @@ nv.generate_od_by_gps的相关参数如下：
         my_net.init_net()  # net初始化
 
         # fmm_cache_fldr用于指定存储预计算结果的文件目录
-        # cut_off为500m, 表示最短路径搜索过程中, 只计算最短路径距离小于500的路径(考虑到相邻GPS点距离跨度不会太大)
+        # cut_off为800m, 表示最短路径搜索过程中, 只计算最短路径距离小于500的路径(考虑到相邻GPS点距离跨度不会太大)
         # cache_slice=6, 表示使用将路径结果切分为6部分进行数据标准化(大规模路网防止内存溢出)
 
 
@@ -1146,7 +1146,7 @@ nv.generate_od_by_gps的相关参数如下：
                    html_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
                    gps_radius=20.0)
         match_res, may_error_info, error_info = mpm.execute()
-        print(res)
+        print(match_res)
 
 
 
@@ -1156,7 +1156,7 @@ nv.generate_od_by_gps的相关参数如下：
     是否启用路径缓存预计算, 默认False
 
 * cache_cn
-    使用几个核能进行路径预计算, 默认2
+    使用几个核进行路径预计算, 默认2
 
 * fmm_cache_fldr
     存储路径预计算结果的文件目录, 默认./
@@ -1165,10 +1165,7 @@ nv.generate_od_by_gps的相关参数如下：
     是否重新计算路径缓存, 默认True
 
 * cut_off
-    路径搜索截断长度, 米, 默认800.0m
-
-* max_cut_off
-    最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
+    路径搜索截断长度, 米, 默认1200.0m
 
 * cache_name
     路径预存储的标志名称, 默认cache, 两个缓存文件的名称: {cache_name}_path_cache, {cache_name}_prj
