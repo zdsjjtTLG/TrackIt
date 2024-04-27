@@ -24,7 +24,7 @@ node_id_field = net_field.NODE_ID_FIELD
 class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
-                 gps_buffer: float = 100, gps_route_buffer_gap: float = 25.0,
+                 gps_buffer: float = 200.0, gps_route_buffer_gap: float = 25.0,
                  max_increment_times: int = 2, increment_buffer: float = 20.0,
                  beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
@@ -268,3 +268,10 @@ class MapMatch(object):
             result_list.append(result)
         pool.close()
         pool.join()
+
+        match_res, may_error, error = pd.DataFrame(), dict(), list()
+        for res in result_list:
+            _match_res, _may_error, _error = res.get()
+            match_res = pd.concat([match_res, _match_res])
+            may_error.update(_may_error)
+            error.extend(_error)
