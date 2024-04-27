@@ -24,8 +24,8 @@ node_id_field = net_field.NODE_ID_FIELD
 class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
-                 gps_buffer: float = 200.0, gps_route_buffer_gap: float = 25.0,
-                 max_increment_times: int = 2, increment_buffer: float = 20.0,
+                 gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
+                 max_increment_times: int = 2, increment_buffer: float = 15.0,
                  beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
@@ -133,6 +133,7 @@ class MapMatch(object):
         self.export_all_agents = export_all_agents
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
+        self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap + max_increment_times * increment_buffer
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
@@ -179,7 +180,7 @@ class MapMatch(object):
             if self.use_sub_net:
                 print(rf'using sub net')
                 used_net = self.my_net.create_computational_net(
-                    gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.gps_buffer + self.gps_route_buffer_gap,
+                    gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
                                                                   dup_threshold=self.dup_threshold),
                     fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
                     cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
