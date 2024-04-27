@@ -51,7 +51,7 @@ class Net(object):
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None,
                  cache_name: str = 'cache', recalc_cache: bool = True,
-                 cut_off: float = 800.0, max_cut_off: float = 5000.0):
+                 cut_off: float = 1200.0, max_cut_off: float = 5000.0):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层

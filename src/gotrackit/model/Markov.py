@@ -224,7 +224,9 @@ class HiddenMarkov(object):
             preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
             preliminary_candidate_link.reset_index(inplace=True, drop=True)
             preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis', 'dir_vec': 'p_vec'}, inplace=True)
-        return preliminary_candidate_link
+            return preliminary_candidate_link
+        else:
+            return a_info
 
     def solve(self, use_lop_p: bool = True):
         """
@@ -278,7 +280,7 @@ class HiddenMarkov(object):
                                               self.net.weight_field, self.net.cache_path, self.net.not_conn_cost,
                                               done_stp_cost_df, is_sub_net, fmm_cache,
                                               cut_off, max_cut_off, cache_prj_info, add_single_ft)
-        print(len(done_stp_cost_df))
+        # print(len(done_stp_cost_df))
         ft_idx_map.reset_index(inplace=True, drop=True)
         s2s_route_l.reset_index(inplace=True, drop=True)
         self.__adj_seq_path_dict = adj_seq_path_dict
@@ -291,7 +293,7 @@ class HiddenMarkov(object):
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
-    @function_time_cost
+    # @function_time_cost
     def generate_transition_mat_beta(self, single_link_ft_df: pd.DataFrame = None,
                                      pre_seq_candidate: pd.DataFrame = None,
                                      gps_pre_next_dis_df: pd.DataFrame = None,
@@ -307,7 +309,7 @@ class HiddenMarkov(object):
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
                                      top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-        print(rf'{len(seq_k_candidate_info)}个候选路段...')
+        # print(rf'{len(seq_k_candidate_info)}个候选路段...')
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
                                           net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
 
@@ -340,7 +342,7 @@ class HiddenMarkov(object):
 
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
-        print(rf'{len(transition_df)}次状态转移...')
+        # print(rf'{len(transition_df)}次状态转移...')
         transition_df = self.diy_merge(left_df=transition_df,
                                        right_df=single_link_ft_df[
                                            [net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
