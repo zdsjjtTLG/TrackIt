@@ -352,7 +352,7 @@ class Net(object):
                       not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache,
                       ft_link_mapping=self.get_ft_node_link_mapping(),
                       link_ft_mapping=self.link_ft_map,
-                      double_single_mapping=self.bilateral_unidirectional_mapping)
+                      double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off)
         sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
         return sub_net
 
