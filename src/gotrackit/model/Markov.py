@@ -10,11 +10,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
-import multiprocessing
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
-from ..tools.group import cut_group
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
 from ..tools.geo_process import prj_inf
@@ -261,6 +259,7 @@ class HiddenMarkov(object):
         is_sub_net = self.net.is_sub_net
         fmm_cache = self.net.fmm_cache
         cut_off, max_cut_off = self.net.cut_off, self.net.max_cut_off
+        # print(cut_off)
         if is_sub_net:
             if fmm_cache:
                 done_stp_cost_df = self.net.get_path_cache()
@@ -410,10 +409,16 @@ class HiddenMarkov(object):
         transition_df['2nd_node'] = -1
         transition_df['-2nd_node'] = -1
         normal_path_idx_a = transition_df[cost_field] > 0
-        transition_df.loc[normal_path_idx_a, '2nd_node'] = transition_df.loc[normal_path_idx_a, :][path_field].apply(
-            lambda x: x[1])
-        transition_df.loc[normal_path_idx_a, '-2nd_node'] = transition_df.loc[normal_path_idx_a, :][path_field].apply(
-            lambda x: x[-2])
+        # normal_path_idx_a可能全是False
+        try:
+            transition_df.loc[normal_path_idx_a, '2nd_node'] = transition_df.loc[normal_path_idx_a, :][
+                path_field].apply(
+                lambda x: x[1])
+            transition_df.loc[normal_path_idx_a, '-2nd_node'] = transition_df.loc[normal_path_idx_a, :][
+                path_field].apply(
+                lambda x: x[-2])
+        except:
+            pass
         normal_path_idx_b = (normal_path_idx_a & \
                              (transition_df['2nd_node'] == transition_df['from_link_t']) & \
                              (transition_df['-2nd_node'] != transition_df['to_link_t'])) | \
