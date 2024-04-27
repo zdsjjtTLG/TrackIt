@@ -134,7 +134,7 @@ class MapMatch(object):
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
 
-    def execute(self):
+    def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
         hmm_res_list = []  # save hmm_res
         if len(self.my_net.get_node_data()[node_id_field].unique()) <= self.node_num_threshold:
@@ -222,7 +222,7 @@ class MapMatch(object):
 
         return match_res_df, self.may_error_list, self.error_list
 
-    def multi_core_execute(self, core_num: int = 2):
+    def multi_core_execute(self, core_num: int = 2) -> tuple[pd.DataFrame, dict, list]:
         agent_id_list = list(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
         core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
         agent_group = cut_group(agent_id_list, n=core_num)
@@ -238,7 +238,6 @@ class MapMatch(object):
                 os.makedirs(core_html_fldr)
 
             agent_id_list = agent_group[i]
-            print(agent_id_list)
             gps_df = self.gps_df[self.gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
             mmp = MapMatch(gps_df=gps_df, net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
                            time_unit=self.time_unit, gps_buffer=self.gps_buffer,
@@ -275,3 +274,5 @@ class MapMatch(object):
             match_res = pd.concat([match_res, _match_res])
             may_error.update(_may_error)
             error.extend(_error)
+        match_res.reset_index(inplace=True, drop=True)
+        return match_res, may_error, error
