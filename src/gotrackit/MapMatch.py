@@ -26,7 +26,7 @@ class MapMatch(object):
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
                  max_increment_times: int = 2, increment_buffer: float = 15.0,
-                 beta: float = 20.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
+                 beta: float = 10.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
                  dense_gps: bool = True, dense_interval: float = 80.0,
