@@ -896,6 +896,34 @@ nv.generate_od_by_gps的相关参数如下：
 
 --------------------------------------------------------------------------------
 
+
+
+4.12. 坐标转换(如有需要)
+`````````````````````````````````````````````````
+
+提供了 GCJ-02、wgs84、百度 坐标系之间的相互转换接口
+
+
+.. code-block:: python
+    :linenos:
+
+    from gotrackit.tools.coord_trans import LngLatTransfer
+    from shapely.geometry import LineString
+
+    if __name__ == '__main__':
+
+        trans = LngLatTransfer()
+        # 单个坐标点转换
+        # con_type含义: gc-84: GCJ-02向WGS84转换, 84-bd: WGS84向百度转换, 其他同理...
+        trans_x, trans_y = trans.loc_convert(lng=114.361, lat=22.362, con_type='gc-84')
+
+        # 几何对象转换
+        # 支持shapely的点、先、面转换
+        trans_line = trans.obj_convert(geo_obj=LineString([(114.325, 22.36), (114.66, 22.365), (114.321, 22.452)]),
+                                       con_type='gc-84')
+        print(trans_line)
+
+
 函数方法的相关参数见 :doc:`类方法汇总`
 
 
@@ -1122,7 +1150,7 @@ nv.generate_od_by_gps的相关参数如下：
         my_net.init_net()  # net初始化
 
         # fmm_cache_fldr用于指定存储预计算结果的文件目录
-        # cut_off为800m, 表示最短路径搜索过程中, 只计算最短路径距离小于500的路径(考虑到相邻GPS点距离跨度不会太大)
+        # cut_off为800m, 表示最短路径搜索过程中, 只计算最短路径距离小于800.0m的路径(考虑到相邻GPS点距离跨度不会太大)
         # cache_slice=6, 表示使用将路径结果切分为6部分进行数据标准化(大规模路网防止内存溢出)
 
 
