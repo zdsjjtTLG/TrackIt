@@ -918,7 +918,7 @@ nv.generate_od_by_gps的相关参数如下：
         trans_x, trans_y = trans.loc_convert(lng=114.361, lat=22.362, con_type='gc-84')
 
         # 几何对象转换
-        # 支持shapely的点、先、面转换
+        # 支持shapely的点、线、面对象转换
         trans_line = trans.obj_convert(geo_obj=LineString([(114.325, 22.36), (114.66, 22.365), (114.321, 22.452)]),
                                        con_type='gc-84')
         print(trans_line)
