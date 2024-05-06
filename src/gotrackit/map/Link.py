@@ -7,7 +7,6 @@
 路网线层存储与相关方法
 """
 
-import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -19,7 +18,6 @@ from ..netreverse.RoadNet.Tools.process import merge_double_link
 
 net_field = NetField()
 prj_const = PrjConst()
-
 
 geo_crs = prj_const.PRJ_CRS
 link_id_field = net_field.LINK_ID_FIELD
@@ -59,7 +57,8 @@ class Link(object):
         self.done_link_vec = False
 
     def check(self):
-        assert self.link_gdf.crs.srs == self.geo_crs, rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs.srs}'
+        assert self.link_gdf.crs.srs.upper() == self.geo_crs, \
+            rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs.srs}'
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
                    net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
@@ -111,7 +110,9 @@ class Link(object):
             neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
                 lambda line_geo: LineString(list(line_geo.coords)[::-1]))
             self.__single_link_gdf = pd.concat([link_gdf, neg_link])
-            self.__single_link_gdf.reset_index(inplace=True, drop=True)
+            # self.__single_link_gdf.reset_index(inplace=True, drop=True)
+        self.__single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
+        self.__single_link_gdf.reset_index(inplace=True, drop=True)
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
         self.__single_link_gdf['path'] = self.__single_link_gdf.apply(
             lambda row: [row[net_field.FROM_NODE_FIELD], row[net_field.TO_NODE_FIELD]], axis=1)
@@ -199,7 +200,7 @@ class Link(object):
         self.link_gdf.index = self.link_gdf[link_id_field]
 
     def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
-        assert link_gdf.crs.srs == self.crs
+        assert link_gdf.crs.srs.upper() == self.crs
         assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
         self.link_gdf = pd.concat(
             [self.link_gdf, link_gdf])
@@ -313,7 +314,7 @@ class Link(object):
         return self.__ft_link_mapping
 
     def to_plane_prj(self) -> None:
-        if self.link_gdf.crs.srs == self.planar_crs:
+        if self.check_same_crs(self.link_gdf,  self.planar_crs):
             pass
         else:
             if self.__single_link_gdf is None or self.__single_link_gdf.empty:
@@ -323,7 +324,7 @@ class Link(object):
             self.link_gdf = self.link_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
-        if self.link_gdf.crs.srs == self.geo_crs:
+        if self.check_same_crs(self.link_gdf, self.geo_crs):
             pass
         else:
             if self.__single_link_gdf is None or self.__single_link_gdf.empty:
@@ -331,6 +332,10 @@ class Link(object):
             else:
                 self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
             self.link_gdf = self.link_gdf.to_crs(self.geo_crs)
+
+    @staticmethod
+    def check_same_crs(gdf: gpd.GeoDataFrame = None, format_crs: str = None) -> bool:
+        return gdf.crs.srs.upper() == format_crs
 
     @property
     def crs(self):
