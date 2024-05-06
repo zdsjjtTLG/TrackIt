@@ -309,8 +309,9 @@ def angle_base_north(v: np.ndarray = None):
     else:
         return 360 - angle
 
+
 def judge_plain_crs(lng: float = None) -> str:
-    six_df = pd.DataFrame([(i * 6, 32631 + i) for i in range(0, 60)],
+    six_df = pd.DataFrame([(i * 6, 32631 + i) for i in range(-30, 30)],
                           columns=['start_lng', 'plain_crs'])
     res = six_df[lng - six_df['start_lng'] >= 0]['plain_crs'].max()
     return rf'EPSG:{res}'
