@@ -70,6 +70,11 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
     link_gdf = update_link(link_gdf=link_gdf, node_gdf=node_gdf, update_link_field_list=update_link_field_list,
                            origin_crs=origin_crs, plain_prj=plain_prj, fill_dir=fill_dir)
 
+    # 去除没有link连接的节点
+    used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
+    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
+    node_gdf.reset_index(inplace=True, drop=True)
+
     if save_streets_before_modify_minimum:
         save_file(data_item=link_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='LinkBeforeModify')
         save_file(data_item=node_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='NodeBeforeModify')
