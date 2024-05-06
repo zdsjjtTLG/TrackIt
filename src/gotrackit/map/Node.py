@@ -37,7 +37,8 @@ class Node(object):
             self.init_available_node_id()
 
     def check(self):
-        assert self.__node_gdf.crs.srs == self.geo_crs, rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs.srs}'
+        assert self.__node_gdf.crs.srs.upper() == self.geo_crs, \
+            rf'Node层数据必须为WGS84 - EPSG:4326, 实际输入: {self.__node_gdf.crs.srs}'
         gap_set = {node_id_field, geometry_field} - set(self.__node_gdf.columns)
         assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
         assert len(self.__node_gdf[node_id_field]) == len(self.__node_gdf[node_id_field].unique()), \
@@ -68,13 +69,13 @@ class Node(object):
         return self.__node_gdf.crs.srs
 
     def to_plane_prj(self) -> None:
-        if self.__node_gdf.crs.srs == self.planar_crs:
+        if self.check_same_crs(self.__node_gdf, self.planar_crs):
             pass
         else:
             self.__node_gdf = self.__node_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
-        if self.__node_gdf.crs.srs == self.geo_crs:
+        if self.check_same_crs(self.__node_gdf, self.geo_crs):
             pass
         else:
             self.__node_gdf = self.__node_gdf.to_crs(self.geo_crs)
@@ -118,3 +119,7 @@ class Node(object):
 
     def node_id_set(self) -> set[int]:
         return set(self.__node_gdf.index)
+
+    @staticmethod
+    def check_same_crs(gdf: gpd.GeoDataFrame = None, format_crs: str = None) -> bool:
+        return gdf.crs.srs.upper() == format_crs
