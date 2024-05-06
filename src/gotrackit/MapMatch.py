@@ -26,7 +26,7 @@ class MapMatch(object):
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
                  max_increment_times: int = 2, increment_buffer: float = 15.0,
-                 beta: float = 10.0, gps_sigma: float = 20.0, dis_para: float = 0.1,
+                 beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
                  dense_gps: bool = True, dense_interval: float = 80.0,
@@ -176,6 +176,11 @@ class MapMatch(object):
                 print(rf'dense gps by interval - {self.dense_interval}m')
                 gps_obj.dense()
 
+            if len(gps_obj.gps_gdf) <= 1:
+                print(r'经过数据预处理后GPS观测点数据不足2个')
+                self.error_list.append(agent_id)
+                continue
+
             # 依据当前的GPS数据(源数据)做一个子网络
             if self.use_sub_net:
                 print(rf'using sub net')
@@ -217,7 +222,8 @@ class MapMatch(object):
                                          export_geo=self.export_geo_res, export_html=self.export_html,
                                          gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
                                          out_fldr=self.html_fldr, flag_name=self.flag_name,
-                                         multi_core_save=self.multi_core_save)
+                                         multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
+                                         dup_threshold=self.dup_threshold)
                     del hmm_res_list
                     hmm_res_list = []
 
