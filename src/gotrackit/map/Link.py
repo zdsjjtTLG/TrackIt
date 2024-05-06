@@ -71,6 +71,11 @@ class Link(object):
                     net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
             assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
             self.link_gdf[col] = self.link_gdf[col].astype(int)
+        # 环路检测
+        circle_idx = self.link_gdf[from_node_field] == self.link_gdf[to_node_field]
+        if not self.link_gdf[circle_idx].empty:
+            print(rf'检测到线层数据有环路, 自动删除...')
+            self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True, axis=0)
 
     def init_link(self):
         """
