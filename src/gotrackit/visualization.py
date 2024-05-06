@@ -27,7 +27,7 @@ kepler_config = KeplerConfig()
 def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bool = False, use_gps_source: bool = True,
                          out_fldr: str = None, gps_radius: float = 6.0,
                          export_geo: bool = True, export_html: bool = True, flag_name: str = 'test',
-                         multi_core_save: bool = False):
+                         multi_core_save: bool = False, sub_net_buffer: float = 200.0, dup_threshold: float = 10.0):
     """
 
     :param hmm_obj_list:
@@ -39,6 +39,8 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
     :param export_html:
     :param flag_name
     :param multi_core_save
+    :param sub_net_buffer:
+    :param dup_threshold
     :return:
     """
     out_fldr = './' if out_fldr is None else out_fldr
@@ -46,7 +48,8 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
     if not multi_core_save or len(hmm_obj_list) <= 10 or os.cpu_count() <= 1:
         # print('single export')
         export_vs(hmm_obj_list=hmm_obj_list, use_gps_source=use_gps_source, gps_radius=gps_radius,
-                  out_fldr=out_fldr, export_geo=export_geo, export_html=export_html, flag_name=flag_name)
+                  out_fldr=out_fldr, export_geo=export_geo, export_html=export_html, flag_name=flag_name,
+                  sub_net_buffer=sub_net_buffer, dup_threshold=dup_threshold)
     else:
         # print('multi export')
         core_num = 3 if os.cpu_count() >= 3 else os.cpu_count()
@@ -58,7 +61,7 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
         for i in range(0, len(hmm_group)):
             res = pool.apply_async(export_vs,
                                    args=(hmm_group[i], use_gps_source, gps_radius, out_fldr, export_geo, export_html,
-                                         flag_name))
+                                         flag_name, sub_net_buffer, dup_threshold))
             res_list.append(res)
         pool.close()
         pool.join()
@@ -77,21 +80,25 @@ def export_visualization(hmm_obj_list: list[HiddenMarkov], export_all_agents: bo
             print(repr(e))
             print(rf'输出HTML可视化文件, 出现某些错误, 输出失败...')
 
+
 def export_vs(hmm_obj_list: list[HiddenMarkov], use_gps_source: bool = True,
               gps_radius: float = 8.0, out_fldr: str = None, export_geo: bool = True, export_html: bool = True,
-              flag_name: str = 'test') -> list[HiddenMarkov]:
+              flag_name: str = 'test', sub_net_buffer: float = 200.0, dup_threshold: float = 10.0) -> \
+        list[HiddenMarkov]:
     _ = [export_v(hmm_obj=hmm_obj, use_gps_source=use_gps_source, gps_radius=gps_radius,
-                  out_fldr=out_fldr, export_geo=export_geo, export_html=export_html, flag_name=flag_name) for hmm_obj in hmm_obj_list]
+                  out_fldr=out_fldr, export_geo=export_geo, export_html=export_html, flag_name=flag_name,
+                  sub_net_buffer=sub_net_buffer, dup_threshold=dup_threshold) for hmm_obj in hmm_obj_list]
     return _
 
 def export_v(hmm_obj: HiddenMarkov, use_gps_source: bool = True, gps_radius: float = 8.0, out_fldr: str = None,
-             export_geo: bool = True, export_html: bool = True, flag_name: str = 'test') -> HiddenMarkov:
+             export_geo: bool = True, export_html: bool = True, flag_name: str = 'test',
+             sub_net_buffer: float = 200.0, dup_threshold: float = 10.0) -> HiddenMarkov:
     vc = VisualizationCombination(use_gps_source=use_gps_source, hmm_obj=hmm_obj)
     file_name = flag_name + '-' + str(hmm_obj.gps_points.agent_id)
     if export_html:
         try:
             vc.visualization(file_name=file_name, out_fldr=out_fldr, zoom=15,
-                             gps_radius=gps_radius)
+                             gps_radius=gps_radius, sub_net_buffer=sub_net_buffer, dup_threshold=dup_threshold)
         except Exception as e:
             print(repr(e))
             print(rf'输出HTML可视化文件, 出现某些错误, 输出失败...')
@@ -125,7 +132,8 @@ class VisualizationCombination(object):
 
     def visualization(self, zoom: int = 15, out_fldr: str = None, file_name: str = None,
                       link_width: float = 1.5, node_radius: float = 1.5,
-                      match_link_width: float = 5.0, gps_radius: float = 3.0) -> None:
+                      match_link_width: float = 5.0, gps_radius: float = 3.0, sub_net_buffer: float = 200.0,
+                      dup_threshold: float = 10.0) -> None:
         out_fldr = r'./' if out_fldr is None else out_fldr
         base_link_gdf = gpd.GeoDataFrame()
         base_node_gdf = gpd.GeoDataFrame()
@@ -134,7 +142,8 @@ class VisualizationCombination(object):
         for hmm in self.__hmm_obj_list:
             _gps_link_gdf, _base_link_gdf, _base_node_gdf, _error_gdf = hmm.acquire_visualization_res(
                 use_gps_source=self.use_gps_source, link_width=link_width, gps_radius=gps_radius,
-                match_link_width=match_link_width, node_radius=node_radius)
+                match_link_width=match_link_width, node_radius=node_radius, sub_net_buffer=sub_net_buffer,
+                dup_threshold=dup_threshold)
             base_link_gdf = pd.concat([base_link_gdf, _base_link_gdf])
             base_node_gdf = pd.concat([base_node_gdf, _base_node_gdf])
             gps_link_gdf = pd.concat([gps_link_gdf, _gps_link_gdf])
