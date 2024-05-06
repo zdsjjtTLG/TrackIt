@@ -147,20 +147,28 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
+        # x = self.__gps_points_gdf.to_crs('EPSG:4326')
+        # x[['lng', 'lat']] = x.apply(lambda row: (row['geometry'].x, row['geometry'].y), result_type='expand', axis=1)
+        # x[[agent_field, time_field, lng_field, lat_field]].to_csv(r'dense_sz.csv', encoding='utf_8_sig', index=False)
 
     def calc_adj_dis_gap(self) -> None:
         # 距离差
         self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
             self.__gps_points_gdf[geometry_field])
-        self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
-            lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
+        # self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
+        #     lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
+        self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf[next_p_field].distance(
+            self.__gps_points_gdf[geometry_field])
 
     def calc_adj_time_gap(self) -> None:
         # 时间差
         self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
             self.__gps_points_gdf[time_field])
-        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
-            lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
+        # self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
+        #     lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
+        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[next_time_field] - self.__gps_points_gdf[
+            time_field]
+        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[time_gap_field].apply(lambda x: x.seconds)
 
     def calc_pre_next_dis(self) -> pd.DataFrame():
         self.calc_adj_dis_gap()
@@ -289,14 +297,10 @@ class GpsPointsGdf(object):
 
     def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon or None:
         """输出gps路径的buffer范围面域"""
-        if len(self.__gps_points_gdf) <= 1:
-            print(r'经过数据预处理后GPS观测点数据不足2个')
-            return None
-        else:
-            gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
-            simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
-            gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
-            return gps_array_buffer
+        gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
+        simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
+        gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
+        return gps_array_buffer
 
     def generate_candidate_link(self, net: Net = None) -> tuple[pd.DataFrame, list[int]]:
         """
@@ -305,7 +309,7 @@ class GpsPointsGdf(object):
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
-        if gps_buffer_gdf.crs.srs != self.plane_crs:
+        if gps_buffer_gdf.crs.srs.upper() != self.plane_crs:
             gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
 
         single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
@@ -344,7 +348,7 @@ class GpsPointsGdf(object):
         return candidate_link, remain_gps_list
 
     def to_plane_prj(self) -> None:
-        if self.__gps_points_gdf.crs.srs == self.plane_crs:
+        if self.__gps_points_gdf.crs.srs.upper() == self.plane_crs:
             self.__crs = self.plane_crs
             pass
         else:
@@ -352,7 +356,7 @@ class GpsPointsGdf(object):
             self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
-        if self.__gps_points_gdf.crs.srs == self.geo_crs:
+        if self.__gps_points_gdf.crs.srs.upper() == self.geo_crs:
             self.__crs = self.geo_crs
             pass
         else:
