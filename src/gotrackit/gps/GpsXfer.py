@@ -35,7 +35,7 @@ class Route2Gps(object):
         :return:
         """
 
-        assert path_gdf.crs.srs == 'EPSG:4326'
+        assert path_gdf.crs.srs.upper() == 'EPSG:4326'
         assert len(path_o_time_df) >= 1
         assert {path_id_field, seq_field, time_cost_field, geometry_field}.issubset(set(path_gdf.columns))
         assert {path_id_field, o_time_field}.issubset(set(path_o_time_df.columns))
