@@ -916,7 +916,7 @@ gotrackit不允许路网出现环路以及相同from_node - to_node的link存在
 .. code-block:: python
     :linenos:
 
-    import src.gotrackit.netreverse.NetGen as ng
+    import gotrackit.netreverse.NetGen as ng
 
     if __name__ == '__main__':
         l = gpd.read_file('./data/input/net/test/0506yg/link.shp')
