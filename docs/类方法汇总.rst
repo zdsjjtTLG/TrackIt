@@ -33,8 +33,6 @@
 * plane_crs
     平面投影坐标系
 
-* init_from_existing
-    是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 不用指定值
 
 * search_method
     路径规划所使用的方法,目前支持 'dijkstra' or 'bellman-ford', 默认dijkstra

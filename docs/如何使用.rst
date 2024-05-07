@@ -897,8 +897,57 @@ nv.generate_od_by_gps的相关参数如下：
 --------------------------------------------------------------------------------
 
 
+4.12. 处理路网环路和相同from_node - to_node的路段
+`````````````````````````````````````````````````
 
-4.12. 坐标转换(如有需要)
+gotrackit不允许路网出现环路以及相同from_node - to_node的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
+
+.. image:: _static/images/circle_before.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
+
+.. image:: _static/images/same_ft_before.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+.. code-block:: python
+    :linenos:
+
+    import src.gotrackit.netreverse.NetGen as ng
+
+    if __name__ == '__main__':
+        l = gpd.read_file('./data/input/net/test/0506yg/link.shp')
+        n = gpd.read_file('./data/input/net/test/0506yg/node.shp')
+
+        # 处理环路和相同from_node - to_node的link
+        new_link, new_node = ng.NetReverse.circle_process(link_gdf=l, node_gdf=n)
+
+        new_link = new_link.to_crs('EPSG:4326')
+        new_node = new_node.to_crs('EPSG:4326')
+
+        new_link.to_file('./data/input/net/test/0506yg/new_link.shp')
+        new_node.to_file('./data/input/net/test/0506yg/new_node.shp')
+
+
+
+circle_process处理后如图
+
+.. image:: _static/images/circle_after.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
+
+.. image:: _static/images/same_ft_after.jpg
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+
+4.13. 坐标转换(如有需要)
 `````````````````````````````````````````````````
 
 提供了 GCJ-02、wgs84、百度 坐标系之间的相互转换接口
@@ -983,7 +1032,7 @@ nv.generate_od_by_gps的相关参数如下：
                is_rolling_average=True, window=3,
                dense_gps=False,
                export_html=True, export_geo_res=True, use_gps_source=False,
-               html_fldr=r'./data/output/match_visualization/xa_sample',
+               out_fldr=r'./data/output/match_visualization/xa_sample',
                gps_radius=10.0)
 
         # 第一个返回结果是匹配结果表
@@ -1030,10 +1079,10 @@ nv.generate_od_by_gps的相关参数如下：
     选取每个GPS点buffer范围内的最近的top_k个路段，默认20
 
 * beta
-    该值越大, 状态转移概率对于距离差(米, 相邻投影点路径长度 与 相邻GPS点球面距离 的距离差)越不敏感, 大于0的值, 默认20.0m
+    该值越大, 状态转移概率对于距离差(米, 相邻投影点路径长度 与 相邻GPS点球面距离 的距离差)越不敏感, 大于0的值, 默认6.0m
 
 * gps_sigma
-    该值越大, 发射概率对距离(米, GPS点到候选路段的距离)越不敏感, 大于0的值, 默认20.0m
+    该值越大, 发射概率对距离(米, GPS点到候选路段的距离)越不敏感, 大于0的值, 默认30.0m
 
 * dis_para
     距离(m)的折减系数, 大于0的值, 默认0.1
@@ -1091,6 +1140,9 @@ nv.generate_od_by_gps的相关参数如下：
 
 ----------------------------------------
 
+* instant_output
+    是否每匹配完一条轨迹就存储csv匹配结果, 默认False
+
 * export_html
     是否输出网页可视化结果html文件, 默认True
 
@@ -1098,16 +1150,16 @@ nv.generate_od_by_gps的相关参数如下：
     是否将所有agent的可视化存储于一个html文件中
 
 * export_geo_res
-    是否输出匹配结果的几何可视化文件, 默认False
+    是否输出匹配结果的geojson几何可视化文件, 默认False
 
 * visualization_cache_times
-    每匹配完visualization_cache_times辆车再进行结果的统一存储(可并发存储), 默认50
+    每匹配完visualization_cache_times辆车再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
 
 * use_gps_source
     是否在可视化结果中使用GPS源数据进行展示, 默认False
 
-* html_fldr
-    保存可视化结果的文件(html文件和geojson文件)目录, 默认当前目录
+* out_fldr
+    保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
 * node_num_threshold
     默认2000
@@ -1176,7 +1228,7 @@ nv.generate_od_by_gps的相关参数如下：
                    lower_n=2, is_lower_f=True,
                    is_rolling_average=True, window=3,
                    export_html=False, export_geo_res=False, use_gps_source=False,
-                   html_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
+                   out_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
                    gps_radius=20.0)
         match_res, may_error_info, error_info = mpm.execute()
         print(match_res)
@@ -1243,7 +1295,7 @@ nv.generate_od_by_gps的相关参数如下：
                is_rolling_average=True, window=3,
                dense_gps=False,
                export_html=False, export_geo_res=False, use_gps_source=False,
-               html_fldr=r'./data/output/match_visualization/xa_sample',
+               out_fldr=r'./data/output/match_visualization/xa_sample',
                gps_radius=10.0)
 
         match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
