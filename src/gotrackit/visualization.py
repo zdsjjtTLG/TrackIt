@@ -104,8 +104,12 @@ def export_v(hmm_obj: HiddenMarkov, use_gps_source: bool = True, gps_radius: flo
             print(rf'输出HTML可视化文件, 出现某些错误, 输出失败...')
 
     if export_geo:
-        hmm_obj.acquire_geo_res(out_fldr=out_fldr,
-                                flag_name=file_name)
+        try:
+            hmm_obj.acquire_geo_res(out_fldr=out_fldr,
+                                    flag_name=file_name)
+        except Exception as e:
+            print(repr(e))
+            print(rf'输出geojson可视化文件, 出现某些错误, 输出失败...')
     return hmm_obj
 
 
