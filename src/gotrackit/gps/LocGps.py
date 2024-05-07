@@ -87,6 +87,7 @@ class GpsPointsGdf(object):
         except ValueError:
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
+
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
@@ -147,9 +148,6 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
-        # x = self.__gps_points_gdf.to_crs('EPSG:4326')
-        # x[['lng', 'lat']] = x.apply(lambda row: (row['geometry'].x, row['geometry'].y), result_type='expand', axis=1)
-        # x[[agent_field, time_field, lng_field, lat_field]].to_csv(r'dense_sz.csv', encoding='utf_8_sig', index=False)
 
     def calc_adj_dis_gap(self) -> None:
         # 距离差
