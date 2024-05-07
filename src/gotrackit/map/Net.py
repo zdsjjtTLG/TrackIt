@@ -51,7 +51,7 @@ class Net(object):
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None,
                  cache_name: str = 'cache', recalc_cache: bool = True,
-                 cut_off: float = 1200.0, max_cut_off: float = 5000.0):
+                 cut_off: float = 1200.0, max_cut_off: float = 5000.0, delete_circle: bool = True):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -99,6 +99,7 @@ class Net(object):
         self.fmm_cache_fldr = fmm_cache_fldr
         self.recalc_cache = recalc_cache
         self.cache_slice = cache_slice
+        self.delete_circle = delete_circle
         if self.cache_slice is None:
             self.cache_slice = 2 * self.cache_cn
 
@@ -110,11 +111,11 @@ class Net(object):
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, is_check=is_check,
                                planar_crs=self.__node.planar_crs, init_available_link=self.cache_id,
-                               not_conn_cost=self.not_conn_cost)
+                               not_conn_cost=self.not_conn_cost, delete_circle=self.delete_circle)
         else:
             self.__link = Link(link_gdf=link_gdf, weight_field=self.weight_field, is_check=is_check,
                                planar_crs=self.__node.planar_crs, init_available_link=self.cache_id,
-                               not_conn_cost=self.not_conn_cost)
+                               not_conn_cost=self.not_conn_cost, delete_circle=self.delete_circle)
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         if not self.is_sub_net:
@@ -353,7 +354,8 @@ class Net(object):
                       not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache,
                       ft_link_mapping=self.get_ft_node_link_mapping(),
                       link_ft_mapping=self.link_ft_map,
-                      double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off)
+                      double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off,
+                      delete_circle=False)
         sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
         return sub_net
 
@@ -530,6 +532,45 @@ class Net(object):
                 self.__link.init_link()
                 self.__node.init_node()
 
+    def get_circle_link(self) -> set[int]:
+        link_gdf = self.__link.link_gdf
+        return set(link_gdf[link_gdf[from_node_field] == link_gdf[to_node_field]][link_id_field])
+
+    def get_same_ft_link(self) -> set[int]:
+        link_gdf = self.__link.link_gdf
+        link_gdf['__temp__'] = link_gdf.apply(
+            lambda row: tuple(sorted((row[net_field.FROM_NODE_FIELD], row[net_field.TO_NODE_FIELD]))), axis=1)
+        dup_ft = set(link_gdf[link_gdf.duplicated(subset=['__temp__'])][
+                         net_field.LINK_ID_FIELD])
+        del link_gdf['__temp__']
+        return dup_ft
+
+    def process_circle(self):
+        """处理环路和相同f-t node的路"""
+        candidate_link_set = self.get_circle_link()
+        self.process_target(target_link_list=candidate_link_set)
+
+        candidate_link_set = self.get_same_ft_link()
+        self.process_target(target_link_list=candidate_link_set)
+
+        self.check()
+
+    def process_target(self, target_link_list: list[int] or set[int] = None):
+        for target_link in target_link_list:
+            target_geo = self.__link.get_link_geo(target_link, _type='bilateral')
+            split_ok, prj_p, modified_link, res_type = \
+                self.split_link(target_geo.interpolate(target_geo.length / 2),
+                                target_link, omitted_length_threshold=0.01)
+            if split_ok:
+                new_node_id = self.__node.available_node_id
+                self.__node.append_nodes(node_id=[new_node_id], geo=[prj_p])
+                self.modify_link_gdf(link_id_list=[modified_link[0]], attr_field_list=[to_node_field],
+                                     val_list=[[new_node_id]])
+                self.modify_link_gdf(link_id_list=[modified_link[1]], attr_field_list=[from_node_field],
+                                     val_list=[[new_node_id]])
+                self.renew_link_tail_geo(link_list=[modified_link[0]])
+                self.renew_link_head_geo(link_list=[modified_link[1]])
+
     @staticmethod
     def generate_new_ft(origin_f: int = None, origin_t: int = None,
                         divide_num: int = 2, start_node: int = None) -> tuple[list, list]:
@@ -650,8 +691,8 @@ class Net(object):
             try:
                 done_cost_cache[node], done_stp_cache[node] = nx.single_source_dijkstra(g, node, weight=weight_field,
                                                                                         cutoff=cut_off)
-            except nx.exception.NodeNotFound as e:
-                print(repr(e))
+            except Exception as e:
+                pass
 
         done_stp_cost_df = self.slice_save(done_stp_cache=done_stp_cache,
                                            done_cost_cache=done_cost_cache,
