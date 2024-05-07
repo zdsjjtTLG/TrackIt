@@ -22,15 +22,23 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 
 
 
-**版本状态：04.27已经更新: v0.2.2**
+**版本状态：05.07已经更新: v0.2.3**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 向量化改造, 且引入FMM(Fast Map Matching)路径预存储机制, 大规模路网匹配效率大幅度提升
 
-- 完善报错机制, 遇到GPS脏数据不再报错停止, 而是跳过, 并且在所有的agents计算完毕后输出有问题的agent编号
+- 效率优化, 相较于v0.2.2小幅度提升
 
-- BUG修复
+- crs判断BUG修复、境外路网构建失败BUG修复
+
+- 报错机制优化
+
+- 输出文件目录指定参数html_fldr废除, 改为out_fldr
+
+- 增加环路处理功能
+    
+- 增加匹配结果即时输出参数, 每匹配完一条轨迹可马上进行结果存储
+
 
 <br>
 
