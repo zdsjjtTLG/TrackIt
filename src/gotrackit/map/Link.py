@@ -32,7 +32,7 @@ link_vec_field = net_field.LINK_VEC_FIELD
 class Link(object):
     def __init__(self, link_gdf: gpd.GeoDataFrame = None, planar_crs: str = None,
                  weight_field: str = None, is_check: bool = True, not_conn_cost: float = 999.0,
-                 init_available_link: bool = True):
+                 init_available_link: bool = True, delete_circle: bool = True):
 
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
@@ -41,6 +41,7 @@ class Link(object):
         self.link_gdf.index = self.link_gdf[link_id_field]
         self.weight_field = weight_field
         self.__available_link_id = []
+        self.delete_circle = delete_circle
         if is_check:
             self.check()
         self.max_link_id = 999
@@ -71,11 +72,13 @@ class Link(object):
                     net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
             assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
             self.link_gdf[col] = self.link_gdf[col].astype(int)
+
         # 环路检测
-        circle_idx = self.link_gdf[from_node_field] == self.link_gdf[to_node_field]
-        if not self.link_gdf[circle_idx].empty:
-            print(rf'检测到线层数据有环路, 自动删除...')
-            self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True, axis=0)
+        if self.delete_circle:
+            circle_idx = self.link_gdf[from_node_field] == self.link_gdf[to_node_field]
+            if not self.link_gdf[circle_idx].empty:
+                print(rf'检测到线层数据有环路, 自动删除...')
+                self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True, axis=0)
 
     def init_link(self):
         """
