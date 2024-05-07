@@ -108,6 +108,11 @@ class Net(object):
         else:
             self.__node = Node(node_gdf=node_gdf, is_check=is_check, init_available_node=self.cache_id)
 
+        if not init_from_existing:
+            self.__node.init_node()
+        else:
+            pass
+
         if link_gdf is None:
             self.__link = Link(link_gdf=gpd.read_file(link_path), weight_field=self.weight_field, is_check=is_check,
                                planar_crs=self.__node.planar_crs, init_available_link=self.cache_id,
@@ -119,6 +124,7 @@ class Net(object):
         self.__planar_crs = self.__node.planar_crs
         self.to_plane_prj()
         if not self.is_sub_net:
+            self.del_zero_degree_nodes()
             self.__link.renew_length()
         if not init_from_existing:
             if create_single:
@@ -130,10 +136,6 @@ class Net(object):
                                                                 double_single_mapping=double_single_mapping,
                                                                 ft_link_mapping=ft_link_mapping,
                                                                 link_ft_mapping=link_ft_mapping)
-        if not init_from_existing:
-            self.__node.init_node()
-        else:
-            pass
         if is_check:
             self.check()
 
