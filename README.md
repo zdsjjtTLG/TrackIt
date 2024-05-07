@@ -40,6 +40,9 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 - 增加 环路 处理功能
 
 
+**不要下载GitHub仓库上的代码来使用!!!  直接pip安装gotrackit为第三方库即可使用**
+
+
 <br>
 
 <div align=center>
