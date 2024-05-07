@@ -27,17 +27,17 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 
-- 效率优化, 相较于v0.2.2小幅度提升
+- 地图匹配接口效率优化, 相较于v0.2.2小幅度提升
 
-- crs判断BUG修复、境外路网构建失败BUG修复
+- 地图匹配接口报错机制优化
 
-- 报错机制优化
+- 地图匹配接口移除html_fldr参数, 使用out_fldr替代
 
-- 输出文件目录指定参数html_fldr废除, 改为out_fldr
+- 地图匹配接口增加即时输出开关instant_output, 打开后, 每匹配完一条轨迹马上进行结果存储
 
-- 增加环路处理功能
-    
-- 增加匹配结果即时输出参数, 每匹配完一条轨迹可马上进行结果存储
+- 路网构建: crs判断BUG修复、境外路网构建失败BUG修复
+
+- 增加 环路 处理功能
 
 
 <br>
