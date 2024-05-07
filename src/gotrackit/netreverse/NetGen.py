@@ -436,6 +436,19 @@ class NetReverse(Reverse):
         my_net.divide_links(divide_l=divide_l, min_l=min_l, is_init_link=False, method='alpha')
         return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
 
+    @staticmethod
+    def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+        :param link_gdf:
+        :param node_gdf:
+        :return:
+        """
+        my_net = Net(link_gdf=link_gdf,
+                     node_gdf=node_gdf, create_single=False, delete_circle=False)
+        my_net.process_circle()
+        return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+
     def redivide_link_node(self, link_gdf: gpd.GeoDataFrame = None):
         """
         对link进行线层和点层的重新划分
