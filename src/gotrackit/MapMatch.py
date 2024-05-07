@@ -33,12 +33,12 @@ class MapMatch(object):
                  dwell_l_length: float = 10.0, dwell_n: int = 2, del_dwell: bool = True,
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
-                 export_html: bool = False, use_gps_source: bool = False, html_fldr: str = None,
+                 export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
                  export_geo_res: bool = False,
                  node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 50, multi_core_save: bool = False):
+                 visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False):
         """
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
@@ -64,14 +64,15 @@ class MapMatch(object):
         :param window: 滑动窗口大小, 默认2
         :param export_html: 是否输出网页可视化结果html文件, 默认True
         :param use_gps_source: 是否在可视化结果中使用GPS源数据进行展示, 默认False
-        :param html_fldr: 保存网页可视化结果的文件目录, 默认当前目录
+        :param out_fldr: 保存匹配结果的文件目录, 默认当前目录
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
         :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
         :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
         :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
-        :param visualization_cache_times: 每匹配完几辆车再进行结果的统一存储, 默认50
+        :param visualization_cache_times: 每匹配完几辆车再进行(html or geojson文件)结果的统一存储, 默认50
         :param multi_core_save: 是否启用多进程进行结果存储
+        :param instant_output: 是否每匹配完一条轨迹就存储csv匹配结果
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -115,7 +116,7 @@ class MapMatch(object):
 
         self.export_html = export_html
         self.export_geo_res = export_geo_res
-        self.html_fldr = html_fldr
+        self.out_fldr = r'./' if out_fldr is None else out_fldr
 
         self.may_error_list = dict()
         self.error_list = list()
@@ -134,6 +135,7 @@ class MapMatch(object):
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
         self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap + max_increment_times * increment_buffer
+        self.instant_output = instant_output
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
@@ -152,29 +154,44 @@ class MapMatch(object):
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
             agent_count += 1
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
-            gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
-                                   buffer=self.gps_buffer, time_unit=self.time_unit,
-                                   plane_crs=self.plain_crs,
-                                   max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
-                                   dense_gps=self.dense_gps, dense_interval=self.dense_interval,
-                                   dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
+            try:
+                gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
+                                       buffer=self.gps_buffer, time_unit=self.time_unit,
+                                       plane_crs=self.plain_crs,
+                                       max_increment_times=self.max_increment_times,
+                                       increment_buffer=self.increment_buffer,
+                                       dense_gps=self.dense_gps, dense_interval=self.dense_interval,
+                                       dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
+            except Exception as e:
+                print('构建按GPS对象出错...')
+                print(repr(e))
+                self.error_list.append(agent_id)
+                continue
+
             del _gps_df
 
-            if self.del_dwell:
-                gps_obj.del_dwell_points()
+            # gps-process
+            try:
+                if self.del_dwell:
+                    print(rf'gps-preprocessing: del dwell')
+                    gps_obj.del_dwell_points()
 
-            # 降频处理
-            if self.is_lower_f:
-                print(rf'lower {self.lower_n} - frequency')
-                gps_obj.lower_frequency(n=self.lower_n)
+                # 降频处理
+                if self.is_lower_f:
+                    print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
+                    gps_obj.lower_frequency(n=self.lower_n)
 
-            if self.is_rolling_average:
-                print(rf'rolling average by window size - {self.rolling_window}')
-                gps_obj.rolling_average(window=self.rolling_window)
+                if self.is_rolling_average:
+                    print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
+                    gps_obj.rolling_average(window=self.rolling_window)
 
-            if self.dense_gps:
-                print(rf'dense gps by interval - {self.dense_interval}m')
-                gps_obj.dense()
+                if self.dense_gps:
+                    print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
+                    gps_obj.dense()
+            except Exception as e:
+                print(rf'gps数据预处理出错:{repr(e)}')
+                self.error_list.append(agent_id)
+                continue
 
             if len(gps_obj.gps_gdf) <= 1:
                 print(r'经过数据预处理后GPS观测点数据不足2个')
@@ -204,15 +221,39 @@ class MapMatch(object):
                                    top_k=self.top_k, omitted_l=self.omitted_l)
 
             # 求解参数
-            is_success = hmm_obj.generate_markov_para(add_single_ft)
+            try:
+                is_success = hmm_obj.generate_markov_para(add_single_ft)
+            except Exception as e:
+                print(rf'解算HMM参数出错:{repr(e)}')
+                is_success = False
             if not is_success:
+                self.error_list.append(agent_id)
                 continue
-            hmm_obj.solve()
-            _match_res_df = hmm_obj.acquire_res()
+
+            # 求解模型
+            try:
+                hmm_obj.solve()
+            except Exception as e:
+                print(rf'求解HMM模型出错:{repr(e)}')
+                self.error_list.append(agent_id)
+                continue
+
+            # 获取结果
+            try:
+                _match_res_df = hmm_obj.acquire_res()
+            except Exception as e:
+                print(rf'获取匹配结果出错:{repr(e)}')
+                self.error_list.append(agent_id)
+                continue
+            if self.instant_output:
+                _match_res_df.to_csv(os.path.join(self.out_fldr, rf'{agent_id}_match_res.csv'),
+                                     encoding='utf_8_sig', index=False)
+            else:
+                match_res_df = pd.concat([match_res_df, _match_res_df])
+
             hmm_obj.format_war_info()
             if hmm_obj.is_warn:
                 self.may_error_list[agent_id] = hmm_obj.format_warn_info
-            match_res_df = pd.concat([match_res_df, _match_res_df])
 
             # if export files
             if self.export_html or self.export_geo_res:
@@ -221,7 +262,7 @@ class MapMatch(object):
                     export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
                                          export_geo=self.export_geo_res, export_html=self.export_html,
                                          gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
-                                         out_fldr=self.html_fldr, flag_name=self.flag_name,
+                                         out_fldr=self.out_fldr, flag_name=self.flag_name,
                                          multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
                                          dup_threshold=self.dup_threshold)
                     del hmm_res_list
@@ -238,11 +279,11 @@ class MapMatch(object):
         pool = multiprocessing.Pool(processes=n)
         result_list = []
         for i in range(0, n):
-            core_html_fldr = os.path.join(self.html_fldr, rf'core{i}')
-            if os.path.exists(core_html_fldr):
+            core_out_fldr = os.path.join(self.out_fldr, rf'core{i}')
+            if os.path.exists(core_out_fldr):
                 pass
             else:
-                os.makedirs(core_html_fldr)
+                os.makedirs(core_out_fldr)
 
             agent_id_list = agent_group[i]
             gps_df = self.gps_df[self.gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
@@ -260,7 +301,7 @@ class MapMatch(object):
                            dup_threshold=self.dup_threshold, is_rolling_average=self.is_rolling_average,
                            window=self.rolling_window,
                            export_html=self.export_html,
-                           use_gps_source=self.use_gps_source, html_fldr=core_html_fldr,
+                           use_gps_source=self.use_gps_source, out_fldr=core_out_fldr,
                            export_geo_res=self.export_geo_res,
                            node_num_threshold=self.node_num_threshold,
                            top_k=self.top_k, omitted_l=self.omitted_l, link_width=self.link_width,
@@ -268,7 +309,7 @@ class MapMatch(object):
                            match_link_width=self.match_link_width, gps_radius=self.gps_radius,
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
-                           multi_core_save=False)
+                           multi_core_save=False, instant_output=self.instant_output)
             result = pool.apply_async(mmp.execute,
                                       args=())
             result_list.append(result)
