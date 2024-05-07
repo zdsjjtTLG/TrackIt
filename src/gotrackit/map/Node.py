@@ -114,11 +114,12 @@ class Node(object):
 
     def delete_nodes(self, node_list: list[int]) -> gpd.GeoDataFrame:
         del_node_gdf = self.__node_gdf.loc[node_list, :].copy()
-        self.__node_gdf.drop(index=node_list, inplace=True, axis=0)
+        if node_list:
+            self.__node_gdf.drop(index=node_list, inplace=True, axis=0)
         return del_node_gdf
 
     def node_id_set(self) -> set[int]:
-        return set(self.__node_gdf.index)
+        return set(self.__node_gdf[node_id_field])
 
     @staticmethod
     def check_same_crs(gdf: gpd.GeoDataFrame = None, format_crs: str = None) -> bool:
