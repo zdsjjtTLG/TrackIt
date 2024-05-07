@@ -492,7 +492,7 @@ class HiddenMarkov(object):
                                                    method=method,
                                                    weight_field=weight_field,
                                                    cut_off=cut_off)
-            except nx.NetworkXNoPath:
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
                 pass
         if stp:
             stp_df = pd.DataFrame(stp).stack().reset_index(drop=False).rename(
