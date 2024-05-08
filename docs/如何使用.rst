@@ -925,6 +925,7 @@ gotrackit不允许路网出现环路以及相同from_node - to_node的link存在
         # 处理环路和相同from_node - to_node的link
         new_link, new_node = ng.NetReverse.circle_process(link_gdf=l, node_gdf=n)
 
+        # circle_process处理后输出的路网是平面投影坐标系, 需要转化为EPSG:4326
         new_link = new_link.to_crs('EPSG:4326')
         new_node = new_node.to_crs('EPSG:4326')
 
@@ -1341,9 +1342,10 @@ circle_process处理后如图
 
 5.5. 匹配结果可视化
 ``````````````````````````````
-匹配结果HTML可视化：打开生成的html文件，按照下图点开时间轴播放器
 
-.. image:: _static/images/html_visualization.png
+HTML可视化需要连接网络(中国境内可能需要科学上网)，使用浏览器打开生成的html文件，按照下图点开时间轴播放器
+
+.. image:: _static/images/可视化操作.gif
     :align: center
 
 ----------------------------------------
