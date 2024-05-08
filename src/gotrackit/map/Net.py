@@ -47,6 +47,7 @@ class Net(object):
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
                  ft_link_mapping: dict = None, double_single_mapping: dict = None, link_ft_mapping: dict = None,
+                 link_t_mapping: dict = None, link_f_mapping: dict = None,
                  not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None,
@@ -64,6 +65,8 @@ class Net(object):
         :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
         :param double_single_mapping:
         :param link_ft_mapping:
+        :param link_f_mapping:
+        :param link_t_mapping:
         :param ft_link_mapping:
         :param not_conn_cost: 不连通路径的阻抗(m), 默认999.0米
         :param is_sub_net: 是否是子网络, 默认False
@@ -135,7 +138,9 @@ class Net(object):
                 self.__link.init_link_from_existing_single_link(single_link_gdf=link_gdf,
                                                                 double_single_mapping=double_single_mapping,
                                                                 ft_link_mapping=ft_link_mapping,
-                                                                link_ft_mapping=link_ft_mapping)
+                                                                link_ft_mapping=link_ft_mapping,
+                                                                link_t_mapping=link_t_mapping,
+                                                                link_f_mapping=link_f_mapping)
         if is_check:
             self.check()
 
@@ -316,6 +321,14 @@ class Net(object):
         return self.__link.link_ft_map
 
     @property
+    def link_t_map(self) -> dict[int, int]:
+        return self.__link.link_t_map
+
+    @property
+    def link_f_map(self) -> dict[int, int]:
+        return self.__link.link_f_map
+
+    @property
     def available_link_id(self) -> int:
         return self.__link.available_link_id
 
@@ -355,7 +368,7 @@ class Net(object):
                       init_from_existing=True, is_check=False, cache_path=cache_path, cache_id=cache_id,
                       not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache,
                       ft_link_mapping=self.get_ft_node_link_mapping(),
-                      link_ft_mapping=self.link_ft_map,
+                      link_ft_mapping=self.link_ft_map, link_f_mapping=self.link_f_map, link_t_mapping=self.link_t_map,
                       double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off,
                       delete_circle=False)
         sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
@@ -646,7 +659,7 @@ class Net(object):
             pool.join()
             for res in result_list:
                 done_stp_cost_df = pd.concat([done_stp_cost_df, res.get()])
-            done_stp_cost_df.reset_index(inplace=True, drop=False)
+            done_stp_cost_df.reset_index(inplace=True, drop=True)
         _ = self.__link.get_link_data()[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                                          self.weight_field]].rename(
             columns={net_field.FROM_NODE_FIELD: o_node_field, net_field.TO_NODE_FIELD: d_node_field,
