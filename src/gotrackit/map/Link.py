@@ -55,6 +55,8 @@ class Link(object):
         self.__ud_graph = nx.Graph()
         self.__one_out_degree_nodes = None
         self.__link_ft_mapping: dict[int, tuple[int, int]] = dict()
+        self.__link_f_mapping: dict[int, int] = dict()
+        self.__link_t_mapping: dict[int, int] = dict()
         self.done_link_vec = False
 
     def check(self):
@@ -94,7 +96,8 @@ class Link(object):
 
     def init_link_from_existing_single_link(self, single_link_gdf: gpd.GeoDataFrame = None,
                                             ft_link_mapping: dict = None,
-                                            double_single_mapping: dict = None, link_ft_mapping: dict = None):
+                                            double_single_mapping: dict = None, link_ft_mapping: dict = None,
+                                            link_t_mapping: dict = None, link_f_mapping: dict = None):
         """通过给定的single_link_gdf初始化link, 用在子net的初始化上"""
         self.__single_link_gdf = single_link_gdf.copy()
 
@@ -102,6 +105,8 @@ class Link(object):
         self.__ft_link_mapping = ft_link_mapping
         # single_link: (f, t)
         self.__link_ft_mapping = link_ft_mapping
+        self.__link_t_mapping = link_t_mapping
+        self.__link_f_mapping = link_f_mapping
 
     def create_single_link(self, link_gdf: gpd.GeoDataFrame):
         """
@@ -135,6 +140,8 @@ class Link(object):
                                   zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
                                       self.__single_link_gdf[net_field.TO_NODE_FIELD],
                                       self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
+        self.__link_f_mapping = {v: k[0] for k, v in self.__ft_link_mapping.items()}
+        self.__link_t_mapping = {v: k[1] for k, v in self.__ft_link_mapping.items()}
 
     def create_graph(self, weight_field: str = None):
         """
@@ -393,6 +400,14 @@ class Link(object):
     @property
     def link_ft_map(self) -> dict[int, tuple[int, int]]:
         return self.__link_ft_mapping
+
+    @property
+    def link_f_map(self) -> dict[int, int]:
+        return self.__link_f_mapping
+
+    @property
+    def link_t_map(self) -> dict[int, int]:
+        return self.__link_t_mapping
 
     def vertex_degree(self, node: int = None) -> int:
         """无向图的节点度"""
