@@ -905,7 +905,7 @@ nv.generate_od_by_gps的相关参数如下：
 4.12. 处理环路和相同(from_node，to_node)的路段
 `````````````````````````````````````````````````
 
-gotrackit不允许路网出现环路以及(from_node，to_node)的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
+gotrackit不允许路网出现环路以及(from_node，to_node)相同的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
 
 .. image:: _static/images/circle_before.jpg
     :align: center
