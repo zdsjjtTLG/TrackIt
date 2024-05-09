@@ -701,10 +701,36 @@ nv.generate_od_by_gps的相关参数如下：
     整数，OD的途径点数目，必须≤9，默认5个途径点
 
 
-4.6. 基于已有路网线层, 生产点层
-`````````````````````````````````````````
 
-如果你已经有了路网线层，缺少拓扑关联关系以及点层，你可以使用以下方式构建点层以及添加线层的拓扑关联
+.. _清洗路网线层数据:
+
+4.6. 清洗你的路网线层数据
+`````````````````````````````````````````````````
+
+如果你已经有了路网线层数据, 你可能想使用nv.create_node_from_link函数来生产点层以及生产拓扑关联以得到标准的路网数据，但是nv.create_node_from_link可能会报错，因为你的路网线层数据可能包含了Multi类型或者是带有z坐标或者是线对象中含有大量的重叠点，你可以使用nv类的静态方法clean_link_geo来消除z坐标以及multi类型
+
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+
+        # 读取数据
+        df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+
+        # 处理geometry
+        # l_threshold表示将线型中距离小于l_threshold米的折点进行合并，简化路网，同时消除重叠折点
+        # l_threshold推荐 1m ~ 5m，过大会导致线型细节失真
+        # plain_crs是要使用的平面投影坐标系
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
+
+
+4.7. 基于已有路网线层, 生产点层
+```````````````````````````````````````````````````````
+
+如果你已经有了路网线层，缺少拓扑关联关系以及点层，你可以使用以下方式构建点层以及添加点层、线层的关联关系
 
 
 
@@ -730,7 +756,7 @@ nv.generate_od_by_gps的相关参数如下：
                                                                                      out_fldr=r'./data/output/create_node/')
 
 
-4.7. 基于已有标准路网, 检查路网的联通性并进行修复
+4.8. 基于已有标准路网, 检查路网的联通性并进行修复
 `````````````````````````````````````````````````
 
 如果你已经有了路网线层和点层(且字段和拓扑关联关系满足本算法包的要求)，你可以使用以下方式来检查路网的联通性
@@ -767,27 +793,6 @@ nv.generate_od_by_gps的相关参数如下：
 
 --------------------------------------------------------------------------------
 
-
-.. _清洗路网线层数据:
-
-4.8. 清洗你的路网线层数据
-`````````````````````````````````````````````````
-
-如果你已经有了路网线层数据, 你可能想使用nv.create_node_from_link函数来生产点层以及生产拓扑关联以得到标准的路网数据，但是nv.create_node_from_link可能会报错，因为你的路网线层数据可能包含了Multi类型或者是带有z坐标或者是线对象中含有大量的重叠点，你可以使用nv类的静态方法clean_link_geo来消除z坐标以及multi类型
-
-
-示例代码如下：
-
-.. code-block:: python
-    :linenos:
-
-    if __name__ == '__main__':
-
-        # 读取数据
-        df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
-
-        # 处理geometry
-        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
 
 
 4.9. 路段划分
@@ -897,10 +902,10 @@ nv.generate_od_by_gps的相关参数如下：
 --------------------------------------------------------------------------------
 
 
-4.12. 处理路网环路和相同from_node - to_node的路段
+4.12. 处理环路和相同(from_node，to_node)的路段
 `````````````````````````````````````````````````
 
-gotrackit不允许路网出现环路以及相同from_node - to_node的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
+gotrackit不允许路网出现环路以及(from_node，to_node)的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
 
 .. image:: _static/images/circle_before.jpg
     :align: center
@@ -1347,8 +1352,11 @@ HTML可视化需要连接网络(中国境内可能需要科学上网)，使用�
 
 .. image:: _static/images/可视化操作.gif
     :align: center
-
 ----------------------------------------
+
+html可视化文件是我们对匹配结果进行排查的重要文件，它可以清晰的展示匹配过程：
+
+ `gotrackit地图匹配包参数详解与问题排查 <https://www.bilibili.com/video/BV1qK421Y7hV>`_
 
 
 5.6. 匹配结果不正确的调参方法
