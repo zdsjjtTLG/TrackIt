@@ -14,6 +14,7 @@ import time
 import geopandas as gpd
 import src.gotrackit.netreverse.NetGen as ng
 # import gotrackit.netreverse.NetGen as ng
+from src.gotrackit.tools.geo_process import judge_plain_crs
 
 
 def func1():
@@ -161,9 +162,41 @@ def simplify_sz():
     l.to_file(r'./data/input/net/test/0402BUG/load/opt_link_5.shp')
 
 
+def create_node_bug():
+    l = gpd.read_file(r'C:\Users\Administrator\Desktop\map_lines.shp\map_lines.shp\map_lines.shp')
+    nv = ng.NetReverse()
+    link, node, _ = nv.create_node_from_link(link_gdf=l,
+                                             update_link_field_list=['link_id', 'from_node', 'to_node', 'dir',
+                                                                     'length'],
+                                             fill_dir=1, out_fldr=r'./data/input/net/test/0419test/',
+                                             plain_prj='EPSG:2227')
+
+
+
+def judge_crs_t():
+    l = 112.36
+    print(judge_plain_crs(l))
+
+
+def process_circle():
+    import src.gotrackit.netreverse.NetGen as ng
+    l = gpd.read_file('./data/input/net/test/0506yg/link.shp')
+    n = gpd.read_file('./data/input/net/test/0506yg/node.shp')
+
+    # 处理环路和相同from_node - to_node的link
+    new_link, new_node = ng.NetReverse.circle_process(link_gdf=l, node_gdf=n)
+    print(new_link.crs.srs)
+    print(new_node.crs.srs.upper())
+    new_link = new_link.to_crs('EPSG:4326')
+    new_node = new_node.to_crs('EPSG:4326')
+    new_link.to_file('./data/input/net/test/0506yg/aaa_link.shp')
+    new_node.to_file('./data/input/net/test/0506yg/aaa_node.shp')
+
+
 if __name__ == '__main__':
     # func2()
     # remap_id_of_link_node()
+    # create_node_bug()
     # clean()
     # simplify_trace()
     # redivide_link_node()
@@ -177,4 +210,6 @@ if __name__ == '__main__':
     #     print('aaa')
     # t_create_node()
     # simple_0419_net()
-    simplify_sz()
+    # simplify_sz()
+    # judge_crs_t()
+    process_circle()

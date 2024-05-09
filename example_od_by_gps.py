@@ -9,11 +9,11 @@ from itertools import chain
 from shapely.geometry import Point
 
 
-# from src.gotrackit.gps.GpsTrip import GpsTrip
-# from src.gotrackit.netreverse import NetGen
+from src.gotrackit.gps.GpsTrip import GpsTrip
+from src.gotrackit.netreverse import NetGen
 
-from gotrackit.gps.GpsTrip import GpsTrip
-from gotrackit.netreverse import NetGen
+# from gotrackit.gps.GpsTrip import GpsTrip
+# from gotrackit.netreverse import NetGen
 
 def get_sample_data():
     sz_gps_df = pd.read_csv(r'../../../data/output/gps/real_sz/TaxiData2.csv')

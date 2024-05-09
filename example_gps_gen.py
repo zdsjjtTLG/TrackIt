@@ -6,15 +6,15 @@
 """依据路网生成GPS数据"""
 
 import datetime
-# from src.gotrackit.map.Net import Net
-# from src.gotrackit.generation.GpsGen import Route
-# from src.gotrackit.GlobalVal import NetField, GpsField
-# from src.gotrackit.generation.GpsGen import Car, RouteInfoCollector
+from src.gotrackit.map.Net import Net
+from src.gotrackit.generation.GpsGen import Route
+from src.gotrackit.GlobalVal import NetField, GpsField
+from src.gotrackit.generation.GpsGen import Car, RouteInfoCollector
 
-from gotrackit.map.Net import Net
-from gotrackit.generation.GpsGen import Route
-from gotrackit.GlobalVal import NetField, GpsField
-from gotrackit.generation.GpsGen import Car, RouteInfoCollector
+# from gotrackit.map.Net import Net
+# from gotrackit.generation.GpsGen import Route
+# from gotrackit.GlobalVal import NetField, GpsField
+# from gotrackit.generation.GpsGen import Car, RouteInfoCollector
 
 
 net_field = NetField()
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     k = 1
     # 开始行车
-    for car_id in [rf'xa_car_{i}' for i in range(k, k + 3)]:
+    for car_id in [rf'xa_car_{i}' for i in range(k, k + 30)]:
         # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
         car = Car(net=my_net, time_step=_time_step, route=route, save_log=False,
                   agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         data_col.collect_gps(car.get_gps_loc_info())
 
     # 存储数据
-    tra_name = '0329xa_xishu'
+    tra_name = '0424sample11'
     trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/sample/',
                                               file_name=tra_name)
     gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/sample/', file_name=tra_name)
