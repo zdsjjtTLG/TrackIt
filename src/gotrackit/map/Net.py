@@ -47,7 +47,7 @@ class Net(object):
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
                  ft_link_mapping: dict = None, double_single_mapping: dict = None, link_ft_mapping: dict = None,
-                 link_t_mapping: dict = None, link_f_mapping: dict = None,
+                 link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 999.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None,
@@ -67,6 +67,7 @@ class Net(object):
         :param link_ft_mapping:
         :param link_f_mapping:
         :param link_t_mapping:
+        :param link_geo_mapping:
         :param ft_link_mapping:
         :param not_conn_cost: 不连通路径的阻抗(m), 默认999.0米
         :param is_sub_net: 是否是子网络, 默认False
@@ -140,7 +141,8 @@ class Net(object):
                                                                 ft_link_mapping=ft_link_mapping,
                                                                 link_ft_mapping=link_ft_mapping,
                                                                 link_t_mapping=link_t_mapping,
-                                                                link_f_mapping=link_f_mapping)
+                                                                link_f_mapping=link_f_mapping,
+                                                                link_geo_mapping=link_geo_mapping)
         if is_check:
             self.check()
 
@@ -325,6 +327,10 @@ class Net(object):
         return self.__link.link_t_map
 
     @property
+    def link_geo_map(self) -> dict[int, LineString]:
+        return self.__link.link_geo_map
+
+    @property
     def link_f_map(self) -> dict[int, int]:
         return self.__link.link_f_map
 
@@ -445,7 +451,7 @@ class Net(object):
 
         # 获取打断点到target link的投影点信息
         target_link_geo = self.get_link_geo(target_link, _type='bilateral')
-        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list, _ = prj_inf(p=p, line=target_link_geo)
+        prj_p, p_prj_l, prj_route_l, target_l, split_link_geo_list, _, _ = prj_inf(p=p, line=target_link_geo)
 
         if (target_l - prj_route_l) <= omitted_length_threshold:
             # this means that we should merge the to_node and p
@@ -669,6 +675,17 @@ class Net(object):
         del _
         done_stp_cost_df.drop_duplicates(subset=[o_node_field, d_node_field], keep='first', inplace=True)
         done_stp_cost_df.reset_index(inplace=True, drop=True)
+        done_stp_cost_df['2nd_node'], done_stp_cost_df['-2nd_node'] = -1, -1
+        normal_path_idx = done_stp_cost_df[cost_field] > 0
+        try:
+            done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = done_stp_cost_df.loc[normal_path_idx, :][
+                path_field].apply(
+                lambda x: x[1])
+            done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = done_stp_cost_df.loc[normal_path_idx, :][
+                path_field].apply(
+                lambda x: x[-2])
+        except:
+            pass
         with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
             pickle.dump(done_stp_cost_df, f)
         self.set_path_cache(done_stp_cost_df)
@@ -723,26 +740,29 @@ class Net(object):
         if self.fmm_cache_fldr is None:
             self.fmm_cache_fldr = r'./'
         if not self.recalc_cache:
-            try:
-                with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'rb') as f:
-                    cache_prj_inf = pickle.load(f)
-                self.set_prj_cache(cache_prj_inf)
-                return None
-            except Exception as e:
-                print(repr(e))
+            with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'rb') as f:
+                cache_prj_inf = pickle.load(f)
+
+            if 1 in cache_prj_inf.keys():
+                if net_field.X_DIFF not in cache_prj_inf[1].columns:
+                    raise ValueError('检测到是0.2.4版本之前的缓存数据, 请在>=0.2.5版本下重新计算路径缓存')
+            if 2 in cache_prj_inf.keys():
+                if net_field.X_DIFF not in cache_prj_inf[2].columns:
+                    raise ValueError('检测到是0.2.4版本之前的缓存数据, 请在>=0.2.5版本下重新计算路径缓存')
+            self.set_prj_cache(cache_prj_inf)
+
+            return None
 
         single_link_gdf = self.__link.get_link_data()
         single_link_gdf = single_link_gdf[
             [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.GEOMETRY_FIELD, net_field.LENGTH_FIELD]].copy()
+
         cache_prj_gdf = self.split_segment(single_link_gdf)
-        cache_prj_gdf[['f_loc', 't_loc']] = cache_prj_gdf.apply(lambda row: list(row['geometry'].coords), axis=1,
-                                                                result_type='expand')
-        cache_prj_gdf[net_field.LINK_VEC_FIELD] = cache_prj_gdf.apply(
-            lambda row: np.array(row['t_loc']) - np.array(row['f_loc']), axis=1)
-        cache_prj_gdf.drop(columns=['f_loc', 't_loc', net_field.GEOMETRY_FIELD], axis=1, inplace=True)
+
+        # cache_prj_gdf.drop(columns=['f_loc', 't_loc', net_field.GEOMETRY_FIELD], axis=1, inplace=True)
         cache_prj_gdf[net_field.SEG_COUNT] = \
             cache_prj_gdf.groupby([net_field.FROM_NODE_FIELD,
-                                   net_field.TO_NODE_FIELD])[net_field.LINK_VEC_FIELD].transform('count')
+                                   net_field.TO_NODE_FIELD])[net_field.X_DIFF].transform('count')
         cache_prj_inf = {1: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] == 1].copy().reset_index(drop=True),
                          2: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] > 1].copy().reset_index(drop=True)}
         del cache_prj_gdf
@@ -751,7 +771,7 @@ class Net(object):
             pickle.dump(cache_prj_inf, f)
 
     @staticmethod
-    def split_segment(path_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
+    def split_segment(path_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame or pd.DataFrame:
         """
         拆解轨迹坐标, 并且粗去重(按照路段的起终点坐标)
         :param path_gdf: gpd.GeoDataFrame(), 必需参数, 必须字段: [geometry], crs要求EPSG:4326
@@ -760,15 +780,26 @@ class Net(object):
         origin_crs = path_gdf.crs.srs
         path_gdf['point_list'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: list(x.coords))
         path_gdf['line_list'] = path_gdf['point_list'].apply(
-            lambda x: [LineString((x[i], x[i + 1])) for i in range(0, len(x) - 1)])
+            lambda x: [(x[i], x[i + 1]) for i in range(0, len(x) - 1)])
         path_gdf['topo_seq'] = path_gdf['line_list'].apply(lambda x: [i for i in range(len(x))])
         path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], axis=1, inplace=True)
         path_gdf = pd.DataFrame(path_gdf)
         path_gdf = path_gdf.explode(column=['line_list', 'topo_seq'], ignore_index=True)
-        path_gdf.rename(columns={'line_list': net_field.GEOMETRY_FIELD}, inplace=True)
-        path_gdf = gpd.GeoDataFrame(path_gdf, crs=origin_crs, geometry=net_field.GEOMETRY_FIELD)
-        path_gdf['__l__'] = path_gdf[net_field.GEOMETRY_FIELD].length
+        path_gdf.rename(columns={'line_list': 'ft-loc'}, inplace=True)
+        # path_gdf = gpd.GeoDataFrame(path_gdf, crs=origin_crs, geometry=net_field.GEOMETRY_FIELD)
+        path_gdf['f_x'] = path_gdf['ft-loc'].apply(lambda x: x[0][0])
+        path_gdf['f_y'] = path_gdf['ft-loc'].apply(lambda x: x[0][1])
+        path_gdf['t_x'] = path_gdf['ft-loc'].apply(lambda x: x[1][0])
+        path_gdf['t_y'] = path_gdf['ft-loc'].apply(lambda x: x[1][1])
+        del path_gdf['ft-loc'], path_gdf[net_field.LENGTH_FIELD]
+        path_gdf[net_field.X_DIFF] = path_gdf['t_x'] - path_gdf['f_x']
+        path_gdf[net_field.Y_DIFF] = path_gdf['t_y'] - path_gdf['f_y']
+        del path_gdf['f_x'], path_gdf['f_y'], path_gdf['t_x'], path_gdf['t_y']
+        path_gdf[net_field.VEC_LEN] = np.sqrt(path_gdf[net_field.X_DIFF] ** 2 + path_gdf[net_field.Y_DIFF] ** 2)
+        # path_gdf['__l__'] = path_gdf[net_field.GEOMETRY_FIELD].length
         path_gdf[net_field.SEG_ACCU_LENGTH] = \
-            path_gdf.groupby([net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[['__l__']].cumsum()
-        del path_gdf['__l__']
+            path_gdf.groupby([net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[[net_field.VEC_LEN]].cumsum()
+        path_gdf['topo_seq'] = path_gdf['topo_seq'].astype(int)
+        # del path_gdf['__l__']
         return path_gdf
+
