@@ -5,7 +5,6 @@
 
 """车辆GPS数据的相关方法和属性"""
 
-import datetime
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -35,7 +34,6 @@ dis_gap_field = gps_field.ADJ_DIS
 adj_speed_field = gps_field.ADJ_SPEED
 dense_geo_field = gps_field.DENSE_GEO
 n_seg_field = gps_field.N_SEGMENTS
-diff_vec = gps_field.DIFF_VEC
 geo_crs = prj_const.PRJ_CRS
 sub_group_field = gps_field.SUB_GROUP_FIELD
 
@@ -75,25 +73,26 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf = gps_points_df
         self.agent_id = self.__gps_points_gdf.at[0, gps_field.AGENT_ID_FIELD]
         self.check()
-        if gps_field.HEADING_FIELD not in self.__gps_points_gdf.columns:
-            self.__gps_points_gdf[gps_field.HEADING_FIELD] = 0.0
-        self.__gps_points_gdf[gps_field.GEOMETRY_FIELD] = self.__gps_points_gdf.apply(
-            lambda item: Point(item[gps_field.LNG_FIELD], item[gps_field.LAT_FIELD]), axis=1)
+        self.__gps_points_gdf[gps_field.GEOMETRY_FIELD] = \
+            self.__gps_points_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(lambda p: Point(p), axis=1)
         self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD,
                                                  crs=self.geo_crs)
         try:
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
         except ValueError:
+            print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
 
         self.__gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-        self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.to_plane_prj()
-        # self.calc_gps_point_dis()
+        self.generate_plain_xy()
+        self.gps_adj_dis_map = dict()
+        self.gps_seq_time_map = dict()
+        self.gps_seq_geo_map = dict()
 
         # 存储最原始的GPS信息
         self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
@@ -106,55 +105,58 @@ class GpsPointsGdf(object):
             set(self.__gps_points_gdf.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
 
+    def generate_plain_xy(self):
+        self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda geo: geo.x)
+        self.__gps_points_gdf[gps_field.PLAIN_Y] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
+            lambda geo: geo.y)
+
     def dense(self) -> None:
         if len(self.__gps_points_gdf) <= 1:
             return None
         # 时间差和距离差
         self.calc_adj_dis_gap()
         self.calc_adj_time_gap()
-
         should_be_dense_gdf = self.__gps_points_gdf[self.__gps_points_gdf[dis_gap_field] > self.dense_interval].copy()
-        if should_be_dense_gdf.empty:
-            return None
         self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
                                    inplace=True)
+        if should_be_dense_gdf.empty:
+            return None
 
-        should_be_dense_gdf[n_seg_field] = should_be_dense_gdf.apply(
-            lambda row: int(0.001 + row[dis_gap_field] / self.dense_interval) + 1, axis=1)
+        should_be_dense_gdf[n_seg_field] = (0.001 + should_be_dense_gdf[dis_gap_field] / self.dense_interval).astype(
+            int) + 1
 
-        should_be_dense_gdf[[dense_geo_field, time_field]] = \
-            should_be_dense_gdf.apply(
-                lambda row: [
-                    list(segmentize(LineString([row[geometry_field], row[next_p_field]]), n=row[n_seg_field]).coords[
-                         1:-1]),
-                    [row[time_field] + timedelta(seconds=i * row[time_gap_field] / row[n_seg_field]) for i in
-                     range(1, row[n_seg_field])]],
-                axis=1, result_type='expand')
+        dense_geo, dense_time = list(), list()
+        _ = [[dense_geo.append(segmentize(s_loc=(p.x, p.y), e_loc=(next_p.x, next_p.y), n=n)),
+              dense_time.append([t + timedelta(seconds=i * t_gap / n) for i in range(1, n)])]
+             for p, next_p, n, t, t_gap in zip(should_be_dense_gdf[geometry_field],
+                                               should_be_dense_gdf[next_p_field],
+                                               should_be_dense_gdf[n_seg_field], should_be_dense_gdf[time_field],
+                                               should_be_dense_gdf[time_gap_field])]
+        del _
+        should_be_dense_gdf[dense_geo_field] = dense_geo
+        should_be_dense_gdf[time_field] = dense_time
+
         should_be_dense_gdf.drop(columns=[geometry_field], axis=1, inplace=True)
         should_be_dense_gdf = pd.DataFrame(should_be_dense_gdf).explode(column=[time_field, dense_geo_field],
                                                                         ignore_index=True)
         should_be_dense_gdf.rename(columns={dense_geo_field: geometry_field}, inplace=True)
-        should_be_dense_gdf[geometry_field] = should_be_dense_gdf.apply(lambda row: Point(row[geometry_field]), axis=1)
-        should_be_dense_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
-                                 inplace=True)
+        should_be_dense_gdf[geometry_field] = should_be_dense_gdf[geometry_field].apply(lambda x: Point(x))
+        should_be_dense_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field, n_seg_field],
+                                 axis=1, inplace=True)
+        # must be plain
         should_be_dense_gdf = gpd.GeoDataFrame(should_be_dense_gdf, geometry=geometry_field, crs=self.crs)
-        should_be_dense_gdf = should_be_dense_gdf.to_crs(self.geo_crs)
-        should_be_dense_gdf[[lng_field, lat_field]] = should_be_dense_gdf.apply(
-            lambda row: (row[geometry_field].x, row[geometry_field].y), axis=1, result_type='expand')
-        should_be_dense_gdf = should_be_dense_gdf.to_crs(self.plane_crs)
-
+        should_be_dense_gdf[gps_field.PLAIN_X] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.x)
+        should_be_dense_gdf[gps_field.PLAIN_Y] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.y)
         self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
         self.__gps_points_gdf.sort_values(by=time_field, ascending=True, inplace=True)
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-        self.__gps_points_gdf[gps_field.ORIGIN_POINT_SEQ_FIELD] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
 
     def calc_adj_dis_gap(self) -> None:
         # 距离差
         self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
             self.__gps_points_gdf[geometry_field])
-        # self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf.apply(
-        #     lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
         self.__gps_points_gdf[dis_gap_field] = self.__gps_points_gdf[next_p_field].distance(
             self.__gps_points_gdf[geometry_field])
 
@@ -162,8 +164,6 @@ class GpsPointsGdf(object):
         # 时间差
         self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
             self.__gps_points_gdf[time_field])
-        # self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf.apply(
-        #     lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
         self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[next_time_field] - self.__gps_points_gdf[
             time_field]
         self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[time_gap_field].apply(lambda x: x.seconds)
@@ -172,10 +172,8 @@ class GpsPointsGdf(object):
         self.calc_adj_dis_gap()
         # next_seq
         res = self.__gps_points_gdf.copy()
-        res[next_seq_field] = res[gps_field.POINT_SEQ_FIELD].shift(-1)
-        res.dropna(subset=[next_seq_field], inplace=True)
-        res[next_seq_field] = res[next_seq_field].astype(int)
-        return res[[gps_field.POINT_SEQ_FIELD, next_seq_field, gps_field.ADJ_DIS]]
+        self.gps_adj_dis_map = {seq: adj_dis for seq, adj_dis in zip(res[gps_field.POINT_SEQ_FIELD],
+                                                                     res[gps_field.ADJ_DIS])}
 
     def lower_frequency(self, n: int = 5):
         """
@@ -185,7 +183,7 @@ class GpsPointsGdf(object):
         """
         self.__gps_points_gdf['label'] = pd.Series([i for i in range(len(self.__gps_points_gdf))]) % n
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
-        self.__gps_points_gdf.drop(columns=['label'], axis=1, inplace=True)
+        del self.__gps_points_gdf['label']
 
     def rolling_average(self, window: int = 2):
         """
@@ -193,29 +191,19 @@ class GpsPointsGdf(object):
         :param window: 窗口大小
         :return:
         """
+        # 滑动窗口执行后会重置所有的gps的seq字段
         if len(self.__gps_points_gdf) <= window:
             return None
+
         self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
             lambda t: t.timestamp())
-        self.__gps_points_gdf[gps_field.LNG_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
-            lambda geo: geo.x)
-        self.__gps_points_gdf[gps_field.LAT_FIELD] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
-            lambda geo: geo.y)
-
-        # 滑动窗口执行后会重置所有的gps的seq字段
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        rolling_average_df = self.__gps_points_gdf[
+            [gps_field.PLAIN_X, gps_field.PLAIN_Y, gps_field.TIME_FIELD]].rolling(window=window).mean()
 
-        rolling_num_df = self.__gps_points_gdf[
-            [gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD]].rolling(window=window).mean()
-        rolling_heading_df = self.__gps_points_gdf[[gps_field.HEADING_FIELD]].rolling(window=window).median()
-
-        rolling_heading_df.dropna(subset=[gps_field.HEADING_FIELD], inplace=True)
-        rolling_num_df.dropna(subset=[gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD], inplace=True,
-                              how='any')
-
-        rolling_average_df = pd.concat([rolling_num_df, rolling_heading_df], axis=1)
+        rolling_average_df.dropna(subset=[gps_field.PLAIN_X, gps_field.PLAIN_Y, gps_field.TIME_FIELD], inplace=True,
+                                  how='any')
         rolling_average_df[gps_field.AGENT_ID_FIELD] = self.__gps_points_gdf.at[0, gps_field.AGENT_ID_FIELD]
-        del rolling_heading_df, rolling_num_df
 
         self.__gps_points_gdf = pd.concat([self.__gps_points_gdf.loc[[0], :],
                                            rolling_average_df,
@@ -223,71 +211,57 @@ class GpsPointsGdf(object):
         del rolling_average_df
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
-
-        self.__gps_points_gdf[net_field.GEOMETRY_FIELD] = self.__gps_points_gdf[
-            [gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(
-            lambda item: Point(item), axis=1)
-        self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
-                                                                     unit='s')
+        self.__gps_points_gdf[net_field.GEOMETRY_FIELD] = \
+            self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(lambda item: Point(item), axis=1)
+        self.__gps_points_gdf[gps_field.TIME_FIELD] = \
+            pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit='s')
         self.__gps_points_gdf[gps_field.TIME_FIELD] = pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD],
                                                                      format='%Y-%m-%d %H:%M:%S')
-
-    def calc_gps_point_dis(self) -> None:
-        seq_list = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
-        # {(from_seq, to_seq): dis, ...}
-        self.__gps_point_dis_dict = {
-            (seq_list[i], seq_list[i + 1]): self.__gps_points_gdf.at[seq_list[i], gps_field.GEOMETRY_FIELD].distance(
-                self.__gps_points_gdf.at[seq_list[i + 1], gps_field.GEOMETRY_FIELD]) for i in
-            range(len(self.__gps_points_gdf) - 1)}
-
-    def get_gps_point_dis(self, adj_gps_seq: tuple = None) -> float:
-        try:
-            dis = self.__gps_point_dis_dict[adj_gps_seq]
-        # some gps points do not have any candidate links
-        except KeyError:
-            dis = self.__gps_points_gdf.at[adj_gps_seq[0], gps_field.GEOMETRY_FIELD].distance(
-                self.__gps_points_gdf.at[adj_gps_seq[1], gps_field.GEOMETRY_FIELD])
-            self.__gps_point_dis_dict[adj_gps_seq] = dis
-        return dis
-
-    def get_adj_gps_dis_df(self):
-        return self.__gps_point_dis_dict
-
-    def plot_point(self):
-        pass
-
-    def get_gps_buffer_gdf(self):
-        pass
+        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.crs)
 
     def calc_diff_heading(self):
         if self.done_diff_heading:
             return None
+        self.__gps_points_gdf['next_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(-1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_X])
+        self.__gps_points_gdf['next_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(-1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_Y])
+        self.__gps_points_gdf['pre_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_X])
+        self.__gps_points_gdf['pre_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_Y])
+        self.__gps_points_gdf[gps_field.X_DIFF] = self.__gps_points_gdf['next_x'] - self.__gps_points_gdf['pre_x']
+        self.__gps_points_gdf[gps_field.Y_DIFF] = self.__gps_points_gdf['next_y'] - self.__gps_points_gdf['pre_y']
+        del self.__gps_points_gdf['next_x'], self.__gps_points_gdf['next_y'], \
+            self.__gps_points_gdf['pre_x'], self.__gps_points_gdf['pre_y']
 
-        self.__gps_points_gdf[next_p_field] = self.__gps_points_gdf[geometry_field].shift(-1).fillna(
-            self.__gps_points_gdf[geometry_field])
-        self.__gps_points_gdf[pre_p_field] = self.__gps_points_gdf[geometry_field].shift(1).fillna(
-            self.__gps_points_gdf[geometry_field])
-
-        self.__gps_points_gdf['next_loc'] = self.__gps_points_gdf.apply(
-            lambda row: np.array([row[next_p_field].x, row[next_p_field].y]), axis=1)
-        self.__gps_points_gdf['pre_loc'] = self.__gps_points_gdf.apply(
-            lambda row: np.array([row[pre_p_field].x, row[pre_p_field].y]), axis=1)
-
-        # self.__gps_points_gdf['loc'] = self.__gps_points_gdf.apply(
-        #     lambda row: np.array([row[geometry_field].x, row[geometry_field].y]), axis=1)
-        # self.__gps_points_gdf[diff_vec] = self.__gps_points_gdf.apply(
-        #     lambda row: (row['next_loc'] - row['loc'] + row['loc'] - row['pre_loc']) / 2,
-        #     axis=1)
-
-        self.__gps_points_gdf[diff_vec] = (self.__gps_points_gdf['next_loc'] - self.__gps_points_gdf['pre_loc']) / 2
-
-        self.__gps_points_gdf.drop(
-            columns=[next_p_field, pre_p_field, 'next_loc', 'pre_loc'], axis=1, inplace=True)
+        self.__gps_points_gdf[gps_field.VEC_LEN] = np.sqrt(
+            self.__gps_points_gdf[gps_field.X_DIFF] ** 2 + self.__gps_points_gdf[gps_field.Y_DIFF] ** 2)
         self.done_diff_heading = True
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:
         return self.__gps_points_gdf.copy()
+
+    @property
+    def gps_seq_time(self) -> dict:
+        if self.gps_seq_time_map:
+            return self.gps_seq_time_map
+        else:
+            self.gps_seq_time_map = {seq: t for seq, t in
+                                     zip(self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD],
+                                         self.__gps_points_gdf[gps_field.TIME_FIELD])}
+            return self.gps_seq_time_map
+
+    @property
+    def gps_seq_geo(self) -> dict:
+        if self.gps_seq_geo_map:
+            return self.gps_seq_geo_map
+        else:
+            self.gps_seq_geo_map = {seq: t for seq, t in
+                                    zip(self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD],
+                                        self.__gps_points_gdf[gps_field.GEOMETRY_FIELD])}
+            return self.gps_seq_geo_map
 
     @property
     def crs(self):
@@ -296,7 +270,10 @@ class GpsPointsGdf(object):
     def get_gps_array_buffer(self, buffer: float = 200.0, dup_threshold: float = 10.0) -> Polygon or None:
         """输出gps路径的buffer范围面域"""
         gps_route_l = gpd.GeoSeries(LineString(self.__gps_points_gdf[gps_field.GEOMETRY_FIELD].to_list()))
-        simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
+        try:
+            simplify_gps_route_l = gps_route_l.remove_repeated_points(dup_threshold)
+        except:
+            simplify_gps_route_l = gps_route_l.simplify(dup_threshold / 10.0)
         gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
         return gps_array_buffer
 
@@ -348,7 +325,6 @@ class GpsPointsGdf(object):
     def to_plane_prj(self) -> None:
         if self.__gps_points_gdf.crs.srs.upper() == self.plane_crs:
             self.__crs = self.plane_crs
-            pass
         else:
             self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.plane_crs)
             self.__crs = self.plane_crs
@@ -356,7 +332,6 @@ class GpsPointsGdf(object):
     def to_geo_prj(self) -> None:
         if self.__gps_points_gdf.crs.srs.upper() == self.geo_crs:
             self.__crs = self.geo_crs
-            pass
         else:
             self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.geo_crs)
             self.__crs = self.geo_crs
@@ -372,15 +347,15 @@ class GpsPointsGdf(object):
         else:
             return self.__source_gps_points_gdf.copy()
 
-    def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float, np.ndarray]:
+    def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float, float, float]:
         """
         计算当前gps点实例在指定线对象上的投影信息
         :param line:
         :param seq:
         :return:
         """
-        (prj_p, prj_dis, route_dis, l_length, p_vec) = self._get_prj_inf(self.get_point(seq)[1], line)
-        return prj_p, prj_dis, route_dis, l_length, p_vec
+        (prj_p, prj_dis, route_dis, l_length, dx, dy) = self._get_prj_inf(self.get_point(seq)[1], line)
+        return prj_p, prj_dis, route_dis, l_length, dx, dy
 
     def delete_target_gps(self, target_seq_list: list[int]) -> None:
         self.__gps_points_gdf.drop(
@@ -388,15 +363,15 @@ class GpsPointsGdf(object):
             inplace=True, axis=0)
 
     @staticmethod
-    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float, np.ndarray]:
+    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float, float, float]:
         """
         # 返回 (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         :param gps_point:
         :param line:
         :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         """
-        prj_p, p_prj_l, prj_route_l, line_length, _, prj_vec = prj_inf(p=gps_point, line=line)
-        return prj_p, p_prj_l, prj_route_l, line_length, prj_vec
+        prj_p, p_prj_l, prj_route_l, line_length, _, dx, dy = prj_inf(p=gps_point, line=line)
+        return prj_p, p_prj_l, prj_route_l, line_length, dx, dy
 
     @property
     def gps_list_length(self) -> int:
@@ -409,10 +384,13 @@ class GpsPointsGdf(object):
     def del_dwell_points(self) -> None:
         # add field = dis_gap_field
         self.calc_adj_dis_gap()
+        del self.__gps_points_gdf[next_p_field]
         self.__gps_points_gdf['dwell_label'] = \
             (self.__gps_points_gdf[dis_gap_field] > self.dwell_l_length).astype(int)
+        del self.__gps_points_gdf[dis_gap_field]
         self.__gps_points_gdf.loc[len(self.__gps_points_gdf) - 1, 'dwell_label'] = 1
         self.__gps_points_gdf = self.del_consecutive_zero(df=self.__gps_points_gdf, col='dwell_label', n=self.dwell_n)
+        del self.__gps_points_gdf['dwell_label']
         try:
             self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)
         except KeyError:
