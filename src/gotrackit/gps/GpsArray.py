@@ -100,7 +100,7 @@ class GpsArray(object):
         :param line:
         :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
         """
-        prj_p, p_prj_l, prj_route_l, line_length, _, _ = prj_inf(p=gps_point, line=line)
+        prj_p, p_prj_l, prj_route_l, line_length, _, _, _ = prj_inf(p=gps_point, line=line)
         return prj_p, p_prj_l, prj_route_l, line_length
 
     @property
