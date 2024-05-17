@@ -41,7 +41,7 @@ class FormatOD(object):
         :param boundary_buffer:
         :return:
         """
-        origin_crs = region_gdf.crs
+        origin_crs = region_gdf.crs.srs
         region_gdf = region_gdf.to_crs(self.plain_crs)
         region_gdf[region_field.GEO_FIELD] = region_gdf[region_field.GEO_FIELD].apply(
             lambda geo: geo.buffer(boundary_buffer))
