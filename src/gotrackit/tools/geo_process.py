@@ -9,9 +9,7 @@ import pandas as pd
 import geopandas as gpd
 from ..GlobalVal import NetField
 from .coord_trans import LngLatTransfer
-from shapely.geometry import LineString, Point
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
-from ..WrapsFunc import function_time_cost
 
 net_field = NetField()
 geometry_field = net_field.GEOMETRY_FIELD
@@ -21,37 +19,19 @@ from_node_field = net_field.FROM_NODE_FIELD
 to_node_field = net_field.TO_NODE_FIELD
 
 
-def n_equal_points(n, from_loc: tuple = None, to_loc=None,
-                   from_point: Point = None, to_point: Point = None, add_noise: bool = False,
-                   noise_frac: float = 0.3) -> list[list]:
+def n_equal_points(n, from_loc: tuple = None, to_loc: tuple = None) -> list[tuple]:
     """
 
     :param n:
     :param from_loc:
     :param to_loc:
-    :param from_point:
-    :param to_point:
-    :param add_noise:
-    :param noise_frac:
     :return:
     """
     assert n > 1
-    if from_point is None or to_point is None:
-        line = LineString([from_loc, to_loc])
-    else:
-        line = LineString([from_point, to_point])
-    line_length = line.length
-
     try:
-        dense_line = segmentize(line=line, n=n)
+        equal_points = segmentize(s_loc=from_loc, e_loc=to_loc, n=n)
     except AttributeError:
         raise AttributeError(r'请升级geopandas到最新版本0.14.1')
-
-    equal_points = list(dense_line.coords)[1:-1]
-    if add_noise:
-        base_noise = 0.707106 * noise_frac * line_length / n
-        equal_points = [[loc[0] + np.random.normal(loc=0, scale=base_noise),
-                         loc[1] + np.random.normal(loc=0, scale=base_noise)] for loc in equal_points]
     return equal_points
 
 
@@ -113,28 +93,28 @@ def calc_link_angle(link_geo1=None, link_geo2=None) -> float:
     return 180 * np.arccos(cos_res) / np.pi
 
 
-def segmentize(line: LineString = None, n: int = None) -> LineString:
+def segmentize(s_loc: list or tuple = None, e_loc: list or tuple = None, n: int = None) -> list[tuple]:
     """
-    将直线对象line进行n等分加密
-    :param line: 直线
+    将直线对象line进行n等分加密, 返回中间的加密点坐标
+    :param s_loc
+    :param e_loc
     :param n:
     :return:
     """
-    coord_list = list(line.coords)
-    s, e = coord_list[0], coord_list[-1]
+    # s, e = coord_list[0], coord_list[-1]
     try:
-        k = (e[1] - s[1]) / (e[0] - s[0])
+        k = (e_loc[1] - s_loc[1]) / (e_loc[0] - s_loc[0])
     except ZeroDivisionError:
-        gap = line.length / n
-        return LineString([s] + [(s[0], s[1] + (i + 1) * gap) for i in range(n - 1)] + [e])
+        gap = np.abs(e_loc[1] - s_loc[1]) / n
+        return [(s_loc[0], s_loc[1] + (i + 1) * gap) for i in range(n - 1)]
 
-    b = e[1] - k * e[0]
-    gap_x = (e[0] - s[0]) / n
-    sample_x_list = [s[0] + (i + 1) * gap_x for i in range(n - 1)]
-    return LineString([s] + [(sample_x, k * sample_x + b) for sample_x in sample_x_list] + [e])
+    b = e_loc[1] - k * e_loc[0]
+    gap_x = (e_loc[0] - s_loc[0]) / n
+    sample_x_list = [s_loc[0] + (i + 1) * gap_x for i in range(n - 1)]
+    return [(sample_x, k * sample_x + b) for sample_x in sample_x_list]
 
 
-def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString], np.ndarray]:
+def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString], float, float]:
     """
     # 返回 某point到line的(投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
     :param p:
@@ -147,35 +127,41 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
     if distance <= 0.0:
         line_cor = list(line.coords)
         prj_p = Point(line_cor[0])
-        prj_vec = np.array(line_cor[1]) - np.array(line_cor[0])
-        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], prj_vec
+        # prj_vec = np.array(line_cor[1]) - np.array(line_cor[0])
+        dx, dy = line_cor[1][0] - line_cor[0][0], line_cor[1][1] - line_cor[0][1]
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], dx, dy
     elif distance >= line.length:
         line_cor = list(line.coords)
         prj_p = Point(line_cor[-1])
-        prj_vec = np.array(line_cor[-1]) - np.array(line_cor[-2])
-        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], prj_vec
+        # prj_vec = np.array(line_cor[-1]) - np.array(line_cor[-2])
+        dx, dy = line_cor[-1][0] - line_cor[-2][0], line_cor[-1][1] - line_cor[-2][1]
+        return prj_p, prj_p.distance(p), distance, line.length, [LineString(line)], dx, dy
     else:
         coords = list(line.coords)
         for i, _p in enumerate(coords):
             xd = line.project(Point(_p))
             if xd == distance:
                 prj_p = Point(coords[i])
-                prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
+                # prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
+                dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
                 return prj_p, prj_p.distance(p), distance, line.length, \
-                    [LineString(coords[:i + 1]), LineString(coords[i:])], prj_vec
+                    [LineString(coords[:i + 1]), LineString(coords[i:])], dx, dy
             if xd > distance:
                 cp = line.interpolate(distance)
                 prj_p = Point((cp.x, cp.y))
-                prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
+                # prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
+                dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
                 return prj_p, prj_p.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
                                                                          LineString(
-                                                                             [(cp.x, cp.y)] + coords[i:])], prj_vec
-
+                                                                             [(cp.x, cp.y)] + coords[i:])], dx, dy
+    # to here means error
+    raise ValueError(r'路段几何存在重叠环路线型, 请使用redivide_link_node函数处理')
 
 def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
     """
     将geometry列中的Multi对象处理为single对象
     :param gdf:
+    :param l_threshold:
     :param plain_crs
     :return:
     """
@@ -228,8 +214,8 @@ def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
                                                                 result_type='expand')
 
 
-def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> tuple[
-    list[LineString], list[Point], int]:
+def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> \
+        tuple[list[LineString], list[Point], int]:
     """
 
     :param line_geo:
@@ -253,7 +239,7 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
             if not is_remain:
                 divide_line_list.append(used_l)
                 break
-        prj_p, _, dis, _, split_line_list, _ = prj_inf(p, used_l)
+        prj_p, _, dis, _, split_line_list, _, _ = prj_inf(p, used_l)
         used_l = split_line_list[-1]
         if i + 1 == len(p_list):
             if is_remain:
@@ -302,14 +288,6 @@ def hmm_vector_angle(gps_diff_vec: np.ndarray = None, link_dir_vec: np.ndarray =
         return vector_angle(v1=gps_diff_vec, v2=link_dir_vec)
 
 
-def angle_base_north(v: np.ndarray = None):
-    angle = vector_angle(v, np.array([0, 1]))
-    if v[0] <= 0:
-        return angle
-    else:
-        return 360 - angle
-
-
 def judge_plain_crs(lng: float = None) -> str:
     six_df = pd.DataFrame([(i * 6, 32631 + i) for i in range(-30, 30)],
                           columns=['start_lng', 'plain_crs'])
@@ -319,6 +297,29 @@ def judge_plain_crs(lng: float = None) -> str:
 def judge_plain_crs_based_on_node(node_gdf: gpd.GeoDataFrame = None) -> str:
     mean_x = np.array([geo.x for geo in node_gdf['geometry']]).mean()
     return judge_plain_crs(lng=mean_x)
+
+
+def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'gv_dx', va_dy_field: str = 'gv_dy',
+              val_field: str = 'gvl',
+              vb_dx_field: str = 'lv_dx', vb_dy_field: str = 'lv_dy', vbl_field: str = 'lvl'):
+    """
+    change inplace
+    :param df:
+    :param va_dx_field:
+    :param va_dy_field:
+    :param val_field:
+    :param vb_dx_field:
+    :param vb_dy_field:
+    :param vbl_field:
+    :return:
+    """
+    df['cos'] = (df[va_dx_field] * df[vb_dx_field] + df[va_dy_field] * df[vb_dy_field]) / (
+                df[val_field] * df[vbl_field])
+    df.loc[df['cos'] == -np.inf, 'cos'] = np.inf
+    df.loc[df['cos'] <= -1, 'cos'] = -1
+    df.loc[df['cos'] >= 1, 'cos'] = 1
+    df['theta'] = 180 * np.arccos(df['cos']) / np.pi
+    df.loc[df['theta'] >= 179.9, 'theta'] = 179.9
 
 
 if __name__ == '__main__':
