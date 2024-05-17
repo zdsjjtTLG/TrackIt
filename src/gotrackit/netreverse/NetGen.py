@@ -6,7 +6,6 @@
 
 """生产路网的相关方法"""
 
-import time
 import os.path
 import pandas as pd
 import geopandas as gpd
@@ -20,7 +19,6 @@ from .RoadNet.increment import increment
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
-from ..WrapsFunc import function_time_cost
 from .Parse.gd_car_path import ParseGdPath
 from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
@@ -31,7 +29,6 @@ from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 
 
 net_field = NetField()
-
 
 class Reverse(object):
     def __init__(self, flag_name: str = '深圳市', plain_prj: str = None, net_out_fldr: str = None,
@@ -303,7 +300,7 @@ class NetReverse(Reverse):
         assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
         fmod = FormatOD(plain_crs=self.plain_prj)
         if isinstance(region_gdf, gpd.GeoDataFrame) and not region_gdf.empty:
-            assert region_gdf.crs.srs == 'EPSG:4326', '面域文件必须是EPSG:4326"'
+            assert region_gdf.crs.srs.upper() == 'EPSG:4326', '面域文件必须是EPSG:4326"'
         if od_type == 'rand_od':
             if region_gdf is None or region_gdf.empty:
                 region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
@@ -379,7 +376,7 @@ class NetReverse(Reverse):
         :return:
         """
         geo_crs = link_gdf.crs.srs
-        assert geo_crs == 'EPSG:4326'
+        assert geo_crs.upper() == 'EPSG:4326'
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
@@ -447,7 +444,10 @@ class NetReverse(Reverse):
         my_net = Net(link_gdf=link_gdf,
                      node_gdf=node_gdf, create_single=False, delete_circle=False)
         my_net.process_circle()
-        return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link = link.to_crs('EPSG:4326')
+        node = node.to_crs('EPSG:4326')
+        return link, node
 
     def redivide_link_node(self, link_gdf: gpd.GeoDataFrame = None):
         """
