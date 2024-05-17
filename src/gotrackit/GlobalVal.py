@@ -23,6 +23,9 @@ class NetField(object):
         self.NODE_PATH_FIELD = 'path'
         self.COST_FIELD = 'cost'
         self.LINK_VEC_FIELD = 'dir_vec'
+        self.X_DIFF = 'lv_dx'
+        self.Y_DIFF = 'lv_dy'
+        self.VEC_LEN = 'lvl'
         self.SEG_COUNT = 'seg_count'
         self.SEG_ACCU_LENGTH = 'seg_accu_length'
 
@@ -56,7 +59,12 @@ class GpsField(object):
         self.DENSE_GEO = '__dens_geo__'
         self.N_SEGMENTS = '__n__'
 
-        self.DIFF_VEC = 'diff_vec'
+        self.X_DIFF = 'gv_dx'
+        self.Y_DIFF = 'gv_dy'
+        self.VEC_LEN = 'gvl'
+
+        self.PLAIN_X = 'prj_x'
+        self.PLAIN_Y = 'prj_y'
 
 
 class RouteField(object):
@@ -85,6 +93,7 @@ class MarkovField(object):
         self.PRJ_GEO = 'prj_p'
         self.DIS_TO_NEXT = 'dis_to_next'
         self.HEADING_GAP = 'heading_gap'
+        self.EMISSION_P = 'emission_p'
 
 
 class KeplerConfig(object):
