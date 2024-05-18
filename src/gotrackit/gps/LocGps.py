@@ -297,7 +297,7 @@ class GpsPointsGdf(object):
             now_buffer = self.buffer + i * self.increment_buffer
             print(rf'buffer: {now_buffer}m...')
 
-            gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].apply(lambda p: p.buffer(now_buffer))
+            gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].buffer(now_buffer)
             gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
             join_df = gpd.sjoin(gps_buffer_gdf, single_link_gdf, how='left')
 
