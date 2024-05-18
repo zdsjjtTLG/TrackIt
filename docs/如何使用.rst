@@ -1049,6 +1049,35 @@ circle_process处理后如图
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
+地图匹配结果表(match_res)字段含义为：
+
+.. csv-table:: 地图匹配结果表字段说明
+    :header: "字段名称", "字段含义", "字段类型"
+    :widths: 15, 15, 40
+
+    "seq","gps点的序列ID","int"
+    "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
+    "lng","gps点的经度, EPSG:4326","float"
+    "lat","gps点的纬度, EPSG:4326","float"
+    "geometry","gps点的几何对象","geometry"
+    "prj_lng","gps点在匹配路段上投影点的经度, EPSG:4326, 后补点的该值为空","geometry"
+    "prj_lat","gps点在匹配路段上投影点的纬度, EPSG:4326, 后补点的该值为空","geometry"
+    "prj_geo","gps在匹配路段上投影点的几何对象, 后补点的该值为空","geometry"
+    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
+    "time","gps定位时间","datetime"
+    "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
+    "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
+    "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
+
+关于sub_seq：
+
+.. image:: _static/images/gps_segmentize.png
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+
 地图匹配接口的完整参数解释：
 
 * flag_name
@@ -1085,7 +1114,7 @@ circle_process处理后如图
     选取每个GPS点buffer范围内的最近的top_k个路段，默认20
 
 * beta
-    该值越大, 状态转移概率对于距离差(米, 相邻投影点路径长度 与 相邻GPS点球面距离 的距离差)越不敏感, 大于0的值, 默认6.0m
+    该值越大, 状态转移概率对于距离差(米, 相邻投影点路径长度 与 相邻GPS点球面距离 的距离差)越不敏感, 大于0的值, 默认6.0m, 建议>=3m
 
 * gps_sigma
     该值越大, 发射概率对距离(米, GPS点到候选路段的距离)越不敏感, 大于0的值, 默认30.0m
@@ -1314,38 +1343,112 @@ circle_process处理后如图
 
 
 
-地图匹配结果表字段含义为：
 
-.. csv-table:: 地图匹配结果表字段说明
-    :header: "字段名称", "字段含义", "字段类型"
-    :widths: 15, 15, 40
+5.5. 简化路网线型加速匹配
+``````````````````````````````
 
-    "seq","gps点的序列ID","int"
-    "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
-    "lng","gps点的经度, EPSG:4326","float"
-    "lat","gps点的纬度, EPSG:4326","float"
-    "geometry","gps点的几何对象","geometry"
-    "prj_lng","gps点在匹配路段上投影点的经度, EPSG:4326, 后补点的该值为空","geometry"
-    "prj_lat","gps点在匹配路段上投影点的纬度, EPSG:4326, 后补点的该值为空","geometry"
-    "prj_geo","gps在匹配路段上投影点的几何对象, 后补点的该值为空","geometry"
-    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
-    "time","gps定位时间","datetime"
-    "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
-    "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
-    "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
+可以使用如下方法对路网线层的几何进行简化
 
-关于sub_seq：
+.. code-block:: python
+    :linenos:
 
-.. image:: _static/images/gps_segmentize.png
-    :align: center
-
---------------------------------------------------------------------------------
+    # 1. 从gotrackit导入相关模块Net, MapMatch
+    import pandas as pd
+    import geopandas as gpd
+    from gotrackit.map.Net import Net
+    from gotrackit.MapMatch import MapMatch
 
 
+    if __name__ == '__main__':
+
+        # 读取link和node
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        link = link.to_crs('你选定的平面投影坐标系')
+
+        # 适当简化线型，simplify(x)中的x单位为m，该接口会使用道格拉斯-普克算法对线型进行简化，该值如选取的过大会导致所有link都退化为直线
+        link['geometry'] = link['geometry'].simplify(1.0)
+        my_net = Net(link_gdf=link,
+                     node_gdf=node)
+        my_net.init_net()  # net初始化
+
+        # 匹配
+        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+               use_sub_net=True, use_heading_inf=True,
+               omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+               lower_n=2, is_lower_f=True,
+               is_rolling_average=True, window=3,
+               dense_gps=False,
+               export_html=False, export_geo_res=False, use_gps_source=False,
+               out_fldr=r'./data/output/match_visualization/xa_sample',
+               gps_radius=10.0)
+
+        match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
+        print(match_res)
+        match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
 
-5.5. 匹配结果可视化
+
+5.6. 使用网格参数确定合理的匹配参数
+```````````````````````````````````````
+
+本包支持对地图匹配接口中的下面四个参数执行网格搜索：
+
+beta、gps_sigma、omitted_l、use_heading_inf
+
+即：遍历这四个参数可能的组合，直到匹配结果没有警告，如果所有的参数组合都有警告，那么将输出最后一次参数组合的匹配结果，匹配结果还将返回参数组合对应的匹配警告数量
+
+使用网格参数搜索，你只需要构建一个网格参数类，并且指定各参数的取值列表即可
+
+
+.. code-block:: python
+    :linenos:
+
+    # 1. 从gotrackit导入相关模块Net, MapMatch
+    import pandas as pd
+    import geopandas as gpd
+    from gotrackit.map.Net import Net
+    from gotrackit.MapMatch import MapMatch
+
+
+    if __name__ == '__main__':
+
+        # 1.读取GPS数据
+        # 这是一个有150辆车的GPS数据的文件
+        gps_df = pd.read_csv(r'./data/output/gps/150_agents.csv')
+        print(gps_df)
+
+        # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
+                     node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net.init_net()  # net初始化
+
+        # 3. 新建一个网格参数对象
+        # 指定四个参数的取值范围列表
+        para_grid = ParaGrid(gps_sigma_list=[50.0, 60.0, 80.0, 100.0, 150.0],
+                         beta_list=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                         use_heading_inf_list=[True, False],
+                         omitted_l_list=[1.0, 3.0])
+
+        # 4. 匹配
+        # 传入网格参数：use_para_grid=True, para_grid=para_grid
+        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
+               use_sub_net=True, use_heading_inf=True,
+               omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+               lower_n=2, is_lower_f=True,
+               is_rolling_average=True, window=3,
+               dense_gps=False,
+               export_html=False, export_geo_res=False, use_gps_source=False,
+               out_fldr=r'./data/output/match_visualization/xa_sample',
+               gps_radius=10.0, use_para_grid=True, para_grid=para_grid)
+
+        match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
+        print(match_res)
+        match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+
+
+5.7. 匹配结果可视化
 ``````````````````````````````
 
 HTML可视化需要连接网络(中国境内可能需要科学上网)，使用浏览器打开生成的html文件，按照下图点开时间轴播放器
@@ -1387,7 +1490,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
     beta表征的是对匹配路径不连续的惩罚力度，这个值越大，惩罚力度越小， 在GPS数据误差较大时，有可能出现路径不连续的情况，此时可以调小beta，增加对不连续情况的惩罚，调大gps_sigma(gps_sigma表征的是对prj_dis的惩罚，gps_sigma值越小，对prj_dis的惩罚力度越大)，弱化GPS点定位误差的影响
 
-    **调小beta, 调大gps_sigma**：直观意义在于更加看重路径的连续性，可以容忍较大的prj_dis(即较大的定位误差)
+    **调小beta, 调大gps_sigma**：直观意义在于更加看重路径的连续性，可以容忍较大的prj_dis(即较大的定位误差)，注意：beta不可过小，容易过拟合，建议>=3.0m
 
     **调大beta, 调小gps_sigma**：直观意义在于算法倾向于选择prj_dis小的路段作为匹配结果，而不看重匹配结果的路径连续性，当gps_sigma趋近于0，beta趋近于无穷大时，匹配算法就退化为最近邻匹配
 
