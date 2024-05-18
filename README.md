@@ -21,15 +21,16 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 <br>
 
 
-
-**版本状态：05.08已经更新: v0.2.4**
+**版本状态：05.19即将更新: v0.2.5**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
+- 地图匹配接口效率优化, 相较于v0.2.4小幅度提升
 
-- 地图匹配接口效率优化, 相较于v0.2.3小幅度提升
+- 新增网格参数搜索，帮助用户确定合理的匹配参数
 
-**0515之前，马上会出一个网格参数搜索器，针对不影响转移矩阵规模的参数进行搜索，帮助加速找到合适的参数，不再手动调参！**
+- BUG修复
+
 
 **不要下载GitHub仓库上的代码来使用!!!  直接pip安装gotrackit为第三方库即可使用**
 
