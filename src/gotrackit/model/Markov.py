@@ -21,7 +21,7 @@ from ..WrapsFunc import function_time_cost
 from shapely.geometry import Point, LineString
 from ..GlobalVal import NetField, GpsField, MarkovField
 from ..tools.geo_process import n_equal_points, vec_angle
-# warnings.filterwarnings('ignore')
+
 gps_field = GpsField()
 net_field = NetField()
 markov_field = MarkovField()
@@ -83,44 +83,46 @@ class HiddenMarkov(object):
     def init_warn_info(self):
         self.warn_info = {'from_ft': [], 'to_ft': []}
 
-    @function_time_cost
-    def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
+    def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame, dict]:
         try:
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
             is_success = False
             print(rf'构造矩阵结构出错:{repr(e)}')
         if not is_success:
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
 
         try:
             self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
         except Exception as e:
             print(rf'计算转移矩阵出错:{repr(e)}')
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
 
         try:
             self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
                                  gps_sigma=self.gps_sigma)
         except Exception as e:
             print(rf'计算发射矩阵出错:{repr(e)}')
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
 
         try:
             self.solve()
         except Exception as e:
             print(rf'回溯模型出错:{repr(e)}')
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
 
         try:
             match_res = self.acquire_res()
         except Exception as e:
             print(rf'获取匹配结果出错:{repr(e)}')
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
         self.formatting_warn_info()
-        return True, match_res
+        return True, match_res, {'gps_sigma': self.gps_sigma, 'use_heading_inf': self.use_heading_inf,
+                                 'beta': self.beta,
+                                 'omitted_l': self.omitted_l}
 
-    def hmm_para_grid_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
+    def hmm_para_grid_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame, dict]:
+        warnings.filterwarnings('ignore')
         try:
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
@@ -128,79 +130,90 @@ class HiddenMarkov(object):
             print(rf'构造矩阵结构出错:{repr(e)}')
 
         if not is_success:
-            return False, pd.DataFrame()
+            return False, pd.DataFrame(), dict()
 
         use_heading_inf_list, gps_sigma_list, beta_list, omitted_l_list = \
             self.para_grid.use_heading_inf_list, self.para_grid.gps_sigma_list, \
-                self.para_grid.beta_list, self.para_grid.omitted_l_list
-
-        transit_res = list()
-        emission_res = list()
-        for i, beta in enumerate(beta_list):
-            try:
-                self.calc_transition_mat(beta=beta, dis_para=self.dis_para)
-                transit_res.append({'parameter': {'beta': beta}, 'res': self.__ft_transition_dict})
-
-            except Exception as e:
-                print(rf'计算转移矩阵出错:{repr(e)}')
-                return False, pd.DataFrame()
-
-        i = 0
-        for use_heading_inf in use_heading_inf_list:
-            if use_heading_inf:
-                for omitted_l in omitted_l_list:
-                    for gps_sigma in gps_sigma_list:
-                        i += 1
-                        try:
-                            self.__calc_emission(use_heading_inf=use_heading_inf, gps_sigma=gps_sigma,
-                                                 omitted_l=omitted_l)
-                            emission_res.append({'parameter': {'gps_sigma': gps_sigma,
-                                                               'use_heading_inf': use_heading_inf,
-                                                               'omitted_l': omitted_l},
-                                                 'res': self.__emission_mat_dict})
-                        except Exception as e:
-                            print(rf'计算转移矩阵出错:{repr(e)}')
-                            return False, pd.DataFrame()
-            else:
-                for gps_sigma in gps_sigma_list:
-                    i += 1
-                    try:
-                        self.__calc_emission(use_heading_inf=use_heading_inf, gps_sigma=gps_sigma)
-                        emission_res.append({'parameter': {'gps_sigma': gps_sigma,
-                                                           'use_heading_inf': use_heading_inf},
-                                             'res': self.__emission_mat_dict})
-                    except Exception as e:
-                        print(rf'计算转移矩阵出错:{repr(e)}')
-                        return False, pd.DataFrame()
+            self.para_grid.beta_list, self.para_grid.omitted_l_list
 
         match_res = pd.DataFrame()
-        for transit_item in transit_res:
-            self.__ft_transition_dict = transit_item['res']
-            for emission_item in emission_res:
-                self.__emission_mat_dict = emission_item['res']
+        transit_res = {i: {'parameter': {'beta': beta}, 'res': {}} for i, beta in enumerate(beta_list)}
+        emission_res = dict()
+        if False in use_heading_inf_list:
+            emission_res = {j: {'parameter': {'gps_sigma': gps_sigma,
+                                              'use_heading_inf': False,
+                                              'omitted_l': 1.0}, 'res': {}} for j, gps_sigma in
+                            enumerate(gps_sigma_list)}
+        gap = set(use_heading_inf_list) - {False}
+        if gap:
+            emission_res.update({(j, m): {'parameter': {'use_heading_inf': True, 'gps_sigma': gps_sigma,
+                                                        'omitted_l': omitted_l}, 'res': {}} for j, gps_sigma in
+                                 enumerate(gps_sigma_list) for m, omitted_l in enumerate(omitted_l_list)})
+        all_num = len(transit_res) * len(emission_res)
+        c = 0
+        x1, x2 = None, None
+        for k1 in transit_res.keys():
+            if not transit_res[k1]['res']:
+                try:
+                    beta = transit_res[k1]['parameter']['beta']
+                    self.calc_transition_mat(beta=beta, dis_para=self.dis_para)
+                    transit_res[k1]['res'] = self.__ft_transition_dict
+                except Exception as e:
+                    print(rf'计算转移矩阵出错:{repr(e)}')
+                    return False, pd.DataFrame(), dict()
+            else:
+                self.__ft_transition_dict = transit_res[k1]['res']
+
+            for k2 in emission_res.keys():
+                if not emission_res[k2]['res']:
+                    try:
+                        omitted_l, use_heading_inf, gps_sigma = \
+                            emission_res[k2]['parameter']['omitted_l'],\
+                            emission_res[k2]['parameter']['use_heading_inf'], \
+                            emission_res[k2]['parameter']['gps_sigma']
+
+                        self.__calc_emission(use_heading_inf=use_heading_inf, omitted_l=omitted_l,
+                                             gps_sigma=gps_sigma)
+                        emission_res[k2]['res'] = self.__emission_mat_dict
+                    except Exception as e:
+                        print(rf'计算发射矩阵出错:{repr(e)}')
+                        return False, pd.DataFrame(), dict()
+                else:
+                    self.__emission_mat_dict = emission_res[k2]['res']
+
                 try:
                     self.solve()
                 except Exception as e:
                     print(rf'回溯模型出错:{repr(e)}')
-                    return False, pd.DataFrame()
+                    return False, pd.DataFrame(), dict()
 
                 try:
                     match_res = self.acquire_res()
                 except Exception as e:
                     print(rf'获取匹配结果出错:{repr(e)}')
-                    return False, pd.DataFrame()
+                    return False, pd.DataFrame(), dict()
+
                 self.formatting_warn_info()
-                print(transit_item['parameter'], emission_item['parameter'],
+                print(f'para - {c}:', transit_res[k1]['parameter'], emission_res[k2]['parameter'],
                       rf'warning num: {len(self.format_warn_info)}')
+
                 if self.format_warn_info.empty:
-                    return True, match_res
+                    return True, match_res, {'beta': transit_res[k1]['parameter']['beta'],
+                                             'gps_sigma': emission_res[k2]['parameter']['gps_sigma'],
+                                             'use_heading_inf': emission_res[k2]['parameter']['use_heading_inf'],
+                                             'omitted_l': emission_res[k2]['parameter']['omitted_l']}
                 else:
                     pass
-                self.init_warn_info()
+                c += 1
+                x1, x2 = k1, k2
+                if c < all_num:
+                    self.init_warn_info()
 
-        return True, match_res
+        return True, match_res, {'beta': transit_res[x1]['parameter']['beta'],
+                                 'gps_sigma': emission_res[x2]['parameter']['gps_sigma'],
+                                 'use_heading_inf': emission_res[x2]['parameter']['use_heading_inf'],
+                                 'omitted_l': emission_res[x2]['parameter']['omitted_l']}
 
-    @function_time_cost
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         if use_heading_inf:
@@ -214,6 +227,8 @@ class HiddenMarkov(object):
                                               on=gps_field.POINT_SEQ_FIELD)
 
                 vec_angle(df=self.__done_prj_df)
+                if markov_field.HEADING_GAP in self.__done_prj_df.columns:
+                    del self.__done_prj_df[markov_field.HEADING_GAP]
                 self.__done_prj_df.rename(columns={'theta': markov_field.HEADING_GAP}, inplace=True)
 
             self.__done_prj_df.loc[self.__done_prj_df[gps_field.VEC_LEN] <= omitted_l, markov_field.HEADING_GAP] = 0
@@ -224,10 +239,9 @@ class HiddenMarkov(object):
         self.__done_prj_df[markov_field.HEADING_GAP] = self.__done_prj_df[markov_field.HEADING_GAP].astype(object)
         self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
 
-        emission_p_df = self.__done_prj_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
+        emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
             {markov_field.PRJ_L: np.array, markov_field.HEADING_GAP: np.array}).reset_index(
             drop=False)
-
         self.__emission_mat_dict = {
             int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
                                                                            sigma=gps_sigma,
@@ -417,7 +431,6 @@ class HiddenMarkov(object):
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
-    @function_time_cost
     def calc_transition_mat(self, beta: float = 6.0, dis_para: float = 0.1):
         seq_len_dict = self.__seq2seq_len_dict
         self.__transition_df['trans_values'] = \
@@ -485,8 +498,8 @@ class HiddenMarkov(object):
 
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
-        # print(rf'{len(transition_df)}次状态转移...')
-        if len(transition_df) >= 200000:
+        print(rf'{len(transition_df)}次状态转移...')
+        if len(transition_df) >= 30000:
             now_target_node = set(seq_k_candidate_info[net_field.TO_NODE_FIELD])
             link_t_map = {k: v for k, v in link_t_map.items() if v in now_target_node}
             link_f_map = {k: v for k, v in link_f_map.items() if v in now_source_node}
@@ -650,7 +663,6 @@ class HiddenMarkov(object):
         p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
         return p
 
-    @function_time_cost
     def acquire_res(self) -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(

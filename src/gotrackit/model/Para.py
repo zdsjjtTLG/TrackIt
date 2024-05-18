@@ -11,9 +11,8 @@ class ParaGrid(object):
         self.beta_list = beta_list if beta_list is not None else [6.0, 10.0]
         self.gps_sigma_list = gps_sigma_list if gps_sigma_list is not None else [30.0, 40.0]
         self.use_heading_inf_list = sorted(use_heading_inf_list,
-                                           reverse=True) if use_heading_inf_list is not None else [False,
-                                                                                                   True]
+                                           reverse=True) if use_heading_inf_list is not None else [True, False]
         assert len(self.use_heading_inf_list) <= 2
         assert len(set(self.use_heading_inf_list)) == len(self.use_heading_inf_list)
         assert set(self.use_heading_inf_list).issubset({True, False})
-        self.omitted_l_list = sorted(omitted_l_list) if omitted_l_list is not None else [1.0, 6.0]
+        self.omitted_l_list = sorted(omitted_l_list) if omitted_l_list is not None else [6.0]

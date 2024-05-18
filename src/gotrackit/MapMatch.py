@@ -3,7 +3,6 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 import os
-import time
 import numpy as np
 import pandas as pd
 import multiprocessing
@@ -139,8 +138,8 @@ class MapMatch(object):
         self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap + max_increment_times * increment_buffer
         self.instant_output = instant_output
 
-        self.para_grid = para_grid
         self.use_para_grid = use_para_grid
+        self.para_grid = para_grid
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
@@ -223,9 +222,9 @@ class MapMatch(object):
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
                                    top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid)
             if not self.use_para_grid:
-                is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
+                is_success, _match_res_df, _ = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
             else:
-                is_success, _match_res_df = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft)
+                is_success, _match_res_df, _ = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft)
 
             if not is_success:
                 self.error_list.append(agent_id)
@@ -294,7 +293,8 @@ class MapMatch(object):
                            match_link_width=self.match_link_width, gps_radius=self.gps_radius,
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
-                           multi_core_save=False, instant_output=self.instant_output)
+                           multi_core_save=False, instant_output=self.instant_output, use_para_grid=self.use_para_grid,
+                           para_grid=self.para_grid)
             result = pool.apply_async(mmp.execute,
                                       args=())
             result_list.append(result)
