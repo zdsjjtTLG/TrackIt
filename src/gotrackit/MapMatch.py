@@ -3,11 +3,12 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 import os
-
+import time
 import numpy as np
 import pandas as pd
 import multiprocessing
 from .map.Net import Net
+from .model.Para import ParaGrid
 from .tools.group import cut_group
 from .gps.LocGps import GpsPointsGdf
 from .model.Markov import HiddenMarkov
@@ -38,7 +39,8 @@ class MapMatch(object):
                  node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False):
+                 visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
+                 use_para_grid: bool = False, para_grid: ParaGrid = None):
         """
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
@@ -137,11 +139,12 @@ class MapMatch(object):
         self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap + max_increment_times * increment_buffer
         self.instant_output = instant_output
 
+        self.para_grid = para_grid
+        self.use_para_grid = use_para_grid
+
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
         hmm_res_list = []  # save hmm_res
-        if len(self.my_net.get_node_data()[node_id_field].unique()) <= self.node_num_threshold:
-            self.use_sub_net = False
         self.gps_df.dropna(subset=[agent_id_field], inplace=True)
         agent_num = len(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
         if agent_num == 0:
@@ -218,42 +221,24 @@ class MapMatch(object):
             hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                    not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                   top_k=self.top_k, omitted_l=self.omitted_l)
+                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid)
+            if not self.use_para_grid:
+                is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
+            else:
+                is_success, _match_res_df = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft)
 
-            # 求解参数
-            try:
-                is_success = hmm_obj.generate_markov_para(add_single_ft)
-            except Exception as e:
-                print(rf'解算HMM参数出错:{repr(e)}')
-                is_success = False
             if not is_success:
                 self.error_list.append(agent_id)
                 continue
 
-            # 求解模型
-            try:
-                hmm_obj.solve()
-            except Exception as e:
-                print(rf'求解HMM模型出错:{repr(e)}')
-                self.error_list.append(agent_id)
-                continue
+            if hmm_obj.is_warn:
+                self.may_error_list[agent_id] = hmm_obj.format_warn_info
 
-            # 获取结果
-            try:
-                _match_res_df = hmm_obj.acquire_res()
-            except Exception as e:
-                print(rf'获取匹配结果出错:{repr(e)}')
-                self.error_list.append(agent_id)
-                continue
             if self.instant_output:
                 _match_res_df.to_csv(os.path.join(self.out_fldr, rf'{agent_id}_match_res.csv'),
                                      encoding='utf_8_sig', index=False)
             else:
                 match_res_df = pd.concat([match_res_df, _match_res_df])
-
-            hmm_obj.format_war_info()
-            if hmm_obj.is_warn:
-                self.may_error_list[agent_id] = hmm_obj.format_warn_info
 
             # if export files
             if self.export_html or self.export_geo_res:
