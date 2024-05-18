@@ -5,7 +5,7 @@
 
 
 """路网点层生产, 并且做一些空间优化"""
-
+import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
@@ -71,9 +71,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
                            origin_crs=origin_crs, plain_prj=plain_prj, fill_dir=fill_dir)
 
     # 去除没有link连接的节点
-    used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
-    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
-    node_gdf.reset_index(inplace=True, drop=True)
+    drop_no_use_nodes(link_gdf, node_gdf)
 
     if save_streets_before_modify_minimum:
         save_file(data_item=link_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='LinkBeforeModify')
@@ -131,10 +129,8 @@ def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False
         used_link_geo = link_gdf[[net_field.GEOMETRY_FIELD]].copy()
 
         # 取出两端坐标
-        used_link_geo['f_coords'] = used_link_geo.apply(
-            lambda x: list(x[net_field.GEOMETRY_FIELD].coords)[0], axis=1)
-        used_link_geo['t_coords'] = used_link_geo.apply(
-            lambda x: list(x[net_field.GEOMETRY_FIELD].coords)[-1], axis=1)
+        used_link_geo['f_coords'] = used_link_geo[net_field.GEOMETRY_FIELD].apply(lambda geo: list(geo.coords)[0])
+        used_link_geo['t_coords'] = used_link_geo[net_field.GEOMETRY_FIELD].apply(lambda geo: list(geo.coords)[-1])
         non_dup_coords_list = used_link_geo['f_coords'].to_list() + used_link_geo['t_coords'].to_list()
         node_coords_list = list(set(non_dup_coords_list))
         node_gdf = gpd.GeoDataFrame({net_field.NODE_ID_FIELD: [x for x in range(1, len(node_coords_list) + 1)]},
@@ -179,7 +175,7 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     if net_field.LENGTH_FIELD in update_link_field_list:
         # 更新length
         link_gdf = link_gdf.to_crs(plain_prj)
-        link_gdf[net_field.LENGTH_FIELD] = link_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: round(x.length, 2))
+        link_gdf[net_field.LENGTH_FIELD] = np.around(link_gdf[net_field.GEOMETRY_FIELD].length, 2)
         link_gdf = link_gdf.to_crs(origin_crs)
     else:
         assert net_field.LENGTH_FIELD in col_list, f'线层数据中缺少{net_field.LENGTH_FIELD}字段, 但是却没有指定更新!'
@@ -233,8 +229,7 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
 
     buffer_node_gdf = node_gdf.copy()
 
-    buffer_node_gdf[net_field.GEOMETRY_FIELD] = \
-        buffer_node_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: x.buffer(buffer))
+    buffer_node_gdf[net_field.GEOMETRY_FIELD] = buffer_node_gdf[net_field.GEOMETRY_FIELD].buffer(buffer)
     join_df = gpd.sjoin(node_gdf, buffer_node_gdf)
 
     node_gdf = node_gdf.to_crs(origin_crs)
@@ -310,14 +305,25 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         link_gdf = link_gdf.drop(index=link_gdf[alter_index].index, axis=0)
 
         # 修改起终点坐标
-        alter_link_gdf[net_field.GEOMETRY_FIELD] = alter_link_gdf.apply(
-            lambda item: LineString([(node_gdf.at[item[net_field.FROM_NODE_FIELD], net_field.GEOMETRY_FIELD].x,
-                                      node_gdf.at[item[net_field.FROM_NODE_FIELD], net_field.GEOMETRY_FIELD].y)] +
-                                    list(item[net_field.GEOMETRY_FIELD].coords)[1:-1] +
-                                    [(node_gdf.at[item[net_field.TO_NODE_FIELD], net_field.GEOMETRY_FIELD].x,
-                                      node_gdf.at[item[net_field.TO_NODE_FIELD], net_field.GEOMETRY_FIELD].y)]), axis=1)
+        # 可能一条link退化为点
+        if not alter_link_gdf.empty:
+            # alter_link_gdf[net_field.GEOMETRY_FIELD] = alter_link_gdf.apply(
+            #     lambda item: LineString([(node_gdf.at[item[net_field.FROM_NODE_FIELD], net_field.GEOMETRY_FIELD].x,
+            #                               node_gdf.at[item[net_field.FROM_NODE_FIELD], net_field.GEOMETRY_FIELD].y)] +
+            #                             list(item[net_field.GEOMETRY_FIELD].coords)[1:-1] +
+            #                             [(node_gdf.at[item[net_field.TO_NODE_FIELD], net_field.GEOMETRY_FIELD].x,
+            #                               node_gdf.at[item[net_field.TO_NODE_FIELD], net_field.GEOMETRY_FIELD].y)]), axis=1)
+            alter_link_gdf[net_field.GEOMETRY_FIELD] = [
+                LineString([(node_gdf.at[fn, net_field.GEOMETRY_FIELD].x,
+                             node_gdf.at[fn, net_field.GEOMETRY_FIELD].y)] +
+                           list(geo.coords)[1:-1] +
+                           [(node_gdf.at[tn, net_field.GEOMETRY_FIELD].x,
+                             node_gdf.at[tn, net_field.GEOMETRY_FIELD].y)] for fn, tn, geo in
+                           zip(alter_link_gdf[net_field.FROM_NODE_FIELD],
+                               alter_link_gdf[net_field.TO_NODE_FIELD],
+                               alter_link_gdf[net_field.GEOMETRY_FIELD]))]
 
-        link_gdf = pd.concat([link_gdf, alter_link_gdf])
+            link_gdf = pd.concat([link_gdf, alter_link_gdf])
 
         link_gdf = gpd.GeoDataFrame(link_gdf, geometry=net_field.GEOMETRY_FIELD, crs=origin_crs)
 
@@ -327,6 +333,9 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], keep='first',
                                  inplace=True)
         link_gdf.reset_index(inplace=True, drop=True)
+
+        # 去除没有link连接的节点
+        drop_no_use_nodes(link_gdf, node_gdf)
 
         node_group_status_df = pd.DataFrame(node_group_status_list, columns=[net_field.NODE_ID_FIELD, 'status'])
         node_group_status_df = pd.merge(node_group_status_df,
@@ -428,3 +437,10 @@ def get_dup_node(node_gdf: gpd.GeoDataFrame = None, buffer: float = 0.5) -> dict
             # 必然有 >= 2 个元素
             node_group_list = list(node_group)
             node_map_dict.update({origin_node: node_group_list[0] for origin_node in node_group_list[1:]})
+
+
+def drop_no_use_nodes(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None):
+    # 去除没有link连接的节点
+    used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
+    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
+    node_gdf.reset_index(inplace=True, drop=True)
