@@ -455,7 +455,7 @@ def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
     :param crs:
     :return:
     """
-    if crs == 'EPSG:4326':
+    if crs.upper() == 'EPSG:4326':
         coord_list = list(linestring_obj.coords)
         try:
             length_list = [distance(tuple(coord_list[i][::-1]), tuple(coord_list[i + 1][::-1])).m for i in

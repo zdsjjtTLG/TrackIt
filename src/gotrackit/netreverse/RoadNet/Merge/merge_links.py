@@ -99,7 +99,7 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     # 直接修改传入的link_gdf
     print(r'##########   Merge Road Sections')
     node_gdf.set_index(node_id_field, inplace=True)
-    origin_crs = link_gdf.crs
+    origin_crs = link_gdf.crs.srs
     link_gdf['sorted_ft'] = link_gdf[[from_node_id_field, to_node_id_field]].apply(lambda x: tuple(sorted(x)), axis=1)
 
     origin_sorted_ft_list = link_gdf['sorted_ft'].to_list()
@@ -261,7 +261,7 @@ def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
     :param crs:
     :return:
     """
-    if crs == 'EPSG:4326':
+    if crs.upper() == 'EPSG:4326':
         coord_list = list(linestring_obj.coords)
         try:
             length_list = [distance(tuple(coord_list[i][::-1]), tuple(coord_list[i + 1][::-1])).m for i in range(0, len(coord_list) - 1)]
