@@ -318,10 +318,10 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
                              node_gdf.at[fn, net_field.GEOMETRY_FIELD].y)] +
                            list(geo.coords)[1:-1] +
                            [(node_gdf.at[tn, net_field.GEOMETRY_FIELD].x,
-                             node_gdf.at[tn, net_field.GEOMETRY_FIELD].y)] for fn, tn, geo in
-                           zip(alter_link_gdf[net_field.FROM_NODE_FIELD],
-                               alter_link_gdf[net_field.TO_NODE_FIELD],
-                               alter_link_gdf[net_field.GEOMETRY_FIELD]))]
+                             node_gdf.at[tn, net_field.GEOMETRY_FIELD].y)]) for fn, tn, geo in
+                zip(alter_link_gdf[net_field.FROM_NODE_FIELD],
+                    alter_link_gdf[net_field.TO_NODE_FIELD],
+                    alter_link_gdf[net_field.GEOMETRY_FIELD])]
 
             link_gdf = pd.concat([link_gdf, alter_link_gdf])
 
