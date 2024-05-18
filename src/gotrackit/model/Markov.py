@@ -6,13 +6,13 @@
 """Markov Model Class"""
 
 import os.path
-import time
 import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
 import geopandas as gpd
 from ..map.Net import Net
+from .Para import ParaGrid
 from datetime import timedelta
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
@@ -20,9 +20,8 @@ from ..tools.geo_process import prj_inf
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Point, LineString
 from ..GlobalVal import NetField, GpsField, MarkovField
-from ..tools.geo_process import n_equal_points, hmm_vector_angle
-
-
+from ..tools.geo_process import n_equal_points, vec_angle
+# warnings.filterwarnings('ignore')
 gps_field = GpsField()
 net_field = NetField()
 markov_field = MarkovField()
@@ -41,7 +40,8 @@ class HiddenMarkov(object):
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
-                 dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0):
+                 dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
+                 use_para_grid: bool = False):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -54,6 +54,7 @@ class HiddenMarkov(object):
         self.beta = beta
         self.gps_sigma = gps_sigma
         self.__emission_mat_dict = dict()
+        self.__seq2seq_len_dict = dict()
         self.__solver = None
         self.index_state_list = None
         self.gps_match_res_gdf = None
@@ -75,44 +76,161 @@ class HiddenMarkov(object):
         self.top_k = top_k
         self.omitted_l = omitted_l
         self.gps_candidate_link = None
+        self.__transition_df = pd.DataFrame()
+        self.use_para_grid = use_para_grid
+        self.para_grid = para_grid
+
+    def init_warn_info(self):
+        self.warn_info = {'from_ft': [], 'to_ft': []}
 
     @function_time_cost
-    def generate_markov_para(self, add_single_ft: list[bool] = None) -> bool:
+    def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
+        try:
+            is_success = self.__generate_st(add_single_ft=add_single_ft)
+        except Exception as e:
+            is_success = False
+            print(rf'构造矩阵结构出错:{repr(e)}')
+        if not is_success:
+            return False, pd.DataFrame()
 
-        is_success = self.__generate_transition_mat_alpha_multi(add_single_ft)
-        if is_success:
-            self.__generate_emission_mat()
-        return is_success
+        try:
+            self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
+        except Exception as e:
+            print(rf'计算转移矩阵出错:{repr(e)}')
+            return False, pd.DataFrame()
 
-    def __generate_emission_mat(self):
+        try:
+            self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
+                                 gps_sigma=self.gps_sigma)
+        except Exception as e:
+            print(rf'计算发射矩阵出错:{repr(e)}')
+            return False, pd.DataFrame()
 
+        try:
+            self.solve()
+        except Exception as e:
+            print(rf'回溯模型出错:{repr(e)}')
+            return False, pd.DataFrame()
+
+        try:
+            match_res = self.acquire_res()
+        except Exception as e:
+            print(rf'获取匹配结果出错:{repr(e)}')
+            return False, pd.DataFrame()
+        self.formatting_warn_info()
+        return True, match_res
+
+    def hmm_para_grid_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
+        try:
+            is_success = self.__generate_st(add_single_ft=add_single_ft)
+        except Exception as e:
+            is_success = False
+            print(rf'构造矩阵结构出错:{repr(e)}')
+
+        if not is_success:
+            return False, pd.DataFrame()
+
+        use_heading_inf_list, gps_sigma_list, beta_list, omitted_l_list = \
+            self.para_grid.use_heading_inf_list, self.para_grid.gps_sigma_list, \
+                self.para_grid.beta_list, self.para_grid.omitted_l_list
+
+        transit_res = list()
+        emission_res = list()
+        for i, beta in enumerate(beta_list):
+            try:
+                self.calc_transition_mat(beta=beta, dis_para=self.dis_para)
+                transit_res.append({'parameter': {'beta': beta}, 'res': self.__ft_transition_dict})
+
+            except Exception as e:
+                print(rf'计算转移矩阵出错:{repr(e)}')
+                return False, pd.DataFrame()
+
+        i = 0
+        for use_heading_inf in use_heading_inf_list:
+            if use_heading_inf:
+                for omitted_l in omitted_l_list:
+                    for gps_sigma in gps_sigma_list:
+                        i += 1
+                        try:
+                            self.__calc_emission(use_heading_inf=use_heading_inf, gps_sigma=gps_sigma,
+                                                 omitted_l=omitted_l)
+                            emission_res.append({'parameter': {'gps_sigma': gps_sigma,
+                                                               'use_heading_inf': use_heading_inf,
+                                                               'omitted_l': omitted_l},
+                                                 'res': self.__emission_mat_dict})
+                        except Exception as e:
+                            print(rf'计算转移矩阵出错:{repr(e)}')
+                            return False, pd.DataFrame()
+            else:
+                for gps_sigma in gps_sigma_list:
+                    i += 1
+                    try:
+                        self.__calc_emission(use_heading_inf=use_heading_inf, gps_sigma=gps_sigma)
+                        emission_res.append({'parameter': {'gps_sigma': gps_sigma,
+                                                           'use_heading_inf': use_heading_inf},
+                                             'res': self.__emission_mat_dict})
+                    except Exception as e:
+                        print(rf'计算转移矩阵出错:{repr(e)}')
+                        return False, pd.DataFrame()
+
+        match_res = pd.DataFrame()
+        for transit_item in transit_res:
+            self.__ft_transition_dict = transit_item['res']
+            for emission_item in emission_res:
+                self.__emission_mat_dict = emission_item['res']
+                try:
+                    self.solve()
+                except Exception as e:
+                    print(rf'回溯模型出错:{repr(e)}')
+                    return False, pd.DataFrame()
+
+                try:
+                    match_res = self.acquire_res()
+                except Exception as e:
+                    print(rf'获取匹配结果出错:{repr(e)}')
+                    return False, pd.DataFrame()
+                self.formatting_warn_info()
+                print(transit_item['parameter'], emission_item['parameter'],
+                      rf'warning num: {len(self.format_warn_info)}')
+                if self.format_warn_info.empty:
+                    return True, match_res
+                else:
+                    pass
+                self.init_warn_info()
+
+        return True, match_res
+
+    @function_time_cost
+    def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
-        # 这里的向量是候选路段的投影点的方向向量
-        emission_p_df = self.__done_prj_df.copy()
-        emission_p_df.rename(columns={'p_vec': net_field.LINK_VEC_FIELD}, inplace=True)
-        if self.use_heading_inf:
-            self.gps_points.calc_diff_heading()
-            emission_p_df = pd.merge(emission_p_df, self.gps_points.gps_gdf[[gps_field.POINT_SEQ_FIELD,
-                                                                             gps_field.DIFF_VEC]], how='left',
-                                     on=gps_field.POINT_SEQ_FIELD)
-            emission_p_df[markov_field.HEADING_GAP] = \
-                [hmm_vector_angle(gps_diff_vec=diff_vec,
-                                  link_dir_vec=link_vec,
-                                  omitted_l=self.omitted_l) for diff_vec, link_vec in
-                 zip(emission_p_df[gps_field.DIFF_VEC], emission_p_df[net_field.LINK_VEC_FIELD])]
+        if use_heading_inf:
+            if gps_field.X_DIFF not in self.__done_prj_df.columns:
+                self.gps_points.calc_diff_heading()
+                self.__done_prj_df = pd.merge(self.__done_prj_df, self.gps_points.gps_gdf[[gps_field.POINT_SEQ_FIELD,
+                                                                                           gps_field.X_DIFF,
+                                                                                           gps_field.Y_DIFF,
+                                                                                           gps_field.VEC_LEN]],
+                                              how='left',
+                                              on=gps_field.POINT_SEQ_FIELD)
+
+                vec_angle(df=self.__done_prj_df)
+                self.__done_prj_df.rename(columns={'theta': markov_field.HEADING_GAP}, inplace=True)
+
+            self.__done_prj_df.loc[self.__done_prj_df[gps_field.VEC_LEN] <= omitted_l, markov_field.HEADING_GAP] = 0
+
         else:
-            emission_p_df[markov_field.HEADING_GAP] = 0
-        emission_p_df[markov_field.HEADING_GAP] = emission_p_df[markov_field.HEADING_GAP].astype(object)
-        emission_p_df[markov_field.PRJ_L] = emission_p_df[markov_field.PRJ_L].astype(object)
-        emission_p_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
-                                  ascending=[True, True], inplace=True)
-        emission_p_df = emission_p_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
+            self.__done_prj_df[markov_field.HEADING_GAP] = 0
+
+        self.__done_prj_df[markov_field.HEADING_GAP] = self.__done_prj_df[markov_field.HEADING_GAP].astype(object)
+        self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
+
+        emission_p_df = self.__done_prj_df.groupby([gps_field.POINT_SEQ_FIELD]).agg(
             {markov_field.PRJ_L: np.array, markov_field.HEADING_GAP: np.array}).reset_index(
             drop=False)
 
         self.__emission_mat_dict = {
             int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
-                                                                           sigma=self.gps_sigma,
+                                                                           sigma=gps_sigma,
                                                                            heading_gap=row[markov_field.HEADING_GAP])
             for _, row in
             emission_p_df.iterrows()}
@@ -162,7 +280,9 @@ class HiddenMarkov(object):
                              zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
                                  preliminary_candidate_link['single_link_geo'])]
             prj_df = pd.DataFrame(prj_info_list,
-                                  columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line', 'p_vec'])
+                                  columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line',
+                                           net_field.X_DIFF, net_field.Y_DIFF])
+            prj_df[net_field.VEC_LEN] = np.sqrt(prj_df[net_field.X_DIFF] ** 2 + prj_df[net_field.Y_DIFF] ** 2)
             del prj_df['split_line']
             del preliminary_candidate_link['quick_stl']
             preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True, right_index=True)
@@ -189,11 +309,13 @@ class HiddenMarkov(object):
             a_info = preliminary_candidate_link[~preliminary_candidate_link[net_field.SEG_ACCU_LENGTH].isna()].copy()
             preliminary_candidate_link = preliminary_candidate_link[
                 preliminary_candidate_link[net_field.SEG_ACCU_LENGTH].isna()].copy()
-            preliminary_candidate_link.drop(columns=[net_field.SEG_ACCU_LENGTH, 'topo_seq', net_field.LENGTH_FIELD,
-                                                     'dir_vec', net_field.SEG_COUNT], axis=1, inplace=True)
+            preliminary_candidate_link.drop(columns=[net_field.SEG_ACCU_LENGTH, 'topo_seq',
+                                                     net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN,
+                                                     net_field.SEG_COUNT], axis=1,
+                                            inplace=True)
             del a_info[net_field.SEG_ACCU_LENGTH], a_info[net_field.SEG_COUNT], a_info['topo_seq']
             if preliminary_candidate_link.empty:
-                a_info.rename(columns={'quick_stl': 'prj_dis', 'dir_vec': 'p_vec'}, inplace=True)
+                a_info.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
                 return a_info
         else:
             a_info = pd.DataFrame()
@@ -224,7 +346,7 @@ class HiddenMarkov(object):
 
             preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
             preliminary_candidate_link.reset_index(inplace=True, drop=True)
-            preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis', 'dir_vec': 'p_vec'}, inplace=True)
+            preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
             return preliminary_candidate_link
         else:
             return a_info
@@ -242,7 +364,8 @@ class HiddenMarkov(object):
         self.__solver.init_model()
         self.index_state_list = self.__solver.iter_model()
 
-    def __generate_transition_mat_alpha_multi(self, add_single_ft: list[bool] = None) -> bool:
+    @function_time_cost
+    def __generate_st(self, add_single_ft: list[bool] = None) -> bool:
         # 计算 初步候选, 经过这一步, 实际匹配用到的GPS点已经完全确定
         # 得到self.gps_candidate_link
         seq_list = self.__generate_candidates()
@@ -251,17 +374,14 @@ class HiddenMarkov(object):
 
         # 已经删除了关联不到任何路段的GPS点, 基于新的序列计算相邻GPS点距离
         # gps_field.POINT_SEQ_FIELD, gps_field.NEXT_SEQ, gps_field.ADJ_DIS
-        gps_pre_next_dis_df = self.gps_points.calc_pre_next_dis()
-        gps_pre_next_dis_df.rename(columns={gps_field.POINT_SEQ_FIELD: gps_field.FROM_GPS_SEQ,
-                                            gps_field.NEXT_SEQ: gps_field.TO_GPS_SEQ}, inplace=True)
-
+        self.gps_points.calc_pre_next_dis()
         # 抽取单向信息
         single_link_ft_df = self.net.single_link_ft_cost()
         single_link_ft_df.reset_index(inplace=True, drop=True)
         g = self.net.graph
         is_sub_net = self.net.is_sub_net
         fmm_cache = self.net.fmm_cache
-        cut_off, max_cut_off = self.net.cut_off, self.net.max_cut_off
+        cut_off = self.net.cut_off
         # print(cut_off)
         if is_sub_net:
             if fmm_cache:
@@ -274,39 +394,54 @@ class HiddenMarkov(object):
             done_stp_cost_df = self.net.get_path_cache()
             cache_prj_info = self.net.get_prj_cache()
         single_link_f_map, single_link_t_map = self.net.link_f_map, self.net.link_t_map
-        adj_seq_path_dict, ft_transition_dict, ft_idx_map, s2s_route_l, prj_done_df, \
-            done_stp_cost_df = \
-            self.generate_transition_mat_beta(single_link_ft_df, self.gps_candidate_link,
-                                              gps_pre_next_dis_df, g, self.net.search_method,
-                                              self.net.weight_field, self.net.cache_path, self.net.not_conn_cost,
-                                              done_stp_cost_df, is_sub_net, fmm_cache,
-                                              cut_off, max_cut_off, cache_prj_info, add_single_ft, single_link_f_map,
-                                              single_link_t_map)
+        adj_seq_path_dict, ft_idx_map, s2s_route_l, prj_done_df, done_stp_cost_df, seq_len_dict, transition_df = \
+            self.generate_transition_st(single_link_ft_df, self.gps_candidate_link,
+                                        self.gps_points.gps_adj_dis_map, g, self.net.search_method,
+                                        self.net.weight_field, self.net.cache_path, self.net.not_conn_cost,
+                                        done_stp_cost_df, is_sub_net, fmm_cache,
+                                        cut_off, cache_prj_info, add_single_ft, single_link_f_map,
+                                        single_link_t_map)
         # print(len(done_stp_cost_df))
         ft_idx_map.reset_index(inplace=True, drop=True)
         s2s_route_l.reset_index(inplace=True, drop=True)
         self.__adj_seq_path_dict = adj_seq_path_dict
         self.__ft_idx_map = ft_idx_map
-        self.__ft_transition_dict = ft_transition_dict
         self.__s2s_route_l = s2s_route_l
         self.__done_prj_df = prj_done_df
+        self.__done_prj_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD],
+                                       ascending=[True, True], inplace=True)
+        self.__seq2seq_len_dict = seq_len_dict
+        self.__transition_df = transition_df
 
         if not is_sub_net and not fmm_cache:
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
-    def generate_transition_mat_beta(self, single_link_ft_df: pd.DataFrame = None,
-                                     pre_seq_candidate: pd.DataFrame = None,
-                                     gps_pre_next_dis_df: pd.DataFrame = None,
-                                     g: nx.DiGraph = None,
-                                     method: str = None, weight_field: str = 'length',
-                                     cache_path: bool = True, not_conn_cost: float = 999.0,
-                                     done_stp_cost_df: pd.DataFrame = None,
-                                     is_sub_net: bool = True, fmm_cache: bool = False, cut_off: float = 600.0,
-                                     max_cut_off: float = 2000.0, cache_prj_inf: dict = None,
-                                     add_single_ft: list[bool] = None, link_f_map: dict = None,
-                                     link_t_map: dict = None) -> \
-            tuple[dict, dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    @function_time_cost
+    def calc_transition_mat(self, beta: float = 6.0, dis_para: float = 0.1):
+        seq_len_dict = self.__seq2seq_len_dict
+        self.__transition_df['trans_values'] = \
+            self.transition_probability(beta, self.__transition_df[markov_field.DIS_GAP].values, dis_para)
+
+        ft_transition_dict = {f_gps_seq: df['trans_values'].values.reshape(seq_len_dict[f_gps_seq],
+                                                                           int(len(df) / seq_len_dict[f_gps_seq])) for
+                              (f_gps_seq, t_gps_seq), df in
+                              self.__transition_df.groupby([gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ])}
+
+        self.__ft_transition_dict = ft_transition_dict
+
+    def generate_transition_st(self, single_link_ft_df: pd.DataFrame = None,
+                               pre_seq_candidate: pd.DataFrame = None,
+                               gps_adj_dis_map: dict = None,
+                               g: nx.DiGraph = None,
+                               method: str = None, weight_field: str = 'length',
+                               cache_path: bool = True, not_conn_cost: float = 999.0,
+                               done_stp_cost_df: pd.DataFrame = None,
+                               is_sub_net: bool = True, fmm_cache: bool = False, cut_off: float = 600.0,
+                               cache_prj_inf: dict = None,
+                               add_single_ft: list[bool] = None, link_f_map: dict = None,
+                               link_t_map: dict = None) -> \
+            tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
         # K候选
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
@@ -351,10 +486,19 @@ class HiddenMarkov(object):
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
         # print(rf'{len(transition_df)}次状态转移...')
-        transition_df['from_link_f'] = transition_df[markov_field.FROM_STATE].map(link_f_map)
-        transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].map(link_t_map)
-        transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].map(link_f_map)
-        transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].map(link_t_map)
+        if len(transition_df) >= 200000:
+            now_target_node = set(seq_k_candidate_info[net_field.TO_NODE_FIELD])
+            link_t_map = {k: v for k, v in link_t_map.items() if v in now_target_node}
+            link_f_map = {k: v for k, v in link_f_map.items() if v in now_source_node}
+            transition_df['from_link_f'] = transition_df[markov_field.FROM_STATE].map(link_f_map)
+            transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].map(link_t_map)
+            transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].map(link_f_map)
+            transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].map(link_t_map)
+        else:
+            transition_df['from_link_f'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_f_map[x])
+            transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
+            transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
+            transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
 
         # now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
@@ -377,6 +521,19 @@ class HiddenMarkov(object):
 
         _done_stp_cost_df = done_stp_cost_df[done_stp_cost_df[o_node_field].isin(now_source_node) &
                                              done_stp_cost_df[d_node_field].isin(now_source_node)].copy()
+        if not fmm_cache:
+            _done_stp_cost_df['2nd_node'] = -1
+            _done_stp_cost_df['-2nd_node'] = -1
+            normal_path_idx = _done_stp_cost_df[cost_field] > 0
+            try:
+                _done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                    path_field].apply(
+                    lambda x: x[1])
+                _done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                    path_field].apply(
+                    lambda x: x[-2])
+            except:
+                pass
         transition_df = pd.merge(transition_df, _done_stp_cost_df, left_on=['from_link_f', 'to_link_f'],
                                  right_on=[o_node_field, d_node_field], how='left')
         del _done_stp_cost_df
@@ -397,49 +554,26 @@ class HiddenMarkov(object):
                                  _[markov_field.TO_STATE],
                                  _[path_field],
                                  _[cost_field]) if c > 0}
+
         same_link_idx = transition_df[markov_field.FROM_STATE] == transition_df[markov_field.TO_STATE]
-        transition_df.loc[same_link_idx, markov_field.ROUTE_LENGTH] = \
-            np.abs(transition_df.loc[same_link_idx, :]['from_route_dis'] -
-                   transition_df.loc[same_link_idx, :]['to_route_dis'])
-        transition_df['2nd_node'] = -1
-        transition_df['-2nd_node'] = -1
-        # normal_path_idx_a = transition_df[cost_field] > 0, normal_path_idx_a可能全是False
-        try:
-            transition_df.loc[normal_path_idx_a, '2nd_node'] = transition_df.loc[normal_path_idx_a, :][
-                path_field].apply(
-                lambda x: x[1])
-            transition_df.loc[normal_path_idx_a, '-2nd_node'] = transition_df.loc[normal_path_idx_a, :][
-                path_field].apply(
-                lambda x: x[-2])
-        except:
-            pass
-        normal_path_idx_b = (normal_path_idx_a & \
-                             (transition_df['2nd_node'] == transition_df['from_link_t']) & \
-                             (transition_df['-2nd_node'] != transition_df['to_link_t'])) | \
+        normal_path_idx_b = (normal_path_idx_a & (transition_df['2nd_node'] == transition_df['from_link_t']) & (
+                    transition_df['-2nd_node'] != transition_df['to_link_t'])) | \
                             ((transition_df['from_link_f'] == transition_df['to_link_t']) &
                              (transition_df['from_link_t'] == transition_df['to_link_f']))
+        final_idx = normal_path_idx_b | same_link_idx
+        transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] = \
+            np.abs(transition_df.loc[final_idx, :][cost_field] -
+                   transition_df.loc[final_idx, :]['from_route_dis'] +
+                   transition_df.loc[final_idx, :]['to_route_dis'])
+        transition_df[gps_field.ADJ_DIS] = transition_df[gps_field.FROM_GPS_SEQ].map(gps_adj_dis_map)
 
-        transition_df.loc[normal_path_idx_b, markov_field.ROUTE_LENGTH] = \
-            np.abs(transition_df.loc[normal_path_idx_b, :][cost_field] -
-                   transition_df.loc[normal_path_idx_b, :]['from_route_dis'] +
-                   transition_df.loc[normal_path_idx_b, :]['to_route_dis'])
-
-        transition_df = pd.merge(transition_df, gps_pre_next_dis_df, on=[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ],
-                                 how='left')
         transition_df[markov_field.DIS_GAP] = np.abs(
             -transition_df[markov_field.ROUTE_LENGTH] + transition_df[gps_field.ADJ_DIS])
 
         s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
                                      markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
-        transition_df['trans_values'] = \
-            self.transition_probability(self.beta, transition_df[markov_field.DIS_GAP].values, self.dis_para)
-
-        ft_transition_dict = {f_gps_seq: df['trans_values'].values.reshape(seq_len_dict[f_gps_seq],
-                                                                           int(len(df) / seq_len_dict[f_gps_seq])) for
-                              (f_gps_seq, t_gps_seq), df in
-                              transition_df.groupby([gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ])}
-
-        return adj_seq_path_dict, ft_transition_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df
+        return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
+            seq_len_dict, transition_df
 
     def add_path_cache(self, done_stp_cost_df: pd.DataFrame = None, source_node_list: list[int] or set[int] = None,
                        g: nx.DiGraph = None, method: str = 'dijkstra', single_link_ft_path_df: pd.DataFrame = None,
@@ -516,6 +650,7 @@ class HiddenMarkov(object):
         p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
         return p
 
+    @function_time_cost
     def acquire_res(self) -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(
@@ -573,7 +708,7 @@ class HiddenMarkov(object):
 
         # 给每个gps点打上路网link标签, 存在GPS匹配不到路段的情况(比如buffer范围内无候选路段)
         gps_match_res_gdf = pd.merge(gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD,
-                                                        gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD,
+                                                        gps_field.PLAIN_X, gps_field.PLAIN_Y, gps_field.TIME_FIELD,
                                                         gps_field.GEOMETRY_FIELD]],
                                      gps_link_state_df, on=gps_field.POINT_SEQ_FIELD, how='right')
         del gps_link_state_df
@@ -586,17 +721,15 @@ class HiddenMarkov(object):
         gps_match_res_gdf = gpd.GeoDataFrame(gps_match_res_gdf, geometry=gps_field.GEOMETRY_FIELD,
                                              crs=self.gps_points.crs)
         gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
-        gps_match_res_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]] = gps_match_res_gdf.apply(
-            lambda row: (row[gps_field.GEOMETRY_FIELD].x, row[gps_field.GEOMETRY_FIELD].y), axis=1,
-            result_type='expand')
+        gps_match_res_gdf[gps_field.LNG_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].apply(lambda p: p.x)
+        gps_match_res_gdf[gps_field.LAT_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].apply(lambda p: p.y)
         prj_gdf = gps_match_res_gdf[[markov_field.PRJ_GEO]].copy()
         del gps_match_res_gdf[markov_field.PRJ_GEO]
         prj_gdf.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
         prj_gdf = gpd.GeoDataFrame(prj_gdf, geometry=markov_field.PRJ_GEO, crs=self.gps_points.plane_crs)
         prj_gdf = prj_gdf.to_crs(self.gps_points.geo_crs)
-        prj_gdf[['prj_lng', 'ptj_lat']] = prj_gdf.apply(
-            lambda row: (row[markov_field.PRJ_GEO].x, row[markov_field.PRJ_GEO].y), axis=1,
-            result_type='expand')
+        prj_gdf['prj_lng'] = prj_gdf[markov_field.PRJ_GEO].apply(lambda p: p.x)
+        prj_gdf['prj_lat'] = prj_gdf[markov_field.PRJ_GEO].apply(lambda p: p.y)
         gps_match_res_gdf = pd.merge(gps_match_res_gdf, prj_gdf, how='left', left_index=True, right_index=True)
         del prj_gdf
         self.gps_match_res_gdf = gps_match_res_gdf
@@ -664,9 +797,9 @@ class HiddenMarkov(object):
                     # 利用前后的GPS点信息来补全缺失的GPS点
                     pre_order_gps, next_order_gps = gps_match_res_gdf.at[pre_seq, net_field.GEOMETRY_FIELD], \
                         gps_match_res_gdf.at[next_seq, net_field.GEOMETRY_FIELD]
-                    omitted_gps_points.extend(n_equal_points(len(_single_link_list) + 1, from_point=pre_order_gps,
-                                                             to_point=next_order_gps, add_noise=True, noise_frac=0.3))
-
+                    omitted_gps_points.extend(n_equal_points(len(_single_link_list) + 1,
+                                                             from_loc=(pre_order_gps.x, pre_order_gps.y),
+                                                             to_loc=(next_order_gps.x, next_order_gps.y)))
                     # 一条补出来的路生成一个GPS点
                     pre_seq_time, next_seq_time = gps_match_res_gdf.at[pre_seq, gps_field.TIME_FIELD], \
                         gps_match_res_gdf.at[next_seq, gps_field.TIME_FIELD]
@@ -859,9 +992,8 @@ class HiddenMarkov(object):
                              ['gps', 'prj_p', 'prj_l', 'match_link']):
             gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
 
-    def format_war_info(self):
-        if self.warn_info['from_ft']:
-            self.format_warn_info = pd.DataFrame(self.warn_info)
+    def formatting_warn_info(self):
+        self.format_warn_info = pd.DataFrame(self.warn_info)
         del self.warn_info
 
 
