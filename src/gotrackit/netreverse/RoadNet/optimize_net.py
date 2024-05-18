@@ -76,7 +76,7 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
     # 是否处理重复link
     if is_process_dup_link:
         origin_crs = new_link.crs.srs
-        if new_link.crs.srs == plain_prj:
+        if new_link.crs.srs.upper() == plain_prj.upper():
             pass
         else:
             new_link = new_link.to_crs(plain_prj)
@@ -86,7 +86,7 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
                                                                  buffer=process_dup_link_buffer,
                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio,
                                                                  modify_minimum_buffer=modify_minimum_buffer)
-        if final_link.crs.srs == origin_crs:
+        if final_link.crs.srs.upper() == origin_crs.upper():
             pass
         else:
             final_link = final_link.to_crs(origin_crs)
