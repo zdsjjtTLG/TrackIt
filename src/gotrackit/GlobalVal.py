@@ -93,6 +93,7 @@ class MarkovField(object):
         self.PRJ_GEO = 'prj_p'
         self.DIS_TO_NEXT = 'dis_to_next'
         self.HEADING_GAP = 'heading_gap'
+        self.USED_HEADING_GAP = 'used_heading_gap'
         self.EMISSION_P = 'emission_p'
 
 

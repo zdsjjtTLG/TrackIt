@@ -208,22 +208,25 @@ class HiddenMarkov(object):
                 if markov_field.HEADING_GAP in self.__done_prj_df.columns:
                     del self.__done_prj_df[markov_field.HEADING_GAP]
                 self.__done_prj_df.rename(columns={'theta': markov_field.HEADING_GAP}, inplace=True)
-
-            self.__done_prj_df.loc[self.__done_prj_df[gps_field.VEC_LEN] <= omitted_l, markov_field.HEADING_GAP] = 0
+            self.__done_prj_df[markov_field.USED_HEADING_GAP] = self.__done_prj_df[markov_field.HEADING_GAP]
+            self.__done_prj_df.loc[
+                self.__done_prj_df[gps_field.VEC_LEN] <= omitted_l, markov_field.USED_HEADING_GAP] = 0
 
         else:
-            self.__done_prj_df[markov_field.HEADING_GAP] = 0
+            self.__done_prj_df[markov_field.USED_HEADING_GAP] = 0
 
-        self.__done_prj_df[markov_field.HEADING_GAP] = self.__done_prj_df[markov_field.HEADING_GAP].astype(object)
+        self.__done_prj_df[markov_field.USED_HEADING_GAP] = self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(
+            object)
         self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
 
         emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
-            {markov_field.PRJ_L: np.array, markov_field.HEADING_GAP: np.array}).reset_index(
+            {markov_field.PRJ_L: np.array, markov_field.USED_HEADING_GAP: np.array}).reset_index(
             drop=False)
         self.__emission_mat_dict = {
             int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
                                                                            sigma=gps_sigma,
-                                                                           heading_gap=row[markov_field.HEADING_GAP])
+                                                                           heading_gap=row[
+                                                                               markov_field.USED_HEADING_GAP])
             for _, row in
             emission_p_df.iterrows()}
 
