@@ -1414,38 +1414,32 @@ beta、gps_sigma、omitted_l、use_heading_inf
 
     if __name__ == '__main__':
 
-        # 1.读取GPS数据
-        # 这是一个有150辆车的GPS数据的文件
-        gps_df = pd.read_csv(r'./data/output/gps/150_agents.csv')
-        print(gps_df)
-
-        # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
+        gps_df = gpd.read_file(r'./data/output/gps/dense_example/test999.geojson')
         my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'./data/input/net/xian/modifiedConn_node.shp')
-        my_net.init_net()  # net初始化
+                 node_path=r'./data/input/net/xian/modifiedConn_node.shp', fmm_cache=True,
+                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian')
+        my_net.init_net()
+
 
         # 3. 新建一个网格参数对象
-        # 指定四个参数的取值范围列表
-        pgd = ParaGrid(gps_sigma_list=[50.0, 60.0, 80.0, 100.0, 150.0],
-                         beta_list=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-                         use_heading_inf_list=[True, False],
-                         omitted_l_list=[1.0, 3.0])
+        # 指定参数的取值范围列表
+        pgd = ParaGrid(use_heading_inf_list=[False, True], beta_list=[0.1, 1.0], gps_sigma_list=[1.0, 5.0])
 
         # 4. 匹配
         # 传入网格参数：use_para_grid=True, para_grid=pgd
-        mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-               use_sub_net=True, use_heading_inf=True,
-               omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
-               lower_n=2, is_lower_f=True,
-               is_rolling_average=True, window=3,
-               dense_gps=False,
-               export_html=False, export_geo_res=False, use_gps_source=False,
-               out_fldr=r'./data/output/match_visualization/xa_sample',
-               gps_radius=10.0, use_para_grid=True, para_grid=pgd)
-
-        match_res, may_error_info, error_info = mpm.execute()
-        print(match_res)
-        match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+         mpm = MapMatch(net=my_net, gps_df=gps_df, is_rolling_average=True, window=2, flag_name='dense_example',
+                   export_html=True, export_geo_res=True,
+                   gps_buffer=400,
+                   out_fldr=r'./data/output/match_visualization/dense_example',
+                   dense_gps=True,
+                   use_sub_net=True, dense_interval=50.0, use_gps_source=False, use_heading_inf=True,
+                   gps_radius=15.0, use_para_grid=True, para_grid=pgd)
+        res, warn_info, error_info = mpm.execute()
+        print(res)
+        print(warn_info)
+        print(error_info)
+        print(pd.DataFrame(pgd.search_res))
+        res.to_csv(r'./data/output/match_visualization/dense_example/match_res.csv', encoding='utf_8_sig', index=False)
 
         # 可以查看不同的参数组合下，匹配过程中的警告数量
         print(pd.DataFrame(pgd.search_res))
