@@ -83,45 +83,43 @@ class HiddenMarkov(object):
     def init_warn_info(self):
         self.warn_info = {'from_ft': [], 'to_ft': []}
 
-    def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame, dict]:
+    def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
         try:
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
             is_success = False
             print(rf'构造矩阵结构出错:{repr(e)}')
         if not is_success:
-            return False, pd.DataFrame(), dict()
+            return False, pd.DataFrame()
 
         try:
             self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
         except Exception as e:
             print(rf'计算转移矩阵出错:{repr(e)}')
-            return False, pd.DataFrame(), dict()
+            return False, pd.DataFrame()
 
         try:
             self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
                                  gps_sigma=self.gps_sigma)
         except Exception as e:
             print(rf'计算发射矩阵出错:{repr(e)}')
-            return False, pd.DataFrame(), dict()
+            return False, pd.DataFrame()
 
         try:
             self.solve()
         except Exception as e:
             print(rf'回溯模型出错:{repr(e)}')
-            return False, pd.DataFrame(), dict()
+            return False, pd.DataFrame()
 
         try:
             match_res = self.acquire_res()
         except Exception as e:
             print(rf'获取匹配结果出错:{repr(e)}')
-            return False, pd.DataFrame(), dict()
+            return False, pd.DataFrame()
         self.formatting_warn_info()
-        return True, match_res, {'gps_sigma': self.gps_sigma, 'use_heading_inf': self.use_heading_inf,
-                                 'beta': self.beta,
-                                 'omitted_l': self.omitted_l}
+        return True, match_res
 
-    def hmm_para_grid_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame, dict]:
+    def hmm_para_grid_execute(self, add_single_ft: list[bool] = None, agent_id=None) -> tuple[bool, pd.DataFrame]:
         warnings.filterwarnings('ignore')
         try:
             is_success = self.__generate_st(add_single_ft=add_single_ft)
@@ -130,28 +128,13 @@ class HiddenMarkov(object):
             print(rf'构造矩阵结构出错:{repr(e)}')
 
         if not is_success:
-            return False, pd.DataFrame(), dict()
-
-        use_heading_inf_list, gps_sigma_list, beta_list, omitted_l_list = \
-            self.para_grid.use_heading_inf_list, self.para_grid.gps_sigma_list, \
-            self.para_grid.beta_list, self.para_grid.omitted_l_list
+            return False, pd.DataFrame()
 
         match_res = pd.DataFrame()
-        transit_res = {i: {'parameter': {'beta': beta}, 'res': {}} for i, beta in enumerate(beta_list)}
-        emission_res = dict()
-        if False in use_heading_inf_list:
-            emission_res = {j: {'parameter': {'gps_sigma': gps_sigma,
-                                              'use_heading_inf': False,
-                                              'omitted_l': 1.0}, 'res': {}} for j, gps_sigma in
-                            enumerate(gps_sigma_list)}
-        gap = set(use_heading_inf_list) - {False}
-        if gap:
-            emission_res.update({(j, m): {'parameter': {'use_heading_inf': True, 'gps_sigma': gps_sigma,
-                                                        'omitted_l': omitted_l}, 'res': {}} for j, gps_sigma in
-                                 enumerate(gps_sigma_list) for m, omitted_l in enumerate(omitted_l_list)})
+        transit_res = self.para_grid.transit_res
+        emission_res = self.para_grid.emission_res
         all_num = len(transit_res) * len(emission_res)
         c = 0
-        x1, x2 = None, None
         for k1 in transit_res.keys():
             if not transit_res[k1]['res']:
                 try:
@@ -160,7 +143,7 @@ class HiddenMarkov(object):
                     transit_res[k1]['res'] = self.__ft_transition_dict
                 except Exception as e:
                     print(rf'计算转移矩阵出错:{repr(e)}')
-                    return False, pd.DataFrame(), dict()
+                    return False, pd.DataFrame()
             else:
                 self.__ft_transition_dict = transit_res[k1]['res']
 
@@ -171,13 +154,12 @@ class HiddenMarkov(object):
                             emission_res[k2]['parameter']['omitted_l'],\
                             emission_res[k2]['parameter']['use_heading_inf'], \
                             emission_res[k2]['parameter']['gps_sigma']
-
                         self.__calc_emission(use_heading_inf=use_heading_inf, omitted_l=omitted_l,
                                              gps_sigma=gps_sigma)
                         emission_res[k2]['res'] = self.__emission_mat_dict
                     except Exception as e:
                         print(rf'计算发射矩阵出错:{repr(e)}')
-                        return False, pd.DataFrame(), dict()
+                        return False, pd.DataFrame()
                 else:
                     self.__emission_mat_dict = emission_res[k2]['res']
 
@@ -185,34 +167,32 @@ class HiddenMarkov(object):
                     self.solve()
                 except Exception as e:
                     print(rf'回溯模型出错:{repr(e)}')
-                    return False, pd.DataFrame(), dict()
+                    return False, pd.DataFrame()
 
                 try:
                     match_res = self.acquire_res()
                 except Exception as e:
                     print(rf'获取匹配结果出错:{repr(e)}')
-                    return False, pd.DataFrame(), dict()
+                    return False, pd.DataFrame()
 
                 self.formatting_warn_info()
+                self.para_grid.update_res({'agent_id': agent_id, 'beta': transit_res[k1]['parameter']['beta'],
+                                           'gps_sigma': emission_res[k2]['parameter']['gps_sigma'],
+                                           'use_heading_inf': emission_res[k2]['parameter'][
+                                               'use_heading_inf'],
+                                           'omitted_l': emission_res[k2]['parameter']['omitted_l'],
+                                           'warn_num': len(self.format_warn_info)})
                 print(f'para - {c}:', transit_res[k1]['parameter'], emission_res[k2]['parameter'],
                       rf'warning num: {len(self.format_warn_info)}')
-
                 if self.format_warn_info.empty:
-                    return True, match_res, {'beta': transit_res[k1]['parameter']['beta'],
-                                             'gps_sigma': emission_res[k2]['parameter']['gps_sigma'],
-                                             'use_heading_inf': emission_res[k2]['parameter']['use_heading_inf'],
-                                             'omitted_l': emission_res[k2]['parameter']['omitted_l']}
+                    return True, match_res
                 else:
                     pass
                 c += 1
-                x1, x2 = k1, k2
                 if c < all_num:
                     self.init_warn_info()
 
-        return True, match_res, {'beta': transit_res[x1]['parameter']['beta'],
-                                 'gps_sigma': emission_res[x2]['parameter']['gps_sigma'],
-                                 'use_heading_inf': emission_res[x2]['parameter']['use_heading_inf'],
-                                 'omitted_l': emission_res[x2]['parameter']['omitted_l']}
+        return True, match_res
 
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
