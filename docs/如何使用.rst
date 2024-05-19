@@ -1383,7 +1383,7 @@ circle_process处理后如图
                out_fldr=r'./data/output/match_visualization/xa_sample',
                gps_radius=10.0)
 
-        match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
+        match_res, may_error_info, error_info = mpm.execute()
         print(match_res)
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
@@ -1443,7 +1443,7 @@ beta、gps_sigma、omitted_l、use_heading_inf
                out_fldr=r'./data/output/match_visualization/xa_sample',
                gps_radius=10.0, use_para_grid=True, para_grid=pgd)
 
-        match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
+        match_res, may_error_info, error_info = mpm.execute()
         print(match_res)
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
