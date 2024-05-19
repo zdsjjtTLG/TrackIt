@@ -82,6 +82,7 @@ class HiddenMarkov(object):
 
     def init_warn_info(self):
         self.warn_info = {'from_ft': [], 'to_ft': []}
+        self.is_warn = False
 
     def hmm_execute(self, add_single_ft: list[bool] = None) -> tuple[bool, pd.DataFrame]:
         try:
