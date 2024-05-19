@@ -8,8 +8,8 @@ class ParaGrid(object):
     def __init__(self, beta_list: list[float] = None,
                  gps_sigma_list: list[float] = None, use_heading_inf_list: list[bool] = None,
                  omitted_l_list: list[float] = None):
-        self.beta_list = beta_list if beta_list is not None else [6.0, 10.0]
-        self.gps_sigma_list = gps_sigma_list if gps_sigma_list is not None else [30.0, 40.0]
+        self.beta_list = beta_list if beta_list is not None else [5.0, 6.0]
+        self.gps_sigma_list = gps_sigma_list if gps_sigma_list is not None else [30.0, 50.0]
         self.use_heading_inf_list = sorted(use_heading_inf_list,
                                            reverse=True) if use_heading_inf_list is not None else [True, False]
         assert len(self.use_heading_inf_list) <= 2
@@ -22,8 +22,8 @@ class ParaGrid(object):
 
         self.transit_res = {i: {'parameter': {'beta': beta}, 'res': {}} for i, beta in enumerate(self.beta_list)}
         if False in self.use_heading_inf_list:
-            self.emission_res = {j: {'parameter': {'gps_sigma': gps_sigma,
-                                                   'use_heading_inf': False,
+            self.emission_res = {j: {'parameter': {'use_heading_inf': False,
+                                                   'gps_sigma': gps_sigma,
                                                    'omitted_l': 1.0}, 'res': {}} for j, gps_sigma in
                                  enumerate(self.gps_sigma_list)}
         gap = set(self.use_heading_inf_list) - {False}
