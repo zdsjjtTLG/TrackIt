@@ -21,7 +21,7 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 <br>
 
 
-**版本状态：05.19即将更新: v0.2.5**
+**版本状态：05.19已更新: v0.2.5**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
