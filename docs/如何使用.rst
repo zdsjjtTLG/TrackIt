@@ -1426,13 +1426,13 @@ beta、gps_sigma、omitted_l、use_heading_inf
 
         # 3. 新建一个网格参数对象
         # 指定四个参数的取值范围列表
-        para_grid = ParaGrid(gps_sigma_list=[50.0, 60.0, 80.0, 100.0, 150.0],
+        pgd = ParaGrid(gps_sigma_list=[50.0, 60.0, 80.0, 100.0, 150.0],
                          beta_list=[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
                          use_heading_inf_list=[True, False],
                          omitted_l_list=[1.0, 3.0])
 
         # 4. 匹配
-        # 传入网格参数：use_para_grid=True, para_grid=para_grid
+        # 传入网格参数：use_para_grid=True, para_grid=pgd
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
                use_sub_net=True, use_heading_inf=True,
                omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
@@ -1441,11 +1441,21 @@ beta、gps_sigma、omitted_l、use_heading_inf
                dense_gps=False,
                export_html=False, export_geo_res=False, use_gps_source=False,
                out_fldr=r'./data/output/match_visualization/xa_sample',
-               gps_radius=10.0, use_para_grid=True, para_grid=para_grid)
+               gps_radius=10.0, use_para_grid=True, para_grid=pgd)
 
         match_res, may_error_info, error_info = mpm.multi_core_execute(core_num=6)
         print(match_res)
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+
+        # 可以查看不同的参数组合下，匹配过程中的警告数量
+        print(pd.DataFrame(pgd.search_res))
+
+使用参数网格进行匹配，系统会自动组合参数，并且输出不同参数组合下的警告数：
+
+.. image:: _static/images/para_grid.jpg
+    :align: center
+----------------------------------------
+
 
 
 5.7. 匹配结果可视化
