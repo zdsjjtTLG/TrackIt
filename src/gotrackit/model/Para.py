@@ -16,3 +16,33 @@ class ParaGrid(object):
         assert len(set(self.use_heading_inf_list)) == len(self.use_heading_inf_list)
         assert set(self.use_heading_inf_list).issubset({True, False})
         self.omitted_l_list = sorted(omitted_l_list) if omitted_l_list is not None else [6.0]
+        self.__search_res = list()
+        self.transit_res = dict()
+        self.emission_res = dict()
+
+        self.transit_res = {i: {'parameter': {'beta': beta}, 'res': {}} for i, beta in enumerate(self.beta_list)}
+        if False in self.use_heading_inf_list:
+            self.emission_res = {j: {'parameter': {'gps_sigma': gps_sigma,
+                                                   'use_heading_inf': False,
+                                                   'omitted_l': 1.0}, 'res': {}} for j, gps_sigma in
+                                 enumerate(self.gps_sigma_list)}
+        gap = set(self.use_heading_inf_list) - {False}
+        if gap:
+            self.emission_res.update({(j, m): {'parameter': {'use_heading_inf': True, 'gps_sigma': gps_sigma,
+                                                             'omitted_l': omitted_l}, 'res': {}} for j, gps_sigma in
+                                      enumerate(self.gps_sigma_list) for m, omitted_l in
+                                      enumerate(self.omitted_l_list)})
+
+    def init_para_grid(self):
+        for k in self.transit_res.keys():
+            self.transit_res[k]['res'] = dict()
+        for k in self.emission_res.keys():
+            self.emission_res[k]['res'] = dict()
+
+    def update_res(self, res: dict = None):
+        self.__search_res.append(res)
+
+    @property
+    def search_res(self) -> list:
+        return self.__search_res
+
