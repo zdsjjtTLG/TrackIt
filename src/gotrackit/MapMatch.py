@@ -34,8 +34,7 @@ class MapMatch(object):
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
-                 export_geo_res: bool = False,
-                 node_num_threshold: int = 2000, top_k: int = 20, omitted_l: float = 6.0,
+                 export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
@@ -67,7 +66,6 @@ class MapMatch(object):
         :param use_gps_source: 是否在可视化结果中使用GPS源数据进行展示, 默认False
         :param out_fldr: 保存匹配结果的文件目录, 默认当前目录
         :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
-        :param node_num_threshold: 默认2000
         :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
         :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
         :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
@@ -80,9 +78,6 @@ class MapMatch(object):
         # 坐标系投影
         self.plain_crs = net.planar_crs
         self.geo_crs = net.geo_crs
-
-        # 用于自动确定是否使用全局路网的指标
-        self.node_num_threshold = node_num_threshold
 
         # gps参数
         self.gps_df = gps_df
@@ -291,7 +286,6 @@ class MapMatch(object):
                            export_html=self.export_html,
                            use_gps_source=self.use_gps_source, out_fldr=core_out_fldr,
                            export_geo_res=self.export_geo_res,
-                           node_num_threshold=self.node_num_threshold,
                            top_k=self.top_k, omitted_l=self.omitted_l, link_width=self.link_width,
                            node_radius=self.node_radius,
                            match_link_width=self.match_link_width, gps_radius=self.gps_radius,
