@@ -215,8 +215,8 @@ class HiddenMarkov(object):
         else:
             self.__done_prj_df[markov_field.USED_HEADING_GAP] = 0
 
-        self.__done_prj_df[markov_field.USED_HEADING_GAP] = self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(
-            object)
+        self.__done_prj_df[markov_field.USED_HEADING_GAP] = \
+            self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(object)
         self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
 
         emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
