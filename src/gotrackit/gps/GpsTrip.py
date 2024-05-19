@@ -60,10 +60,6 @@ class GpsTrip(GpsArray):
             group_gps_gdf[time_gap_field] = group_gps_gdf[next_time_field] - group_gps_gdf[time_field]
             group_gps_gdf[time_gap_field] = group_gps_gdf[time_gap_field].apply(lambda t: t.seconds)
             group_gps_gdf[dis_gap_field] = group_gps_gdf[next_p_field].distance(group_gps_gdf[geometry_field])
-            # group_gps_gdf[time_gap_field] = group_gps_gdf.apply(
-            #     lambda row: (row[next_time_field] - row[time_field]).seconds, axis=1)
-            # group_gps_gdf[dis_gap_field] = group_gps_gdf.apply(
-            #     lambda row: row[next_p_field].distance(row[geometry_field]), axis=1)
 
             # 切分主行程
             group_gps_gdf['main_label'] = (group_gps_gdf[time_gap_field] > self.group_gap_threshold).astype(int)
