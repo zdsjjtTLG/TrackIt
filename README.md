@@ -38,7 +38,7 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 <br>
 
 <div align=center>
-~ v0.2.5(相较于0.2.1)效率将大幅度提升, 最高可以提升15倍的性能 !~
+~ v0.2.5(相较于0.2.1)效率将大幅度提升, 最高可以提升20倍的性能 !~
 </div>
 
 <br>
