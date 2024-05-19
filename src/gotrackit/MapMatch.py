@@ -74,6 +74,8 @@ class MapMatch(object):
         :param visualization_cache_times: 每匹配完几辆车再进行(html or geojson文件)结果的统一存储, 默认50
         :param multi_core_save: 是否启用多进程进行结果存储
         :param instant_output: 是否每匹配完一条轨迹就存储csv匹配结果
+        :param use_para_grid: 是否启用网格参数搜索
+        :param para_grid: 网格参数对象
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -222,9 +224,11 @@ class MapMatch(object):
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
                                    top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid)
             if not self.use_para_grid:
-                is_success, _match_res_df, _ = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
+                is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
             else:
-                is_success, _match_res_df, _ = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft)
+                is_success, _match_res_df = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft,
+                                                                          agent_id=agent_id)
+                self.para_grid.init_para_grid()
 
             if not is_success:
                 self.error_list.append(agent_id)
