@@ -186,8 +186,6 @@ class HiddenMarkov(object):
                       rf'warning num: {len(self.format_warn_info)}')
                 if self.format_warn_info.empty:
                     return True, match_res
-                else:
-                    pass
                 c += 1
                 if c < all_num:
                     self.init_warn_info()
@@ -478,7 +476,7 @@ class HiddenMarkov(object):
 
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
-        print(rf'{len(transition_df)}次状态转移...')
+        # print(rf'{len(transition_df)}次状态转移...')
         if len(transition_df) >= 30000:
             now_target_node = set(seq_k_candidate_info[net_field.TO_NODE_FIELD])
             link_t_map = {k: v for k, v in link_t_map.items() if v in now_target_node}
