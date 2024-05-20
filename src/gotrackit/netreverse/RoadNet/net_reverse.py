@@ -149,7 +149,10 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             # print(net.geo_crs, net.planar_crs)
             conn = Conn(net=net, check_buffer=conn_buffer)
             final_link, final_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
-
+    try:
+        final_link.loc[final_link['road_name'] == '路口转向', 'dir'] = 0
+    except Exception as e:
+        pass
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)
     generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
