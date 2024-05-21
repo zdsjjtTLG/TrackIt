@@ -1685,3 +1685,14 @@ gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)�
 
         # 处理geometry
         link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
+
+
+6.5.  Invalid projection: EPSG:nan
+````````````````````````````````````````````````````````````````````````````````````````````````````````````````
+
+境外路网构建失败，是BUG，更新gotrackit到最新版本即可解决
+
+.. image:: _static/images/crs_error.png
+    :align: center
+
+--------------------------------------------------------
