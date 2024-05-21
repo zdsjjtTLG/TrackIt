@@ -1,4 +1,4 @@
-**Read this in other languages: [中文](README.md) or [English](README.md).**
+**Read this in other languages: [Chinese](README.md) or [English](README.md).**
 
 <div align="center">
     <img src="docs/_static/images/gotrackit.png" />
