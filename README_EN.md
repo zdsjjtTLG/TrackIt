@@ -108,7 +108,7 @@ Sparse trajectory gps point example：
 
 
 ## 1. Introduction
-This map matching package implements probabilistic modeling of continuous GPS points based on Hidden Markov Model (HMM). This package can be used to easily perform map matching on GPS data. The characteristics of this open source package are as follows:
+This map matching package implements probabilistic modeling of continuous GPS points based on Hidden Markov Model (HMM). This package can be used to easily perform map matching on GPS data.
 
 
 ### 1.1. How to install gotrackit
