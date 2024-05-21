@@ -1,4 +1,4 @@
-
+**Read this in other languages: [中文](README.md),[English](README_EN.md).**
 
 <div align="center">
     <img src="docs/_static/images/gotrackit.png" />
@@ -170,7 +170,7 @@ pip install -i https://pypi.org/simple/ gotrackit
 pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ```
 
-### 1.2 用户手册与视频教程
+### 1.2 如何使用gotrackit
 
 - [用户手册](https://gotrackit.readthedocs.io/en/latest/)
 
@@ -181,6 +181,15 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 - [gotrackit地图匹配包参数详解与问题排查](https://www.bilibili.com/video/BV1qK421Y7hV)
 
 - [QGIS路网拓扑显示、底图加载、样式复用、map保存](https://www.bilibili.com/video/BV1Sq421F7QX)
+
+
+### 1.3. 如何引用gotrackit
+
+如果你想在文章中引用gotrackit，请附上以下链接：
+
+``` shell
+https://github.com/zdsjjtTLG/TrackIt
+```
 
 
 ## 2. 地图匹配问题
