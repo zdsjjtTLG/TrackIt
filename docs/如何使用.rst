@@ -1051,7 +1051,8 @@ circle_process处理后如图
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
-地图匹配结果表(match_res)字段含义为：
+5.2.1. 匹配结果表(match_res)字段含义
+::::::::::::::::::::::::::::::::::::::::::::::::
 
 .. csv-table:: 地图匹配结果表字段说明
     :header: "字段名称", "字段含义", "字段类型"
@@ -1079,7 +1080,7 @@ circle_process处理后如图
 --------------------------------------------------------------------------------
 
 
-5.2.1. 地图匹配接口MapMatch参数解释
+5.2.2. 地图匹配接口MapMatch参数解释
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 * flag_name
@@ -1212,7 +1213,7 @@ circle_process处理后如图
     网格参数对象
 
 
-5.2.2. 构建Net时相关的参数
+5.2.3. 构建Net时相关的参数
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 * cut_off
@@ -1477,6 +1478,11 @@ beta、gps_sigma、omitted_l、use_heading_inf
 5.7. 匹配结果可视化
 ``````````````````````````````
 
+5.7.1 HTML动画可视化
+:::::::::::::::::::::::::::::::::::::::::
+
+地图匹配接口中的参数export_html控制是否输出HTML动画(较为耗时)
+
 HTML可视化需要连接网络(中国境内可能需要科学上网)，使用浏览器打开生成的html文件，按照下图点开时间轴播放器
 
 .. image:: _static/images/可视化操作.gif
@@ -1487,6 +1493,22 @@ HTML可视化需要连接网络(中国境内可能需要科学上网)，使用�
 html可视化文件是我们对匹配结果进行排查的重要文件，它可以清晰的展示匹配过程：
 
  `gotrackit地图匹配包参数详解与问题排查 <https://www.bilibili.com/video/BV1qK421Y7hV>`_
+
+
+5.7.2 geojson矢量文件可视化
+:::::::::::::::::::::::::::::::::::::::::
+
+地图匹配接口中的参数export_geo_res控制是否输出匹配结果geojson矢量图层(较为耗时)，一个agent的匹配矢量结果由四个文件组成：
+
+{flag_name}-{agent_id}-gps.geojson：gps点矢量图层
+
+{flag_name}-{agent_id}-match_link.geojson：匹配link矢量图层
+
+{flag_name}-{agent_id}-prj_l.geojson：投影线矢量图层
+
+{flag_name}-{agent_id}-prj_p.geojson：匹配路段投影点矢量图层
+
+可使用GIS软件可视化，如QGIS
 
 
 5.8. 匹配结果不正确的调参方法
