@@ -1146,7 +1146,7 @@ circle_process处理后如图
     滑动窗口大小, 默认2
 
 * dense_gps
-    是否对GPS数据进行增密, 默认False
+    是否对GPS数据进行增密, 默认True
 
 * dense_interval
     当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认80.0
