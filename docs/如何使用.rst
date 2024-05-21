@@ -1205,6 +1205,13 @@ circle_process处理后如图
     HTML可视化中GPS点的半径大小，单位米，默认8米
 
 
+* use_para_grid
+    是否启用网格参数搜索
+
+* para_grid
+    网格参数对象
+
+
 
 5.3. 启用路径预存储进行加速
 ``````````````````````````````
@@ -1425,6 +1432,9 @@ beta、gps_sigma、omitted_l、use_heading_inf
 
         # 3. 新建一个网格参数对象
         # 指定参数的取值范围列表
+        # 可指定四个参数列表
+        # beta_list: list[float] = None，gps_sigma_list: list[float] = None
+        # use_heading_inf_list: list[bool] = None，omitted_l_list: list[float] = None
         pgd = ParaGrid(use_heading_inf_list=[False, True], beta_list=[0.1, 1.0], gps_sigma_list=[1.0, 5.0])
 
         # 4. 匹配
