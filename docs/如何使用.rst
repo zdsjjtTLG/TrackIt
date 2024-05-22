@@ -1032,6 +1032,13 @@ circle_process处理后如图
                      node_path=r'./data/input/net/xian/modifiedConn_node.shp')
         my_net.init_net()  # net初始化
 
+        # 或者
+        # link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        # node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        # my_net = Net(link_gdf=link,
+        #              node_gdf=node)
+        # my_net.init_net()  # net初始化
+
         # 3. 匹配
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
                use_sub_net=True, use_heading_inf=True,
