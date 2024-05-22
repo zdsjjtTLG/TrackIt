@@ -36,23 +36,6 @@ update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 **Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it**
 
 
-<br>
-
-<div align=center>
-~ v0.2.7(Compared to v0.2.1)Efficiency will be greatly improved, and performance can be improved by up to 20 times !~
-</div>
-
-<br>
-
-
-| Number of valid GPS points | top_k | gps_buffer | Number of candidate road segments | Number of state transitions | Solution time of v0.2.1 | Solution time of v0.2.7 |
-|----------|----------------|------------------|---------|----------|-------------------------|-------------------------|
-| 190      | 60             | 500m             | 10615 | 629788 | 28s                     | **1.35s**               |
-| 400      | 20             | 120m             | 5137 | 82006 | 7.8s                    | **0.60s**               |
-
-
-<br>
-
 <div align=center>
 ~ Sparse trajectory matching and path completion ~
 </div>
