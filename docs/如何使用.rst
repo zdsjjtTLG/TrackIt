@@ -1096,7 +1096,7 @@ circle_process处理后如图
 * 警告信息
     警告信息may_error_info的数据结构是字典：键表示agent_id，值是一个表，记录了当前agent在匹配过程中发生警告的路段信息(可在HTML中可视化查看)
 
-    发生警告的agent，其匹配结果会输出在match_res中
+    发生警告的agent，其匹配结果，连同没有任何警告的agent，会一起会输出在match_res中
 
 * 错误信息
     error_info的数据结构是列表，记录的是匹配发生错误的agent_id，一般是GPS数据关联不到任何路网、或者GPS数据点不足两个、或者路网线层有重叠折点，对于这些错误gotrackit都会输出报错信息然后跳过该次匹配
@@ -1118,10 +1118,10 @@ circle_process处理后如图
     GPS数据, 必须指定
 
 * time_format
-    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
 
 * time_unit
-    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
 
 * gps_buffer
     GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为候选路段, 默认200.0m
