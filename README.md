@@ -26,6 +26,8 @@
 ~ 一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位 ~
 
 Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
+
+~ [gotrackit用户手册](https://gotrackit.readthedocs.io/en/latest/) ~
 </div>
 <br>
 

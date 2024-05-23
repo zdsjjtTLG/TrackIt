@@ -28,6 +28,8 @@
 ~ One package helps you do it: road network acquisition, road network optimization, macro and micro map matching ~
 
 Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
+
+~ [Gotrackit User Manual](https://gotrackit.readthedocs.io/en/latest/) ~
 </div>
 <br>
 
