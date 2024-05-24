@@ -460,7 +460,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         speed_miu = 12.0  # 速度期望值
         speed_sigma = 3.6  # 速度标准差
         save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
-        loc_frequency = 3.0  # 每多少s进行一次GPS定位
+        loc_frequency = 3.0  # 每多少s进行一次GPS定位, 目前这个值必须要<=59, 否则输出的GPS数据为空, v0.2.8会解决这个问题，并且会简化GPS数据生产接口的代码量
         loc_error_sigma = 20.0  # 定位误差标准差(m)
         loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
