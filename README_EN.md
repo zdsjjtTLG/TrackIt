@@ -150,7 +150,7 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 - [QGIS road network topology display, base map loading, style reuse, and map saving](https://www.bilibili.com/video/BV1Sq421F7QX)
 
 
-### 1.3. how to cite gotrackit
+### 1.3. How to cite gotrackit
 
 If you would like to cite gotrackit in your article, please include the following link：
 
@@ -158,3 +158,8 @@ If you would like to cite gotrackit in your article, please include the followin
 https://github.com/zdsjjtTLG/TrackIt
 ```
 
+### 1.4. BUG submission
+
+If it is determined to be a BUG, please submit it on the following page:
+
+[BUG submission page](https://github.com/zdsjjtTLG/TrackIt/issues)

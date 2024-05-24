@@ -180,6 +180,12 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 https://github.com/zdsjjtTLG/TrackIt
 ```
 
+### 1.4. BUG提交
+
+如果确定是BUG，请提交在以下页面：
+
+[BUG提交页面](https://github.com/zdsjjtTLG/TrackIt/issues)
+
 
 ## 2. 地图匹配问题
 
