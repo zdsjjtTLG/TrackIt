@@ -25,16 +25,18 @@
 
 
 
-~ One package helps you do it: road network acquisition, road network optimization, macro and micro map matching ~
+~💪One package helps you do it: road network acquisition, road network optimization, macro and micro map matching💪~
 
-Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
+👻Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com👻
 
-~ [Gotrackit User Manual](https://gotrackit.readthedocs.io/en/latest/) ~
+🔑gotrackit iterates and updates quickly, remember to pay attention to version update information🔑
+
+😆😁👉[Gotrackit User Manual](https://gotrackit.readthedocs.io/en/latest/)👈😝😉
 </div>
 <br>
 
 
-**version status：05.19 Updated: v0.2.7**
+**💬version status：05.19 Updated: v0.2.7**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
@@ -45,7 +47,7 @@ update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 - BUG fix
 
 
-**Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it**
+**❗❗❗Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it❗❗❗**
 
 
 <div align=center>
