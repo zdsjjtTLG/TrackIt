@@ -23,16 +23,18 @@
 ![GitHub User's stars](https://img.shields.io/github/stars/zdsjjtTLG)
 ![GitHub forks](https://img.shields.io/github/forks/zdsjjtTLG/Trackit)
 
-~ 一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位 ~
+~ 💪一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位💪 ~
 
-Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
+👻Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com👻
 
-~ [gotrackit用户手册](https://gotrackit.readthedocs.io/en/latest/) ~
+🔑gotrackit迭代更新很快，记得关注版本更新信息哦🔑
+
+😆😁👉[gotrackit用户手册](https://gotrackit.readthedocs.io/en/latest/)👈😝😉
 </div>
 <br>
 
 
-**版本状态：05.19已更新: v0.2.7**
+**💬版本状态：05.19已更新: v0.2.7**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
@@ -43,7 +45,7 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 - BUG修复
 
 
-**不要下载GitHub仓库上的代码来使用!!!  直接pip安装gotrackit为第三方库即可使用**
+**❗❗❗不要下载GitHub仓库上的代码来使用!!!  直接pip安装gotrackit为第三方库即可使用❗❗❗**
 
 <br>
 
@@ -106,25 +108,23 @@ Developed by Tang Kai, Email: 794568794@qq.com & tangkai@zhechengdata.com
 ## 1. 简介
 本地图匹配包基于隐马尔可夫模型(HMM)实现了连续GPS点位的概率建模，利用这个包可以轻松对GPS数据进行地图匹配，本开源包的特点如下:
 
-**数据无忧**
+**😻数据无忧**
 - 提供路网生产模块以及大量路网处理优化工具，您不需要准备任何路网和GPS数据即可玩转地图匹配；
 - 提供GPS样例数据生产模块，解决没有GPS数据的难题；
 - 提供GPS数据清洗接口，包括滑动窗口降噪、数据降频。
 
 
-**文档齐全**
+**☑️文档齐全**
 - 中文文档，有详细的操作指引；
 - 算法原理讲解部分不涉及复杂的公式推导，使用动画形式剖析算法原理,简洁明了。
 
 
-**匹配算法优化**
-- 支持基于路径预存储的Fast-MapMatching；
-- 支持多核并行匹配；
-- 支持网格参数搜索；
+**🚀匹配算法优化**
+- 支持基于路径预存储的Fast-MapMatching、支持多核并行匹配、支持网格参数搜索；
 - 对基于HMM匹配的初步路径进行了优化，对于不连通的位置会自动搜路补全，对于实际路网不连通的位置会输出警告信息，方便用户回溯问题。
 
 
-**匹配结果支持动画可视化**
+**🌈匹配结果支持动画可视化**
 - 匹配结果提供三种输出形式：GPS点匹配结果表(csv)、匹配结果矢量化图层、矢量图层匹配动画(HTML文件)，动画可视化展示方便用户直观的感受匹配结果，同时可以极大的提高问题排查的效率。
 
 
