@@ -31,6 +31,8 @@
 
 🔑gotrackit iterates and updates quickly, remember to pay attention to version update information🔑
 
+**❗❗❗Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it❗❗❗**
+
 😆😁👉[Gotrackit User Manual](https://gotrackit.readthedocs.io/en/latest/)👈😝😉
 </div>
 <br>
@@ -45,9 +47,6 @@ update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 - Added grid parameter search to help users determine reasonable matching parameters
 
 - BUG fix
-
-
-**❗❗❗Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it❗❗❗**
 
 
 <div align=center>
