@@ -18,8 +18,8 @@ project = 'GoTrackIt'
 copyright = '2024, Kai Tang'
 author = 'Kai Tang'
 
-release = '0.1'
-version = '0.1.5'
+release = '0.2'
+version = '0.2.7'
 
 # -- General configuration
 
