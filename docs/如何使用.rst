@@ -1120,6 +1120,8 @@ circle_process处理后如图
 * time_format
     GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
 
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
+
 * time_unit
     GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
 
