@@ -104,7 +104,7 @@ class GpsDevice(object):
         self.agent_id = agent_id
 
         self.tic_miu = 0
-        self.tic_sigma = loc_frequency * 0.1
+        self.tic_sigma = loc_frequency * 0.06
 
         self.loc_error_miu = loc_error_miu
         self.loc_error_sigma = loc_error_sigma
@@ -123,7 +123,7 @@ class GpsDevice(object):
         :param loc:
         :return:
         """
-        if not self.__final_loc_gps or (now_time - self.__final_loc_gps[-1][0]).seconds > self.tic_gap:
+        if not self.__final_loc_gps or (now_time - self.__final_loc_gps[-1][0]).total_seconds() > self.tic_gap:
             loc_error = self.loc_error
             device_loc_x, device_loc_y, device_heading = \
                 loc[0] + loc_error[0], loc[1] + loc_error[1], loc[2] + loc_error[2]
@@ -341,7 +341,7 @@ class Car(object):
 class RouteInfoCollector(object):
     """真实路径坐标以及GPS坐标收集器"""
     def __init__(self, convert_prj_sys: bool = True, convert_type: str = 'bd-84',
-                 convert_loc: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None):
+                 convert_loc: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None) -> object:
         """
 
         :param convert_prj_sys: 是否转换坐标系(GCJ02、百度、84之间的转化)
@@ -375,7 +375,7 @@ class RouteInfoCollector(object):
     @function_time_cost
     def format_gdf(convert_prj_sys:bool=False, from_crs: str = None, to_crs: str = None, crs: str = None, convert_loc: bool = False,
                    convert_type: str = 'bd-84',
-                   info_list: list = None, attr_name_field_list: list[str] = None) -> gpd.GeoDataFrame:
+                   info_list: list = None, attr_name_field_list: list[str] = None, time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
 
         format_df = pd.DataFrame(info_list, columns=attr_name_field_list)
 
@@ -388,7 +388,7 @@ class RouteInfoCollector(object):
         format_gdf = gpd.GeoDataFrame(format_df, geometry=gps_field.GEOMETRY_FIELD, crs=used_crs)
         format_gdf = format_gdf.to_crs(to_crs)
         format_gdf[gps_field.TIME_FIELD] = format_gdf[gps_field.TIME_FIELD].apply(
-            lambda t: t.strftime("%Y-%m-%d %H:%M:%S"))
+            lambda t: t.strftime(time_format))
 
         if convert_loc:
             con = LngLatTransfer()
@@ -403,12 +403,14 @@ class RouteInfoCollector(object):
         return format_gdf[attr_name_field_list]
 
     @function_time_cost
-    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> gpd.GeoDataFrame:
+    def save_trajectory(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv',
+                        time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
         """
         存储轨迹信息
         :param out_fldr:
         :param file_name:
         :param file_type:
+        :param time_format:
         :return:
         """
         if self.trajectory_gdf.empty:
@@ -419,7 +421,8 @@ class RouteInfoCollector(object):
                                                   info_list=self.trajectory_info_list,
                                                   attr_name_field_list=[gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD,
                                                                         gps_field.HEADING_FIELD,
-                                                                        gps_field.AGENT_ID_FIELD])
+                                                                        gps_field.AGENT_ID_FIELD],
+                                                  time_format=time_format)
         if out_fldr is None:
             pass
         else:
@@ -427,12 +430,14 @@ class RouteInfoCollector(object):
         return self.trajectory_gdf
 
     @function_time_cost
-    def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv') -> gpd.GeoDataFrame:
+    def save_gps_info(self, out_fldr: str = r'./', file_name: str = None, file_type: str = 'csv',
+                      time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
         """
         存储gps信息
         :param out_fldr:
         :param file_name:
         :param file_type:
+        :param time_format:
         :return:
         """
         if self.gps_gdf.empty:
@@ -443,7 +448,8 @@ class RouteInfoCollector(object):
                                            attr_name_field_list=[gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD,
                                                                  gps_field.HEADING_FIELD, gps_field.AGENT_ID_FIELD,
                                                                  net_field.LINK_ID_FIELD,
-                                                                 net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])
+                                                                 net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD],
+                                           time_format=time_format)
         if out_fldr is None:
             pass
         else:
@@ -452,7 +458,8 @@ class RouteInfoCollector(object):
     @function_time_cost
     def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
                       from_crs: str = None, to_crs: str = None, crs: str = None,
-                      convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv') -> gpd.GeoDataFrame:
+                      convert_loc: bool = False, convert_type: str = 'bd-84', file_type: str = 'csv',
+                      time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
         """
 
         :param out_fldr:
@@ -464,6 +471,7 @@ class RouteInfoCollector(object):
         :param convert_loc:
         :param convert_type:
         :param file_type:
+        :param time_format
         :return:
         """
         if self.gps_gdf.empty:
@@ -473,14 +481,16 @@ class RouteInfoCollector(object):
                                            attr_name_field_list=[gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD,
                                                                  gps_field.HEADING_FIELD, gps_field.AGENT_ID_FIELD,
                                                                  net_field.LINK_ID_FIELD,
-                                                                 net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])
+                                                                 net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD],
+                                           time_format=time_format)
         if self.trajectory_gdf.empty:
             self.trajectory_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
                                                   crs=crs, convert_loc=convert_loc, convert_type=convert_type,
                                                   info_list=self.trajectory_info_list,
                                                   attr_name_field_list=[gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD,
                                                                         gps_field.HEADING_FIELD,
-                                                                        gps_field.AGENT_ID_FIELD])
+                                                                        gps_field.AGENT_ID_FIELD],
+                                                  time_format=time_format)
         self.gps_gdf[gps_field.TYPE_FIELD] = 'gps'
         self.trajectory_gdf[gps_field.TYPE_FIELD] = 'trajectory'
         mix_gdf = pd.concat([self.trajectory_gdf, self.gps_gdf])
