@@ -8,18 +8,20 @@
 
 import os.path
 import pandas as pd
+import multiprocessing
 import geopandas as gpd
 from ..map.Net import Net
 from .RoadNet.conn import Conn
-from .GlobalVal import NetField
 from .format_od import FormatOD
 from .RoadNet import net_reverse
-from ..gps.GpsTrip import GpsTrip
+from ..tools.group import cut_group
 from .RoadNet.increment import increment
+from .GlobalVal import NetField, GpsField
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from .Parse.gd_car_path import ParseGdPath
+from ..gps.GpsTrip import _generate_od_by_gps
 from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
@@ -27,8 +29,8 @@ from ..tools.geo_process import clean_link_geo, remapping_id
 from .RoadNet.Tools.process import merge_double_link, create_single_link
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 
-
 net_field = NetField()
+gps_field = GpsField()
 
 class Reverse(object):
     def __init__(self, flag_name: str = '深圳市', plain_prj: str = None, net_out_fldr: str = None,
@@ -482,11 +484,35 @@ class NetReverse(Reverse):
     def generate_od_by_gps(gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
                            min_distance_threshold: float = 10.0, way_points_num: int = 5,
-                           dwell_accu_time: float = 60.0) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
-        gtp = GpsTrip(gps_df=gps_df, time_unit=time_unit, time_format=time_format, plain_crs=plain_crs,
-                      group_gap_threshold=group_gap_threshold, n=n, min_distance_threshold=min_distance_threshold,
-                      way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)
-        gtp.add_main_group()
-        od_df, od_line = gtp.generate_od()
+                           dwell_accu_time: float = 60.0, use_multi_core: bool = False, used_core_num: int = 2) -> \
+            tuple[pd.DataFrame, gpd.GeoDataFrame]:
+        od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
+        if use_multi_core:
+            core_num = os.cpu_count() if used_core_num > os.cpu_count() else used_core_num
+            all_agent = list(set(gps_df[gps_field.AGENT_ID_FIELD]))
+            agent_group = cut_group(obj_list=all_agent, n=core_num)
+            print(f'using multiprocessing - {len(agent_group)} cores')
+            pool = multiprocessing.Pool(processes=len(agent_group))
+            result_list = []
+            for i in range(0, len(agent_group)):
+                _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD].isin(agent_group[i])].copy()
+                result = pool.apply_async(_generate_od_by_gps,
+                                          args=(_gps_df, time_format, time_unit, plain_crs, group_gap_threshold,
+                                                n, min_distance_threshold, way_points_num, dwell_accu_time))
+                result_list.append(result)
+            pool.close()
+            pool.join()
+            for res in result_list:
+                _od_df, _od_line = res.get()
+                od_df = pd.concat([od_df, _od_df])
+                od_line = pd.concat([od_line, _od_line])
+            od_df.reset_index(inplace=True, drop=True)
+            od_line.reset_index(inplace=True, drop=True)
+        else:
+            od_df, od_line = _generate_od_by_gps(gps_df=gps_df, time_unit=time_unit, time_format=time_format,
+                                                 plain_crs=plain_crs,
+                                                 group_gap_threshold=group_gap_threshold, n=n,
+                                                 min_distance_threshold=min_distance_threshold,
+                                                 way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)
         return od_df, od_line
 
