@@ -49,7 +49,8 @@ class GpsArray(object):
             self.gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
 
-        self.gps_points_gdf.sort_values(by=[gps_field.TIME_FIELD], ascending=[True], inplace=True)
+        self.gps_points_gdf.sort_values(by=[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD],
+                                        ascending=[True, True], inplace=True)
         self.gps_points_gdf.reset_index(inplace=True, drop=True)
         self.to_plane_prj()
 

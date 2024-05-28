@@ -13,12 +13,14 @@ gps_field = GpsField()
 
 lng_field = gps_field.LNG_FIELD
 lat_field = gps_field.LAT_FIELD
-next_p_field = gps_field.NEXT_P
+pre_p_field = gps_field.PRE_P
 time_field = gps_field.TIME_FIELD
 group_field = gps_field.GROUP_FIELD
 sub_group_field = gps_field.SUB_GROUP_FIELD
-next_time_field = gps_field.NEXT_TIME
+pre_time_field = gps_field.PRE_TIME
 agent_field = gps_field.AGENT_ID_FIELD
+ori_agent_field = gps_field.ORIGIN_AGENT_ID_FIELD
+pre_agent_field = gps_field.PRE_AGENT_ID_FIELD
 geometry_field = gps_field.GEOMETRY_FIELD
 time_gap_field = gps_field.ADJ_TIME_GAP
 dis_gap_field = gps_field.ADJ_DIS
@@ -29,7 +31,6 @@ class GpsTrip(GpsArray):
     def __init__(self, gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
                  min_distance_threshold: float = 10.0, way_points_num: int = 5, dwell_accu_time: float = 150.0):
-
         GpsArray.__init__(self, gps_points_df=gps_df, time_unit=time_unit, time_format=time_format,
                           plane_crs=plain_crs, geo_crs='EPSG:4326')
 
@@ -48,46 +49,58 @@ class GpsTrip(GpsArray):
         assert way_points_num <= 9
         self.way_points_num = way_points_num
 
-    def add_main_group(self):
-        car_num = len(self.gps_points_gdf[agent_field].unique())
+    def cut_group(self):
+
+        self.gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
+        self.gps_points_gdf.reset_index(inplace=True, drop=True)
+        origin_agent_set = set(self.gps_points_gdf[agent_field])
+        car_num = len(origin_agent_set)
         print(rf'{car_num} vehicles, cutting group...')
-        for agent_id, group_gps_gdf in self.gps_points_gdf.groupby(agent_field):
-            group_gps_gdf.sort_values(by=time_field, ascending=True, inplace=True)
+        # 记录原始agent_id
+        self.gps_points_gdf[ori_agent_field] = self.gps_points_gdf[agent_field]
 
-            # 时间差和距离差
-            group_gps_gdf[next_time_field] = group_gps_gdf[time_field].shift(-1).fillna(group_gps_gdf[time_field])
-            group_gps_gdf[next_p_field] = group_gps_gdf[geometry_field].shift(-1).fillna(group_gps_gdf[geometry_field])
-            group_gps_gdf[time_gap_field] = group_gps_gdf[next_time_field] - group_gps_gdf[time_field]
-            group_gps_gdf[time_gap_field] = group_gps_gdf[time_gap_field].apply(lambda t: t.seconds)
-            group_gps_gdf[dis_gap_field] = group_gps_gdf[next_p_field].distance(group_gps_gdf[geometry_field])
+        # 时间差和距离差
+        self.gps_points_gdf[pre_time_field] = self.gps_points_gdf[time_field].shift(1).fillna(
+            self.gps_points_gdf[time_field])
+        self.gps_points_gdf[pre_p_field] = self.gps_points_gdf[geometry_field].shift(1).fillna(
+            self.gps_points_gdf[geometry_field])
+        self.gps_points_gdf[time_gap_field] = self.gps_points_gdf[time_field] - self.gps_points_gdf[pre_time_field]
+        self.gps_points_gdf[time_gap_field] = self.gps_points_gdf[time_gap_field].apply(lambda t: t.seconds)
+        self.gps_points_gdf[dis_gap_field] = self.gps_points_gdf[pre_p_field].distance(
+            self.gps_points_gdf[geometry_field])
 
-            # 切分主行程
-            group_gps_gdf['main_label'] = (group_gps_gdf[time_gap_field] > self.group_gap_threshold).astype(int)
-            self.add_group(label_field='main_label', df=group_gps_gdf, agent_id=agent_id)
-            group_gps_gdf.drop(columns=['main_label'], axis=1, inplace=True)
+        # 前序agent_id
+        self.gps_points_gdf[pre_agent_field] = self.gps_points_gdf[agent_field].shift(1).fillna(
+            self.gps_points_gdf[agent_field]).astype(int)
 
-            for _, _gps_df in group_gps_gdf.groupby(group_field):
-                _gps_df['sub_label'] = (_gps_df[dis_gap_field] >= self.min_distance_threshold).astype(int)
-                self.del_consecutive_zero(df=_gps_df, col='sub_label', n=self.n)
-                self.__clean_gps_gdf = pd.concat([self.__clean_gps_gdf, _gps_df])
-        self.__clean_gps_gdf.reset_index(inplace=True, drop=True)
+        # 切分主行程
+        self.gps_points_gdf['main_label'] = (self.gps_points_gdf[time_gap_field] > self.group_gap_threshold).astype(int)
+        _ = self.gps_points_gdf[agent_field] != self.gps_points_gdf[pre_agent_field]
+        self.gps_points_gdf.loc[_, 'main_label'] = 1
+        self.gps_points_gdf[group_field] = self.gps_points_gdf['main_label'].cumsum()
+        self.gps_points_gdf.drop(columns=['main_label'], axis=1, inplace=True)
+        del self.gps_points_gdf[agent_field]
+        # 主行程ID, 再次更新pre_agent
+        self.gps_points_gdf.rename(columns={group_field: agent_field}, inplace=True)
+        self.gps_points_gdf[pre_agent_field] = self.gps_points_gdf[agent_field].shift(1).fillna(
+            self.gps_points_gdf[agent_field]).astype(int)
 
-    @staticmethod
-    def add_group(df: pd.DataFrame = None, label_field: str = 'label', agent_id: str = None):
-        """
-        基于0/1列的label_field添加group
-        :param df:
-        :param label_field:
-        :param agent_id
-        :return:
-        """
-        if group_field in df.columns:
-            try:
-                df.rename(columns={group_field: '__' + group_field}, inplace=True)
-            except Exception as e:
-                print(repr(e))
-        df[group_field] = df[label_field].cumsum()
-        df[group_field] = df.apply(lambda x: str(agent_id) + '_' + str(x[label_field]), axis=1)
+        # 切分子行程
+        # 找出距离小于dis_gap_field的行
+        self.gps_points_gdf['sub_label'] = (self.gps_points_gdf[dis_gap_field] >= self.min_distance_threshold).astype(
+            int)
+        _ = self.gps_points_gdf[agent_field] != self.gps_points_gdf[pre_agent_field]
+        self.gps_points_gdf.loc[_, 'sub_label'] = 1
+        self.del_consecutive_zero(df=self.gps_points_gdf, col='sub_label', n=self.n)
+
+        self.gps_points_gdf[agent_field] = self.gps_points_gdf[agent_field].astype(str) + '-' + self.gps_points_gdf[
+            sub_group_field].astype(str)
+        unique_id = set(self.gps_points_gdf[agent_field])
+        _m = {s:i for s, i in zip(unique_id, [i for i in range(1, len(unique_id) + 1)])}
+        self.gps_points_gdf[agent_field] = self.gps_points_gdf[agent_field].map(_m)
+        del self.gps_points_gdf['sub_label'], self.gps_points_gdf[pre_time_field], self.gps_points_gdf[pre_p_field], \
+            self.gps_points_gdf[time_gap_field], self.gps_points_gdf[dis_gap_field], self.gps_points_gdf['pre_agent'], \
+            self.gps_points_gdf[sub_group_field]
 
     def del_consecutive_zero(self, df: pd.DataFrame = None, col: str = None, n: int = 3) -> None:
         """标记超过连续n行为0的行, 并且只保留最后一行"""
@@ -105,56 +118,58 @@ class GpsTrip(GpsArray):
         df['__cut__'] = df['__a__'].ne(0) & df['__del__'] & (df['accu_time'] > self.dwell_accu_time)
         df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
         df[sub_group_field] = df['__cut__'].ne(0).cumsum()
-        df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
+        df.drop(columns=['__del__', '__a__', '__cut__', 'accu_time'], axis=1, inplace=True)
 
     def clean_res(self) -> gpd.GeoDataFrame:
-        export_res = self.__clean_gps_gdf.to_crs('EPSG:4326')
-        if next_p_field in export_res.columns:
-            export_res.drop(columns=[next_p_field], axis=1, inplace=True)
-
-        export_res['final'] = export_res.apply(lambda row: '-'.join([str(row[group_field]), str(row[sub_group_field])]),
-                                               axis=1)
+        export_res = self.gps_points_gdf.to_crs('EPSG:4326')
         return export_res
 
     def generate_od(self) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
-        def generate_way_point(df=None):
-            df.reset_index(inplace=True, drop=True)
-            _l = len(df)
-            if len(df) <= self.way_points_num:
-                pass
-            else:
-                o_x, o_y, d_x, d_y = df.at[0, 'lng'], df.at[0, 'lat'], df.at[_l - 1, 'lng'], df.at[_l - 1, 'lat']
-                df.drop(index=[0, _l - 1], axis=0, inplace=True)
-                df.reset_index(inplace=True, drop=True)
-                gap = int(len(df) / self.way_points_num)
-                _sle = df.loc[[gap * i + int(gap / 2) for i in range(self.way_points_num)], :].copy()
-                del df
-                _sle['loc'] = _sle.apply(lambda row: ','.join([str(row['lng']), str(row['lat'])]), axis=1)
-                return o_x, o_y, d_x, d_y, ';'.join(_sle['loc'].to_list())
-
         res_df = self.clean_res()
-        od_line = gpd.GeoDataFrame()
-        res_df.rename(columns={'final': 'trip_id'}, inplace=True)
+        res_df['trip_len'] = res_df.groupby(agent_field)[gps_field.TIME_FIELD].transform('count')
+        res_df['gap'] = (res_df['trip_len'] / self.way_points_num).astype(int)
+        res_df['rk'] = res_df.groupby(agent_field)[gps_field.TIME_FIELD].rank(method='min').astype(int)
 
-        od_df = res_df.groupby('trip_id').apply(lambda df:
-                                                generate_way_point(df)).reset_index(drop=False).rename(
-            columns={0: 'item'})
-        if od_df.empty:
-            return pd.DataFrame(), od_line
-        else:
-            od_df.dropna(subset=['item'], inplace=True)
-            od_df[['o_x', 'o_y', 'd_x', 'd_y', 'way_points']] = od_df.apply(lambda row: row['item'], axis=1,
-                                                                            result_type='expand')
-            od_df['od_id'] = [i for i in range(1, len(od_df) + 1)]
-            del od_df['item']
-            try:
-                od_df['geometry'] = \
-                    od_df.apply(lambda row: LineString(
-                        [(float(row['o_x']), float(row['o_y']))] + [tuple(map(float, item.split(','))) for item in
-                                                                    row['way_points'].split(';')] + [
-                            (float(row['d_x']), float(row['d_y']))]), axis=1)
-                od_line = gpd.GeoDataFrame(od_df, geometry='geometry', crs='EPSG:4326')
-                del od_line['way_points']
-            except Exception as e:
-                print(repr(e))
-            return od_df, od_line
+        choose_idx = ((res_df['rk'] == 1) | (res_df['rk'] == res_df['trip_len']) | (
+                res_df['rk'] % res_df['gap'] == 0)) & (res_df['trip_len'] >= 2)
+        res_df = res_df.loc[choose_idx]
+        res_df.reset_index(inplace=True, drop=True)
+
+        # od_line
+        od_line_gdf = pd.DataFrame(res_df).groupby(agent_field).agg({geometry_field: list}).reset_index(drop=False)
+        od_line_gdf[geometry_field] = od_line_gdf[geometry_field].apply(lambda pl: LineString(pl))
+        od_line_gdf = gpd.GeoDataFrame(od_line_gdf, geometry=geometry_field, crs='EPSG:4326')
+        od_line_gdf.rename(columns={agent_field: 'od_id'}, inplace=True)
+
+        # od
+        res_df['str_xy'] = res_df[geometry_field].apply(lambda geo: list(map(str, (geo.x, geo.y))))
+        od_res = res_df.groupby(agent_field).agg({'str_xy': list}).reset_index(drop=False)
+        od_res['o_xy'] = od_res['str_xy'].apply(lambda x: x[0])
+        od_res['d_xy'] = od_res['str_xy'].apply(lambda x: x[-1])
+        od_res['way_points'] = od_res['str_xy'].apply(lambda x: x[1:-1])
+        del od_res['str_xy']
+        od_res['o_x'] = od_res['o_xy'].apply(lambda x: x[0])
+        od_res['o_y'] = od_res['o_xy'].apply(lambda x: x[1])
+        od_res['d_x'] = od_res['d_xy'].apply(lambda x: x[0])
+        od_res['d_y'] = od_res['d_xy'].apply(lambda x: x[1])
+        del od_res['o_xy'], od_res['d_xy']
+        od_res['way_points'] = od_res['way_points'].apply(lambda x: ';'.join([','.join(item) for item in x]))
+        od_res.rename(columns={agent_field: 'od_id'}, inplace=True)
+        return od_res, od_line_gdf
+
+    def execute_gps_od(self) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+        self.cut_group()
+        od_df, od_line = self.generate_od()
+        return od_df, od_line
+
+
+def _generate_od_by_gps(gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S',
+                        time_unit: str = 's',
+                        plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
+                        min_distance_threshold: float = 10.0, way_points_num: int = 5,
+                        dwell_accu_time: float = 60.0) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+    gtp = GpsTrip(gps_df=gps_df, time_unit=time_unit, time_format=time_format, plain_crs=plain_crs,
+                  group_gap_threshold=group_gap_threshold, n=n, min_distance_threshold=min_distance_threshold,
+                  way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)
+    od_df, od_line = gtp.execute_gps_od()
+    return od_df, od_line
