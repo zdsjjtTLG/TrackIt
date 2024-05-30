@@ -102,14 +102,20 @@ def segmentize(s_loc: list or tuple = None, e_loc: list or tuple = None, n: int 
     :return:
     """
     # s, e = coord_list[0], coord_list[-1]
-    try:
-        k = (e_loc[1] - s_loc[1]) / (e_loc[0] - s_loc[0])
-    except ZeroDivisionError:
+    # try:
+    #     k = (e_loc[1] - s_loc[1]) / (e_loc[0] - s_loc[0])
+    # except ZeroDivisionError:
+    #     gap = np.abs(e_loc[1] - s_loc[1]) / n
+    #     return [(s_loc[0], s_loc[1] + (i + 1) * gap) for i in range(n - 1)]
+    x_diff = e_loc[0] - s_loc[0]
+    if np.abs(x_diff) <= 1e-5:
         gap = np.abs(e_loc[1] - s_loc[1]) / n
         return [(s_loc[0], s_loc[1] + (i + 1) * gap) for i in range(n - 1)]
+    else:
+        k = (e_loc[1] - s_loc[1]) / x_diff
 
     b = e_loc[1] - k * e_loc[0]
-    gap_x = (e_loc[0] - s_loc[0]) / n
+    gap_x = x_diff / n
     sample_x_list = [s_loc[0] + (i + 1) * gap_x for i in range(n - 1)]
     return [(sample_x, k * sample_x + b) for sample_x in sample_x_list]
 
