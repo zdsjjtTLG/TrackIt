@@ -8,20 +8,17 @@
 
 import os.path
 import pandas as pd
-import multiprocessing
 import geopandas as gpd
 from ..map.Net import Net
 from .RoadNet.conn import Conn
 from .format_od import FormatOD
 from .RoadNet import net_reverse
-from ..tools.group import cut_group
 from .RoadNet.increment import increment
 from .GlobalVal import NetField, GpsField
 from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from .Parse.gd_car_path import ParseGdPath
-from ..gps.GpsTrip import _generate_od_by_gps
 from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
@@ -479,40 +476,3 @@ class NetReverse(Reverse):
         single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
         del link_gdf
         self.__generate_net_from_split_path(split_path_gdf=single_link_gdf)
-
-    @staticmethod
-    def generate_od_by_gps(gps_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                           plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 360.0, n: int = 5,
-                           min_distance_threshold: float = 10.0, way_points_num: int = 5,
-                           dwell_accu_time: float = 60.0, use_multi_core: bool = False, used_core_num: int = 2) -> \
-            tuple[pd.DataFrame, gpd.GeoDataFrame]:
-        od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
-        if use_multi_core:
-            core_num = os.cpu_count() if used_core_num > os.cpu_count() else used_core_num
-            all_agent = list(set(gps_df[gps_field.AGENT_ID_FIELD]))
-            agent_group = cut_group(obj_list=all_agent, n=core_num)
-            print(f'using multiprocessing - {len(agent_group)} cores')
-            pool = multiprocessing.Pool(processes=len(agent_group))
-            result_list = []
-            for i in range(0, len(agent_group)):
-                _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD].isin(agent_group[i])].copy()
-                result = pool.apply_async(_generate_od_by_gps,
-                                          args=(_gps_df, time_format, time_unit, plain_crs, group_gap_threshold,
-                                                n, min_distance_threshold, way_points_num, dwell_accu_time))
-                result_list.append(result)
-            pool.close()
-            pool.join()
-            for res in result_list:
-                _od_df, _od_line = res.get()
-                od_df = pd.concat([od_df, _od_df])
-                od_line = pd.concat([od_line, _od_line])
-            od_df.reset_index(inplace=True, drop=True)
-            od_line.reset_index(inplace=True, drop=True)
-        else:
-            od_df, od_line = _generate_od_by_gps(gps_df=gps_df, time_unit=time_unit, time_format=time_format,
-                                                 plain_crs=plain_crs,
-                                                 group_gap_threshold=group_gap_threshold, n=n,
-                                                 min_distance_threshold=min_distance_threshold,
-                                                 way_points_num=way_points_num, dwell_accu_time=dwell_accu_time)
-        return od_df, od_line
-
