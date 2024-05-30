@@ -24,18 +24,11 @@
 * node_gdf
     若指定了该参数, 则直接从内存中的gdf创建Net线层
 
-* weight_field
-    搜路权重字段
+* cut_off
+    路径搜索截断长度, 米, 默认1200.0m
 
-* geo_crs
-    地理坐标系
-
-* plane_crs
-    平面投影坐标系
-
-
-* search_method
-    路径规划所使用的方法,目前支持 'dijkstra' or 'bellman-ford', 默认dijkstra
+* not_conn_cost
+    不连通路径的开销，默认1200.0m
 
 * return:
 

@@ -46,7 +46,7 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 2.1. 模块概览
 ````````````````
-包括了三个模块：`GPS数据生产`_ 、`路网生产`_ 、`地图匹配`_ 以及 `匹配过程可视化`_ 。
+包括了三个模块：`GPS数据生产`_ 、`GPS数据行程切分`_ 、`路网生产`_ 、`地图匹配`_ 以及 `匹配过程可视化`_ 。
 
 
 
@@ -66,9 +66,17 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 具体的代码实操见 `GPS数据生产代码示例`_ 。
 
+.. _GPS数据行程切分:
+
+2.1.2. GPS数据行程切分
+::::::::::::::::::::::::::
+
+行程切分概览
+
+
 .. _路网生产:
 
-2.1.2. 路网生产
+2.1.3. 路网生产
 ::::::::::::::::::::::::::
 
 .. note::
@@ -166,7 +174,7 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 .. _地图匹配:
 
-2.1.3. 地图匹配
+2.1.4. 地图匹配
 ::::::::::::::::::::::::::
 
 依托路网文件、GPS数据，对GPS数据进行地图匹配，匹配结果给出每个GPS点实际的匹配路段信息。
@@ -183,7 +191,7 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 .. _匹配过程可视化:
 
-2.1.4. kepler可视化
+2.1.5. kepler可视化
 ::::::::::::::::::::::::::
 
 
@@ -207,6 +215,9 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 
 2.2.1. 路网数据
 ::::::::::::::::::::::::::
+
+.. _路网数据要求:
+
 路网由线层文件和点层文件组成，两个文件存在关联关系。`西安样例路网 <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/net/xian>`_
 
 
@@ -356,6 +367,7 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 2.2.2. GPS定位数据
 ::::::::::::::::::::::::::
 
+.. _GPS定位数据字段要求:
 
 GPS数据字段要求如下：
 
@@ -392,108 +404,216 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 ----------------------------------------
 
 
-
 3. GPS数据生产
 -----------------------------
 
-
-3.1. 所需数据
-`````````````
-
-本模块只需路网数据作为输入，先依据路网数据初始化一个Net对象，然后初始化一个路径对象和一个Car车辆对象，然后新建一个行程信息收集器对象RouteInfoCollector，即可获取GPS数据。
-
-基本流程为：
-
-.. image:: _static/images/GpsGenGraph.png
-    :align: center
-
-----------------------------------------
+本模块提供了一个接口，你只需要指定一个路网，该模块可以模拟行车并且生成轨迹数据、GPS数据，示例代码和参数解释如下：
 
 
 .. _GPS数据生产代码示例:
 
-3.2. 代码示例
-`````````````
-
 .. code-block:: python
     :linenos:
 
-    # 1. 从gotrackit导入相关模块Net,Route,Car, RouteInfoCollector,字段名称常量(这一步是固定操作)
-    import datetime
+    # 从gotrackit导入相关模块：Net和TripGeneration
     from gotrackit.map.Net import Net
-    from gotrackit.generation.GpsGen import Route
-    from gotrackit.GlobalVal import NetField, GpsField
-    from gotrackit.generation.GpsGen import Car, RouteInfoCollector
-
-    net_field = NetField()
-    gps_field = GpsField()
+    from gotrackit.generation.SampleTrip import TripGeneration
 
 
     if __name__ == '__main__':
         # 1.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
         my_net = Net(link_path=r'data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'data/input/net/xian/modifiedConn_node.shp',
-                     weight_field='length')
-
-        # 路网对象初始化(一定要做)
+                     node_path=r'data/input/net/xian/modifiedConn_node.shp')
+        # 路网对象初始化
         my_net.init_net()
 
-        # 3.新建一个路径route, 用于分配给车辆car作为路径导航的输入
-        # 若不指定ft_seq, 则使用o_node -> d_node进行搜路(car对象会自动搜路)获取路径
-        # 若没有指定o_node和d_node, 也没有指定ft_seq, 则使用随机路径
-        # o_node和d_node指的是本次行程的起点节点和终点节点(对应link层和node层构建的Net对象)
-        route = Route(net=my_net)
+        # 新建一个行程生成类
+        ts = TripGeneration(net=my_net, loc_error_sigma=50.0, loc_frequency=30, time_step=0.1)
 
-        # 可以使用如下方式指定o_node和d_node
-        # route.o_node = 176356
-        # route.d_node = 228133
+        # 随机生成行程并且输出GPS数据
+        ts.generate_rand_trips(trip_num=5, out_fldr=r'./data/output/sample_gps',
+                               agent_flag='0527-agent', instant_output=True)
 
-        # 可以使用如下方式指定o_node和d_node
-        # route.ft_seq = [(137226, 42212), (42212, 21174), (21174, 39617)]
 
-        # 4.新建一个行程信息收集器对象, 对数据进行统一管理
-        # 轨迹信息和GPS坐标信息都是平面坐标系, 需要转化为地理坐标系后再进行存储
-        data_col = RouteInfoCollector(from_crs=my_net.planar_crs, to_crs=my_net.geo_crs, convert_prj_sys=True)
+Net构建参数见：`构建Net的相关参数`_
 
-        # 5.设置仿真参数, 并且初始化一个车辆实体
-        _time_step = 0.1  # 仿真步长, s
-        speed_miu = 12.0  # 速度期望值
-        speed_sigma = 3.6  # 速度标准差
-        save_gap = 5  # 每多少仿真步保存一次车辆真实位置数据
-        loc_frequency = 3.0  # 每多少s进行一次GPS定位, 目前这个值必须要<=59, 否则输出的GPS数据为空, v0.2.8会解决这个问题，并且会简化GPS数据生产接口的代码量
-        loc_error_sigma = 20.0  # 定位误差标准差(m)
-        loc_error_miu = 0.0  # 定位误差标准期望值(m)
 
-        # 使用for循环创建三辆车
-        # 出发时间都是datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0)
-        for car_id in [rf'xa_car_{i}' for i in range(0, 3)]:
-            # 6.新建车对象, 分配一个车辆ID, 配备一个电子地图net, 且设置仿真参数
-            car = Car(net=my_net, time_step=_time_step, route=route,
-                      agent_id=car_id, speed_miu=speed_miu, speed_sigma=speed_sigma,
-                      loc_frequency=loc_frequency, loc_error_sigma=loc_error_sigma, loc_error_miu=loc_error_miu,
-                      start_time=datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0),
-                      save_gap=save_gap)
+3.1. TripGeneration初始化参数
+`````````````````````````````````
 
-            # 开始行车
-            car.start_drive()
+* net
+    路网对象，必须指定
 
-            # 收集数据
-            data_col.collect_trajectory(car.get_trajectory_info())
-            data_col.collect_gps(car.get_gps_loc_info())
+* time_step
+    仿真步长(s)，默认0.1s
 
-        # 7.存储数据(同时会将结果返回)
-        # 指定存储文件类型参数: file_type(geojson或者csv)
-        # 指定存储文件目录参数: out_fldr
-        # 指定存储文件名称(不带后缀): file_name
-        trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=r'./data/output/trajectory/', file_name='test_xa')
-        gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=r'./data/output/gps/', file_name='test_xa')
-        mix_gdf = data_col.save_mix_info(file_type='geojson', out_fldr=r'./data/output/mix/', file_name='test_xa')
+* speed_miu
+    仿真速度均值(m/s)，默认12.0
 
-相关类的参数和方法可参见：:doc:`类方法汇总`
+* speed_sigma
+    仿真速度标准差(m/s)，默认3.6
+
+* save_gap
+    每多少仿真步保存一次真实轨迹数据，整数，默认1
+
+* loc_frequency
+    每多少s进行一次GPS定位，默认2.0，该值必须大于仿真步长
+
+* loc_error_sigma
+    定位误差均值(m)，默认40.0
+
+* loc_error_miu
+    定位误差标准差(m)，默认0.0
 
 
 
-4. 路网生产
+3.2. generate_rand_trips相关参数
+`````````````````````````````````
+
+* trip_num
+    行程数，整数，一共输出多少次行程，默认10
+
+* instant_output
+    是否即时输出，即是否每计算完一次行程就存储GPS数据文件、逐帧轨迹文件，默认False
+
+* out_fldr
+    存储输出文件的目录，默认当前目录
+
+* time_format
+    输出GPS数据的时间列的格式，默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
+
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
+
+* agent_flag
+    标志字符，默认agent
+
+
+4. GPS数据行程切分
+-----------------------------
+
+原始的GPS数据包含了一辆车的多次出行，我们需要对车辆的出行进行划分，GpsPreProcess提供了行程切分、带途径点信息的OD抽取这两大功能，你只需要传入GPS表数据即可。
+
+确保GPS数据满足 `GPS定位数据字段要求`_ 。
+
+
+4.1. 行程切分
+`````````````````````````````````````````````````````
+
+该接口函数提供了主行程和子行程的划分功能，示例代码如下：
+
+
+.. code-block:: python
+    :linenos:
+
+    import pandas as pd
+    from gotrackit.gps.GpsTrip import GpsPreProcess
+
+    if __name__ == '__main__':
+        # 读取GPS数据
+        gps_gdf = pd.read_csv(r'data/output/gps/example/origin_gps.cssv')
+
+        # 新建一个GpsPreProcess示例
+        grp = GpsPreProcess(gps_df=gps_gdf, use_multi_core=False)
+
+        # 调用trip_segmentations方法进行行程切分
+        # 切分后的数据会更新agent_id字段用以区分不同的出行旅程，原GPS表的agent_id会存储在origin_agent_id字段中
+        gps_trip = grp.trip_segmentations(group_gap_threshold=1800, plain_crs='EPSG:32650', min_distance_threshold=10.0)
+
+        gps_trip.to_file(r'./data/output/gps/example/gps_trip.geojson', encoding='gbk')
+
+
+4.1.1. 初始化GpsPreProcess的相关参数
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+* gps_df
+    gps数据表，类型：pd.DataFrame，必须指定
+
+* use_multi_core
+    是否启用多核并行，默认False，数据量较大时可以启用
+
+* used_core_num
+    启用的核数，默认2
+
+4.1.2. 类方法trip_segmentations相关参数
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+* time_unit、time_format
+    GPS数据相关参数，参见：`地图匹配参数解释`_ 中的time_unit、time_format
+
+* plain_crs
+    要使用的平面投影坐标系
+
+    .. _6度带划分规则:
+    平面投影坐标系有很多种，这里仅仅列出6度带的划分，按照经度，每6度对应一个平面投影坐标系，可以按照研究范围的中心点经纬度参照下表选取
+
+.. csv-table:: 6度带划分
+    :header: "经度范围", "-180 ~ -174", "-174 ~ -168", "-168 ~ -162", "...", "108 ~ 114", "114 ~ 120", "120 ~ 126", "...", "174 ~ 180"
+    :widths: 15, 15, 15, 15, 15, 15, 15, 15, 15, 15
+
+    "6度带平面投影CRS名称", "EPSG:32601", "EPSG:32602", "EPSG:32603", "...", "EPSG:32649", "EPSG:32650", "EPSG:32651", "...", "EPSG:32660"
+
+
+* group_gap_threshold
+    时间阈值，主行程划分参数，单位秒，如果前后GPS点的定位时间超过该阈值，则在该点切分主行程，默认1800s(30分钟)
+
+* min_distance_threshold
+    子行程切分距离阈值，单位米，默认10.0m
+
+* dwell_accu_time
+    子行程切分时间阈值，秒，默认60秒
+
+* n
+    子行程切分参数，整数，如果超过连续n个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程，默认5
+
+
+4.1.3. 如何理解主行程和子行程？
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+主行程举例： 一辆车从家出发到达公司，将车辆停在车库，熄火后，车辆不再产生GPS数据，下班后再次启动，GPS数据重新产生，早上到达公司的最后一个定位点和下班后启动车辆的第一个定位点，其时间差超过group_gap_threshold，则在此处切分主行程
+
+子行程举例： 一辆车从家出发到达公司，在到达公司之前，在加油站加油，GPS点持续产生，但是定位点集中在加油站附近，产生了停留，那么从家-加油站就是一段子行程
+
+每一个段主行程、子行程，均拥有一个全局唯一的agent_id
+
+如果你只想划分主行程，则指定min_distance_threshold为负数即可
+
+
+.. _途径点OD计算:
+
+4.2. 从GPS数据计算途径点OD
+`````````````````````````````````````````````````````
+如果你的GPS数据已经完成了行程切分，且已经按照agent_id、time两个字段升序排列，那么你可以直接使用该接口进行途径点的抽样，得到带途径点的OD数据, 其数据格式满足 `OD表要求`_
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    import pandas as pd
+    from gotrackit.gps.GpsTrip import GpsPreProcess
+
+    if __name__ == '__main__':
+        # 读取GPS数据
+        gps_gdf = pd.read_csv(r'data/output/gps/example/gps_trip.cssv')
+
+        # 新建一个GpsPreProcess示例
+        grp = GpsPreProcess(gps_df=gps_gdf, use_multi_core=False)
+
+        # 返回的第一个数据是OD表(pd.DataFrame)，第二个数据是OD线(gpd.GeoDataFrame)
+        gps_od, od_line = grp.sampling_waypoints_od(way_points_num=2)
+        gps_od.to_csv(r'./data/output/gps_od.csv', encoding='utf_8_sig', index=False)
+        od_line.to_file(r'./data/output/gps_od.shp')
+
+
+4.2.1. sampling_waypoints_od相关参数
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+* way_points_num
+    整数，OD的途径点数目，必须≤10，默认5个途径点
+
+
+
+5. 路网生产
 -------------------------
 
 .. note::
@@ -515,34 +635,34 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 
 
-4.1. 指定矩形区域, 基于矩形区域随机构造OD, 获取路网
+5.1. 指定矩形区域, 基于矩形区域随机构造OD, 获取路网
 `````````````````````````````````````````````````````
 
 * 初始化NetReverse类
     flag_name：项目名称，必须指定；
 
-    net_out_fldr：最终路网的存储目录，必须指定；
+    net_out_fldr：最终路网的存储目录，必须指定
 
-    plain_crs：要使用的平面投影坐标系，必须指定。
+    plain_crs：要使用的平面投影坐标系，必须指定，参见: `6度带划分规则`_
 
 * 请求参数
-    key_list：开发者key值列表，必须指定；
+    key_list：开发者key值列表，必须指定
 
-    binary_path_fldr：请求路径源文件的存储目录，必须指定；
+    binary_path_fldr：请求路径源文件的存储目录，必须指定
 
-    save_log_file：是否保存日志文件，非必须指定，默认False；
+    save_log_file：是否保存日志文件，非必须指定，默认False
 
-    log_fldr：日志的存储目录，非必须指定，默认None；
+    log_fldr：日志的存储目录，非必须指定，默认None
 
-    min_lng，min_lat：矩形区域左下角经纬度坐标(GCJ-02坐标)，必须指定；
+    min_lng，min_lat：矩形区域左下角经纬度坐标(GCJ-02坐标)，必须指定
 
-    w，h：矩形区域的宽度和高度(米)，必须指定，默认值2000，2000；
+    w，h：矩形区域的宽度和高度(米)，必须指定，默认值2000，2000
 
-    od_type：生成OD的类型，必须指定，含义见：`od_type`_ ；
+    od_type：生成OD的类型，必须指定，含义见：`od_type`_
 
-    od_num，gap_n，min_od_length：生成的od数、划分网格数、最小的od直线距离限制，非必须指定，默认100，1000，1200；
+    od_num，gap_n，min_od_length：生成的od数、划分网格数、最小的od直线距离限制，非必须指定，默认100，1000，1200
 
-    指定矩形区域的左下点经纬度坐标(GCJ-02坐标系)，以及矩形区域的宽度和长度(单位米)，必须指定。
+    指定矩形区域的左下点经纬度坐标(GCJ-02坐标系)，以及矩形区域的宽度和长度(单位米)，必须指定
 
 
 所有参数解释见 :doc:`类方法汇总`
@@ -567,7 +687,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 运行该代码后，先在目录./data/output/request/test_rectangle/下生成路径源文件，然后在目录./data/output/reverse/test_rectangle/下生成FinalLink.shp和FinalNode.shp文件
 
 
-4.2. 自定义面域文件, 基于自定义区域随机构造OD, 获取路网
+5.2. 自定义面域文件, 基于自定义区域随机构造OD, 获取路网
 `````````````````````````````````````````````````````````
 
 
@@ -595,7 +715,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                      min_od_length=1200, od_num=20)
 
 
-4.3. 自定义面域文件, 基于多个自定义区域构造区域-区域的OD, 获取路网
+5.3. 自定义面域文件, 基于多个自定义区域构造区域-区域的OD, 获取路网
 ```````````````````````````````````````````````````````````````````````
 
 读取交通小区文件，指定od_type为region_od，会自动构造两两地块形心之间的OD。使用该方法构造OD，需要确保面域文件中包含region_id字段。
@@ -623,7 +743,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                      region_gdf=target_region_gdf, od_type='region_od')
 
 
-4.4. 基于路径源文件, 获取路网
+5.4. 基于路径源文件, 获取路网
 ```````````````````````````````````````````````````````````````
 
 如果已经有了请求好的路径源文件，可以直接从路径源文件中创建路网，只需要指定路径源文件目录和路径源文件名称列表
@@ -640,7 +760,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                     pickle_file_name_list=['14_test_taz_gd_path_1'])
 
 
-4.5. 基于自定义OD, 进行路径请求获取路网
+5.5. 基于自定义OD, 进行路径请求获取路网
 ```````````````````````````````````````````````````````````````
 
 你可以通过自己的相关算法去构造OD，确保OD表符合 `OD表要求`_ ，然后可以使用自定义OD去请求路径、构造路网
@@ -665,48 +785,11 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         #                              od_type='diy_od')
 
 
-本算法包提供了一个依据GPS数据来生产自定义OD的接口，示例代码如下：
-
-.. code-block:: python
-    :linenos:
-
-    if __name__ == '__main__':
-        sz_test_gps_gdf = pd.read_csv(r'./data/output/gps/real_sz/TaxiData2.csv')
-        sz_test_gps_gdf.rename(
-            columns={'VehicleNum': 'agent_id', 'longitude': 'lng', 'latitude': 'lat', 'timestamp': 'time'}, inplace=True)
-        nv = ng.NetReverse()
-        gps_od, od_line = nv.generate_od_by_gps(gps_df=sz_test_gps_gdf, way_points_num=7)
-        print(gps_od)
-        gps_od.to_csv(r'./data/output/gps/real_sz/gps_od.csv', encoding='utf_8_sig', index=False)
-        od_line.to_file(r'./data/output/gps/real_sz/gps_od.shp')
-
-nv.generate_od_by_gps的相关参数如下：
-
-返回的第一个数据是OD表(pd.DataFrame)，第二个数据是OD线(gpd.GeoDataFrame)
-
-* gps_df、time_unit、time_format、plain_crs
-    GPS数据相关参数，与地图匹配接口一样的数据要求
-
-* group_gap_threshold
-    时间阈值，单位秒，如果前后GPS点的定位时间超过该阈，则在该点出切分主行程，默认360s
-
-* min_distance_threshold
-    子行程切分距离阈值，单位米，默认10.0m
-
-* dwell_accu_time
-    时间阈值，秒，默认60秒
-
-* n
-    整数，如果超过连续n个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程，默认5
-
-* way_points_num
-    整数，OD的途径点数目，必须≤9，默认5个途径点
-
-
+本算法包提供了一个依据GPS数据来生产自定义OD的接口，参见 `途径点OD计算`_
 
 .. _清洗路网线层数据:
 
-4.6. 清洗你的路网线层数据
+5.6. 清洗你的路网线层数据
 `````````````````````````````````````````````````
 
 如果你已经有了路网线层数据(从osm或者其他任何途径获取的), 你可能想使用nv.create_node_from_link函数来生产点层以及生产拓扑关联以得到标准的路网数据，但是nv.create_node_from_link可能会报错，因为你的路网线层数据可能包含了Multi类型或者是带有z坐标或者是线对象中含有大量的重叠点，你可以使用nv类的静态方法clean_link_geo来消除z坐标以及multi类型
@@ -729,7 +812,7 @@ nv.generate_od_by_gps的相关参数如下：
         link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
 
 
-4.7. 基于已有路网线层, 生产点层
+5.7. 基于已有路网线层, 生产点层
 ```````````````````````````````````````````````````````
 
 如果你已经有了路网线层(从osm或者其他任何途径获取的)，缺少拓扑关联关系以及点层，你可以使用以下方式构建点层以及添加点层、线层的关联关系
@@ -758,7 +841,7 @@ nv.generate_od_by_gps的相关参数如下：
                                                                                      out_fldr=r'./data/output/create_node/')
 
 
-4.8. 基于已有标准路网, 检查路网的联通性并进行修复
+5.8. 基于已有标准路网, 检查路网的联通性并进行修复
 `````````````````````````````````````````````````
 
 如果你已经有了路网线层和点层(且字段和拓扑关联关系满足本算法包的要求)，你可以使用以下方式来检查路网的联通性
@@ -797,7 +880,7 @@ nv.generate_od_by_gps的相关参数如下：
 
 
 
-4.9. 路段划分
+5.9. 路段划分
 `````````````````````````````````````````````````
 
 你已经有了一套link和node文件, 你希望对link层进行路段重塑，即将长度大于L(m)的路段都进打断，同时点层数据也会随之自动变化
@@ -839,7 +922,7 @@ nv.generate_od_by_gps的相关参数如下：
         new_node.to_file(r'./data/input/net/test/0317/divide_node.geojson', driver='GeoJSON', encoding='gbk')
 
 
-4.10. id重映射
+5.10. id重映射
 `````````````````````````````````````````````````
 
 从gotrackit导入相关模块 ::
@@ -862,7 +945,7 @@ nv.generate_od_by_gps的相关参数如下：
         print(n[['node_id']])
 
 
-4.11. 路网路段、节点重塑
+5.11. 路网路段、节点重塑
 `````````````````````````````````````````````````
 
 你已经有了一套link文件，但是其存在折点联通性问题，如下图：
@@ -904,7 +987,7 @@ nv.generate_od_by_gps的相关参数如下：
 --------------------------------------------------------------------------------
 
 
-4.12. 处理环路和相同(from_node，to_node)的路段
+5.12. 处理环路和相同(from_node，to_node)的路段
 `````````````````````````````````````````````````
 
 gotrackit不允许路网出现环路以及(from_node，to_node)相同的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
@@ -955,7 +1038,7 @@ circle_process处理后如图
 
 
 
-4.13. 坐标转换(如有需要)
+5.13. 坐标转换(如有需要)
 `````````````````````````````````````````````````
 
 提供了 GCJ-02、wgs84、百度 坐标系之间的相互转换接口
@@ -984,10 +1067,10 @@ circle_process处理后如图
 函数方法的相关参数见 :doc:`类方法汇总`
 
 
-5. 地图匹配
+6. 地图匹配
 -------------------------------------------------
 
-5.1. 所需数据
+6.1. 所需数据
 `````````````
 
 使用地图匹配接口，你需要准备路网数据和GPS数据。
@@ -1003,7 +1086,7 @@ circle_process处理后如图
 
 .. _地图匹配代码示例:
 
-5.2. 常规匹配代码示例
+6.2. 常规匹配代码示例
 ````````````````````````
 
 用到的数据文件从Git仓库获取：`0327test.zip <https://github.com/zdsjjtTLG/TrackIt/tree/main/data>`_
@@ -1058,7 +1141,7 @@ circle_process处理后如图
         match_res.to_csv(r'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
 
 
-5.2.1. 匹配结果表(match_res)字段含义
+6.2.1. 匹配结果表(match_res)字段含义
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 .. csv-table:: 地图匹配结果表字段说明
@@ -1088,7 +1171,7 @@ circle_process处理后如图
 
 
 
-5.2.2. 警告信息和错误信息含义
+6.2.2. 警告信息和错误信息含义
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 地图匹配接口会返回三个结果，第一个是匹配结果表，第二个是警告的相关信息，第三个是匹配发生错误的agent_id编号列表
@@ -1102,7 +1185,10 @@ circle_process处理后如图
     error_info的数据结构是列表，记录的是匹配发生错误的agent_id，一般是GPS数据关联不到任何路网、或者GPS数据点不足两个、或者路网线层有重叠折点，对于这些错误gotrackit都会输出报错信息然后跳过该次匹配
 
 
-5.2.3. 地图匹配接口MapMatch参数解释
+
+.. _地图匹配参数解释:
+
+6.2.3. 地图匹配接口MapMatch参数解释
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 * flag_name
@@ -1236,9 +1322,21 @@ circle_process处理后如图
 * para_grid
     网格参数对象
 
-
-5.2.4. 构建Net时相关的参数
+.. _构建Net的相关参数:
+6.2.4. 构建Net时相关的参数
 ::::::::::::::::::::::::::::::::::::::::::::::::
+
+* link_path
+    线层数据的路径
+
+* node_path
+    点层数据的路径
+
+* link_gdf
+    线层数据GeoDataFrame，与link_path只能指定其中一个
+
+* node_gdf
+    点层数据GeoDataFrame，与node_path只能指定其中一个
 
 * cut_off
     路径搜索截断长度, 米, 默认1200.0m
@@ -1246,9 +1344,10 @@ circle_process处理后如图
 * not_conn_cost
     不连通路径的开销，默认1200.0m
 
+其他的参数用户不可自行指定
 
 
-5.3. 启用路径预存储进行加速
+6.3. 启用路径预存储进行加速
 ``````````````````````````````
 
 在地图匹配的过程中, 在以下两个计算过程中开销较大：
@@ -1338,7 +1437,7 @@ circle_process处理后如图
     对缓存进行切片(切为cache_slice份)后转换格式, 进行存储(防止大规模路网导致内存溢出), 默认2 * cache_cn, 如果内存溢出可以增大该值
 
 
-5.4. 启用多核进行并行匹配
+6.4. 启用多核进行并行匹配
 ``````````````````````````````
 
 若想在多条轨迹上开启并行匹配,请将mpm.execute()替换为mpm.multi_core_execute(core_num=x),当您的agent数目大于50时,多核的效率提升才会较为明显
@@ -1388,7 +1487,7 @@ circle_process处理后如图
 
 
 
-5.5. 简化路网线型加速匹配
+6.5. 简化路网线型加速匹配
 ``````````````````````````````
 
 可以使用如下方法对路网线层的几何进行简化
@@ -1435,7 +1534,7 @@ circle_process处理后如图
 
 
 
-5.6. 使用网格参数确定合理的匹配参数
+6.6. 使用网格参数确定合理的匹配参数
 ```````````````````````````````````````
 
 本包支持对地图匹配接口中的下面四个参数执行网格搜索：
@@ -1499,10 +1598,10 @@ beta、gps_sigma、omitted_l、use_heading_inf
 -------------------------------------------------
 
 
-5.7. 匹配结果可视化
+6.7. 匹配结果可视化
 ``````````````````````````````
 
-5.7.1 HTML动画可视化
+6.7.1 HTML动画可视化
 :::::::::::::::::::::::::::::::::::::::::
 
 地图匹配接口中的参数export_html控制是否输出HTML动画(较为耗时)
@@ -1519,7 +1618,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
  `gotrackit地图匹配包参数详解与问题排查 <https://www.bilibili.com/video/BV1qK421Y7hV>`_
 
 
-5.7.2 geojson矢量文件可视化
+6.7.2 geojson矢量文件可视化
 :::::::::::::::::::::::::::::::::::::::::
 
 地图匹配接口中的参数export_geo_res控制是否输出匹配结果geojson矢量图层(较为耗时)，一个agent的匹配矢量结果由四个文件组成：
@@ -1535,10 +1634,10 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 可使用GIS软件可视化，如QGIS
 
 
-5.8. 匹配结果不正确的调参方法
+6.8. 匹配结果不正确的调参方法
 ``````````````````````````````
 
-5.8.1. 程序提示-预处理后GPS点不足两个,无法匹配
+6.8.1. 程序提示-预处理后GPS点不足两个,无法匹配
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -1554,7 +1653,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
     可能是此辆车的本身GPS数据点就不足两个
 
 
-5.8.2. 在html可视化结果中看到匹配路径不连续
+6.8.2. 在html可视化结果中看到匹配路径不连续
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -1598,7 +1697,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
 
 
-5.8.3. 确定合理参数的思路
+6.8.3. 确定合理参数的思路
 ::::::::::::::::::::::::::::::::::
 
 * 首先，我们要对GPS数据的质量有一定的认识，通过使用GIS软件将GPS点打在地图上，同时叠加路网，此时可以利用距离测量工具大概得到GPS点到路段的距离，那么你的gps_buffer参数的选取就可以参考这个距离，如果绝大多数GPS点到匹配路段的距离都是x米左右，那么gps_buffer一定要大于x，偏向于保守的估计，我们可以取 x + 100为gps_buffer
@@ -1620,11 +1719,11 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
 - :doc:`类方法汇总`
 
-6. 常见报错以及解决方案
+7. 常见报错以及解决方案
 ----------------------------
 
 
-6.1. 构建net对象错误报坐标系不匹配
+7.1. 构建net对象错误报坐标系不匹配
 ``````````````````````````````````````````````
 
 .. image:: _static/images/bug_no_crs_error.png
@@ -1654,7 +1753,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
         my_net.init_net()  # net初始化
 
 
-6.2. 使用jupyter报net对象无planar_crs属性
+7.2. 使用jupyter报net对象无planar_crs属性
 ``````````````````````````````````````````````
 
 
@@ -1667,7 +1766,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 解决方案：使用pycharm
 
 
-6.3. pyogrio.errors.FieldError
+7.3. pyogrio.errors.FieldError
 ``````````````````````````````````````````````
 
 fiona版本或者GDAL版本不兼容
@@ -1682,7 +1781,7 @@ fiona版本或者GDAL版本不兼容
 gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)、keplergl(0.3.2)
 
 
-6.4.  shapely库警告
+7.4.  shapely库警告
 ````````````````````````````````````````````````````````````````````````````````````````````````````````````````
 出现警告信息：RuntimeWarning:invalid value encountered in line locate pointreturn lib.line locate point(line, other)
 
@@ -1711,12 +1810,10 @@ gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)�
         link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
 
 
-6.5.  Invalid projection: EPSG:nan
+7.5.  Invalid projection: EPSG:nan
 ````````````````````````````````````````````````````````````````````````````````````````````````````````````````
 
 境外路网构建失败，是BUG，更新gotrackit到最新版本即可解决
 
 .. image:: _static/images/crs_error.png
     :align: center
-
---------------------------------------------------------
