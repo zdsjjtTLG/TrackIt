@@ -107,7 +107,7 @@ class GpsPreProcess(object):
                            time_unit: str = 's',
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 1800.0, n: int = 5,
                            min_distance_threshold: float = 10.0,
-                           dwell_accu_time: float = 60.0):
+                           dwell_accu_time: float = 60.0) -> pd.DataFrame:
         if self.use_multi_core:
             trip_df = pd.DataFrame()
             result_list = []
@@ -133,6 +133,11 @@ class GpsPreProcess(object):
                                               group_gap_threshold=group_gap_threshold, n=n,
                                               min_distance_threshold=min_distance_threshold,
                                               dwell_accu_time=dwell_accu_time)
+        trip_df = pd.DataFrame(trip_df)
+        try:
+            del trip_df[geometry_field]
+        except:
+            pass
         return trip_df
 
     @staticmethod

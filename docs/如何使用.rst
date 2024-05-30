@@ -519,7 +519,7 @@ Net构建参数见：`构建Net的相关参数`_
         # 切分后的数据会更新agent_id字段用以区分不同的出行旅程，原GPS表的agent_id会存储在origin_agent_id字段中
         gps_trip = grp.trip_segmentations(group_gap_threshold=1800, plain_crs='EPSG:32650', min_distance_threshold=10.0)
 
-        gps_trip.to_file(r'./data/output/gps/example/gps_trip.geojson', encoding='gbk')
+        gps_trip.to_csv(r'./data/output/gps/example/gps_trip.csv', encoding='utf_8_sig', index=False)
 
 
 4.1.1. 初始化GpsPreProcess的相关参数
