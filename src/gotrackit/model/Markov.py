@@ -196,7 +196,7 @@ class HiddenMarkov(object):
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         if use_heading_inf:
-            if gps_field.X_DIFF not in self.__done_prj_df.columns:
+            if not self.gps_points.done_diff_heading:
                 self.gps_points.calc_diff_heading()
                 self.__done_prj_df = pd.merge(self.__done_prj_df, self.gps_points.gps_gdf[[gps_field.POINT_SEQ_FIELD,
                                                                                            gps_field.X_DIFF,
