@@ -57,6 +57,8 @@ class GpsField(object):
         self.PRE_TIME = 'pre_time'
         self.ADJ_TIME_GAP = 'time_gap'
         self.ADJ_DIS = 'gps_adj_dis'
+        self.ADJ_X_DIS = 'gps_adj_xl'
+        self.ADJ_Y_DIS = 'gps_adj_yl'
         self.ADJ_SPEED = 'adj_speed'
 
         self.DENSE_GEO = '__dens_geo__'
@@ -68,6 +70,9 @@ class GpsField(object):
 
         self.PLAIN_X = 'prj_x'
         self.PLAIN_Y = 'prj_y'
+
+        self.PRE_PLAIN_X = 'pre_prj_x'
+        self.PRE_PLAIN_Y = 'pre_prj_y'
 
 
 class RouteField(object):
@@ -98,6 +103,17 @@ class MarkovField(object):
         self.HEADING_GAP = 'heading_gap'
         self.USED_HEADING_GAP = 'used_heading_gap'
         self.EMISSION_P = 'emission_p'
+
+
+class OdField(object):
+    """路网字段"""
+    def __init__(self):
+        self.OD_ID_FIELD = 'od_id'
+        self.WAYPOINTS_FIELD = 'way_points'
+        self.OX_FIELD = 'o_x'
+        self.OY_FIELD = 'o_y'
+        self.DX_FIELD = 'd_x'
+        self.DY_FIELD = 'd_y'
 
 
 class KeplerConfig(object):
