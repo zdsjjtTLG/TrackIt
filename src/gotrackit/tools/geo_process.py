@@ -107,12 +107,12 @@ def segmentize(s_loc: list or tuple = None, e_loc: list or tuple = None, n: int 
     # except ZeroDivisionError:
     #     gap = np.abs(e_loc[1] - s_loc[1]) / n
     #     return [(s_loc[0], s_loc[1] + (i + 1) * gap) for i in range(n - 1)]
-    x_diff = e_loc[0] - s_loc[0]
-    if np.abs(x_diff) <= 1e-4:
-        gap = np.abs(e_loc[1] - s_loc[1]) / n
+    x_diff, y_diff = e_loc[0] - s_loc[0], e_loc[1] - s_loc[1]
+    if np.abs(x_diff) <= 1e-5:
+        gap = y_diff / n
         return [(s_loc[0], s_loc[1] + (i + 1) * gap) for i in range(n - 1)]
     else:
-        k = (e_loc[1] - s_loc[1]) / x_diff
+        k = y_diff / x_diff
 
     b = e_loc[1] - k * e_loc[0]
     gap_x = x_diff / n
