@@ -296,7 +296,7 @@ class NetReverse(Reverse):
         """构造OD -> 请求 -> 二进制存储"""
         assert binary_path_fldr is not None
 
-        assert od_type in ['rand_od', 'region_od', 'diy_od', 'gps_based']
+        assert od_type in ['rand_od', 'region_od', 'diy_od']
         fmod = FormatOD(plain_crs=self.plain_prj)
         if isinstance(region_gdf, gpd.GeoDataFrame) and not region_gdf.empty:
             assert region_gdf.crs.srs.upper() == 'EPSG:4326', '面域文件必须是EPSG:4326"'
@@ -308,13 +308,13 @@ class NetReverse(Reverse):
                                               gap_n=gap_n, length_limit=min_od_length,
                                               boundary_buffer=boundary_buffer)
             self.__region_gdf = region_gdf
+            od_file_path = None
         elif od_type == 'region_od':
             od_df = fmod.format_region_od(region_gdf=region_gdf)
+            od_file_path = None
         elif od_type == 'diy_od':
             if od_df is None or od_df.empty:
                 od_df = pd.read_csv(od_file_path)
-        elif od_type == 'gps_based':
-            raise ValueError('Sorry! This function is under development! 这个函数正在开发中...')
 
         self.__od_df = od_df
 
