@@ -244,6 +244,8 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
     if join_df.empty:
         node_map_dict = dict()
         node_gdf = node_gdf.to_crs(origin_crs)
+        # 去除没有link连接的节点
+        drop_no_use_nodes(link_gdf, node_gdf)
         return link_gdf, node_gdf, gpd.GeoDataFrame()
     else:
         # 建立图
