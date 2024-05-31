@@ -162,6 +162,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     link_gdf = pd.concat([link_gdf, new_link_gdf])
     link_gdf.reset_index(inplace=True, drop=True)
     link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
+    drop_no_use_nodes(link_gdf=link_gdf, node_gdf=node_gdf)
     return link_gdf, node_gdf, merge_info_dict
 
 
@@ -468,3 +469,8 @@ def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
         return linestring_obj.length
 
 
+def drop_no_use_nodes(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None):
+    # 去除没有link连接的节点
+    used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
+    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
+    node_gdf.reset_index(inplace=True, drop=True)
