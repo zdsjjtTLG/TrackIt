@@ -315,6 +315,7 @@ class NetReverse(Reverse):
         elif od_type == 'diy_od':
             if od_df is None or od_df.empty:
                 od_df = pd.read_csv(od_file_path)
+                od_file_path = None
 
         self.__od_df = od_df
 
