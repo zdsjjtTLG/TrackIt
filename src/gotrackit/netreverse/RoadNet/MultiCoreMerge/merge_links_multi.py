@@ -98,6 +98,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     del result_list
 
     if merge_link_df.empty:
+        drop_no_use_nodes(link_gdf=link_gdf, node_gdf=node_gdf)
         return link_gdf, node_gdf
 
     origin_crs = link_gdf.crs.srs
