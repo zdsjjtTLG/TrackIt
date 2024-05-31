@@ -71,7 +71,8 @@ class GpsPreProcess(object):
                            time_unit: str = 's',
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 1800.0, n: int = 5,
                            min_distance_threshold: float = 10.0,
-                           dwell_accu_time: float = 60.0, way_points_num: int = 5):
+                           dwell_accu_time: float = 60.0, way_points_num: int = 5) \
+            -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
         if self.use_multi_core:
             od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
             result_list = []
