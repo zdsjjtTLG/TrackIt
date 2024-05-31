@@ -45,7 +45,7 @@ class GpsPreProcess(object):
         fact_core_num = len(agent_group)
         return pool, fact_core_num, agent_group
 
-    def sampling_waypoints_od(self, way_points_num: int = 5):
+    def sampling_waypoints_od(self, way_points_num: int = 5) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
         if self.use_multi_core:
             od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
             result_list = []
