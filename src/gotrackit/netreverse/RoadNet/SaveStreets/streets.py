@@ -444,5 +444,6 @@ def get_dup_node(node_gdf: gpd.GeoDataFrame = None, buffer: float = 0.5) -> dict
 def drop_no_use_nodes(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None):
     # 去除没有link连接的节点
     used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
+    node_gdf.reset_index(inplace=True, drop=True)
     node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
     node_gdf.reset_index(inplace=True, drop=True)
