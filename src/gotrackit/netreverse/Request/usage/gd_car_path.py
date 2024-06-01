@@ -15,18 +15,20 @@ from ..api.WebApi import GdRoutePlan
 
 
 class RequestOnTime(object):
-    def __init__(self, key_list=None, input_file_path=None, od_df: pd.DataFrame = None):
-        self.key_list = key_list
+    def __init__(self, key_list: list[str] = None, input_file_path: str = None, od_df: pd.DataFrame = None):
+        self.key_list = list(set(key_list))
+        self.origin_key_list = self.key_list.copy()
         if input_file_path is None:
             self.od_df = od_df
         else:
             self.od_df = pd.read_csv(input_file_path)
 
-    def start_request(self, out_fldr=None, cache_times=2000, id_field=None,
-                      file_flag=None, o_x_field='o_x', o_y_field='o_y',
-                      d_x_field='d_x', d_y_field='d_y', way_points_field=None,
-                      request_hh_field=None, ignore_hh=False, log_fldr: str = None, save_log_file: bool = False,
-                      remove_his: bool = True):
+    def start_request(self, out_fldr: str = None, cache_times: int = 2000, id_field: str = None,
+                      file_flag: str = None, o_x_field: str = 'o_x', o_y_field: str = 'o_y',
+                      d_x_field: str = 'd_x', d_y_field: str = 'd_y', way_points_field: str = None,
+                      request_hh_field: str = None, ignore_hh: bool = False, log_fldr: str = None,
+                      save_log_file: bool = False,
+                      remove_his: bool = True, key_info_dict: dict[str, int] = None):
         """
         给一个od表, 按照时间进行请求
         :param out_fldr:
@@ -43,13 +45,9 @@ class RequestOnTime(object):
         :param log_fldr:
         :param save_log_file:
         :param remove_his
+        :param key_info_dict:
         :return:
         """
-
-        # 1. 配置日志输出
-        # prj_root_fldr = os.getcwd()
-        # if 'log' not in os.listdir(os.path.join(prj_root_fldr, 'data/output/')):
-        #     os.makedirs(os.path.join(prj_root_fldr, 'data/output/log/'))
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(
@@ -57,8 +55,6 @@ class RequestOnTime(object):
         console_handler.setLevel(logging.INFO)
 
         if log_fldr is not None and save_log_file:
-            # file_handler = logging.FileHandler(os.path.join(prj_root_fldr, fr'data/output/log/log_request_{file_flag}.log'),
-            #                                    mode='a')
             file_handler = logging.FileHandler(os.path.join(log_fldr, fr'log_request_{file_flag}.log'), mode='a')
 
             file_handler.setFormatter(
@@ -99,7 +95,7 @@ class RequestOnTime(object):
         logging.info(rf'already_request_list_len: {len(already_request_list)}')
 
         # 路径规划对象
-        route_plan = GdRoutePlan(self.key_list)
+        route_plan = GdRoutePlan()
 
         # 开始请求数据
         while continue_request:
@@ -133,23 +129,29 @@ class RequestOnTime(object):
                                                                   o_y_field=o_y_field,
                                                                   d_x_field=d_x_field, d_y_field=d_y_field,
                                                                   way_points_field=way_points_field,
-                                                                  route_plan_obj=route_plan, ignore_hh=ignore_hh)
+                                                                  route_plan_obj=route_plan, ignore_hh=ignore_hh,
+                                                                  key_info_dict=key_info_dict,
+                                                                  key_list=self.key_list)
 
             already_request_list.extend(done_list)
-            last_num += 1
-            self.save_file(out_fldr=out_fldr, file_flag=file_prefix, last_num=last_num,
-                           od_route_dict=od_route_dict, already_request_list=already_request_list)
-            new_file_list.append(rf'{file_prefix}_gd_path_{last_num}')
+            if od_route_dict:
+                last_num += 1
+                self.save_file(out_fldr=out_fldr, file_flag=file_prefix, last_num=last_num,
+                               od_route_dict=od_route_dict, already_request_list=already_request_list)
+                new_file_list.append(rf'{file_prefix}_gd_path_{last_num}')
 
             # 配额达到上限
             if is_end:
                 logging.info(rf'开始休眠等待配额恢复...')
                 time.sleep(3600)
+                self.key_list = self.origin_key_list.copy()
+                key_info_dict = {k: 0 for k in self.key_list}
 
     @staticmethod
     def request_hh_df(request_df=None, cache_times=None, request_hh=None,
                       id_field=None, o_x_field='o_x', o_y_field='o_y', d_x_field='d_x', d_y_field='d_y',
-                      way_points_field=None, route_plan_obj=None, ignore_hh=True):
+                      way_points_field=None, route_plan_obj=None, ignore_hh=True, key_info_dict: dict[str, int] = None,
+                      key_list: list[str] = None):
         """请求给定表的od, 每达到cache_times次(或者在规定时段内没有请求完或者提前请求完或者达到配额上限)就返回"""
         _count = 0  # 用于计数
         od_route_dict = dict()  # 用于存储请求结果
@@ -158,7 +160,6 @@ class RequestOnTime(object):
         not_conn_error_list = []  # 用于记录搜路失败的od_id
         http_error_num = 0  # 用于记录网络失败的od数目
         http_error_list = []  # 用于记录网络失败的od_id
-        limit_num = 0
         for _, row in request_df.iterrows():
             strategy = None
             is_rnd_strategy = True
@@ -168,47 +169,50 @@ class RequestOnTime(object):
             if way_points_field in request_df.columns:
                 way_points = row[way_points_field]
                 if way_points not in [None, '', ' ']:
-                    logging.info(rf'启用途径点...')
+                    logging.info(rf'Enable waypoints.')
                     is_rnd_strategy = False
                     strategy = '0'
             else:
                 way_points = None
                 is_rnd_strategy = True
-
-            json_data, info_code = route_plan_obj.car_route_plan(origin=o_loc, destination=d_loc,
+            key = key_list[np.random.randint(0, len(key_list))]
+            json_data, info_code = route_plan_obj.car_route_plan(origin=o_loc, destination=d_loc, key=key,
                                                                  od_id=od_id, waypoints_loc=way_points,
                                                                  is_rnd_strategy=is_rnd_strategy, strategy=strategy)
-            logging.info(rf'info_code: {info_code}, count: {_count}, od: {od_id}')
 
             if info_code is not None:
                 # 请求成功
                 if info_code == 10000:
-                    logging.info(r'请求成功')
+                    logging.info(rf'Success - od: {od_id}, info_code: {info_code}, Request Success, count: {_count}.')
                     od_route_dict[od_id] = json_data
                     done_list.append(od_id)
                     _count += 1
-                elif info_code in [10003]:
-                    limit_num += 1
-                    if limit_num >= 30:
-                        logging.info(r'达到配额上限,结束请求')
+                elif info_code in [10003, 10044, 10014, 10019, 10020, 10021, 10029, 10045]:
+                    logging.info(rf'Failure - od: {od_id}, info_code: {info_code}, Quotas Exceeded, count: {_count}.')
+                    key_info_dict[key] += 1
+                    if key_info_dict[key] >= 30 and key in key_list:
+                        logging.info(rf'A key has reached the quota limit and is abandoned.')
+                        key_list.remove(key)
+                    if not key_list:
+                        logging.info(rf'All keys have reached the quota limit, stop requesting.')
                         return od_route_dict, done_list, True
-                elif info_code in [20003, 20011, 20012, 20800, 20801, 20802, 20803]:
-                    # 其他错误(未知错误, 路径错误......), 这部分不会重复请求
-                    logging.info(r'未知错误, 路径错误...')
+                else:
+                    logging.info(rf'Failure - od: {od_id}, info_code: {info_code}, Planning Error, count: {_count}.')
                     not_conn_error_num += 1
                     not_conn_error_list.append(od_id)
                     done_list.append(od_id)
                     _count += 1
             else:
+                logging.info(rf'Failure - od: {od_id}, info_code: XXXXX, Https Error, count: {_count}.')
                 # 网络错误
                 http_error_num += 1
                 http_error_list.append(od_id)
 
             # 达到请求次数后缓存一次
             if _count >= cache_times:
-                logging.info(rf'达到缓存次数..., 返回')
-                logging.info(rf'路网不连通导致的失败od数: {len(not_conn_error_list)}')
-                logging.info(rf'https网络导致的失败od数: {len(http_error_list)}')
+                logging.info(rf'Reached the cache count, return.')
+                logging.info(rf'Number of failures due to planning errors: {len(not_conn_error_list)}.')
+                logging.info(rf'Number of failures due to http errors: {len(http_error_list)}.')
                 return od_route_dict, done_list, False
 
             if ignore_hh:
@@ -216,15 +220,15 @@ class RequestOnTime(object):
             else:
                 # 请求完一个后检查时间
                 if datetime.datetime.now().hour != request_hh:
-                    logging.info(rf'时段超限..., 返回')
-                    logging.info(rf'路网不连通导致的失败od数: {len(not_conn_error_list)}')
-                    logging.info(rf'https网络导致的失败od数: {len(http_error_list)}')
+                    logging.info(rf'Time limit exceeded, return.')
+                    logging.info(rf'Number of failures due to planning errors: {len(not_conn_error_list)}.')
+                    logging.info(rf'Number of failures due to http errors: {len(http_error_list)}.')
                     return od_route_dict, done_list, False
 
         # 既没有达到缓存次数也没有时段超限
-        logging.info(rf'od请求完毕, 没有达到配额上限也没有达到缓存次数..., 返回')
-        logging.info(rf'路网不连通导致的失败od数: {len(not_conn_error_list)}')
-        logging.info(rf'https网络导致的失败od数: {len(http_error_list)}')
+        logging.info(rf'od request completed, return.')
+        logging.info(rf'Number of failures due to planning errors: {len(not_conn_error_list)}.')
+        logging.info(rf'Number of failures due to http errors: {len(http_error_list)}.')
         return od_route_dict, done_list, False
 
     @staticmethod

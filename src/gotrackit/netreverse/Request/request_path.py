@@ -38,6 +38,7 @@ class CarPath(object):
             assert hh_field in self.od_df.columns, rf'如果启用了时段限制, 请确保od表中有{hh_field}字段, 否则请将ignore_hh参数设为True'
             self.od_df[hh_field] = self.od_df[hh_field].astype(int)
             assert set(self.od_df[hh_field]).issubset({i for i in range(0, 24)}), rf'{hh_field}字段的值有误!'
+        key_info_dict = {k: 0 for k in self.key_list}
         while True:
             if_end_request, new_file_list = otr.start_request(out_fldr=self.out_fldr,
                                                               cache_times=self.cache_times,
@@ -51,7 +52,8 @@ class CarPath(object):
                                                               request_hh_field=hh_field,
                                                               log_fldr=self.log_fldr,
                                                               remove_his=remove_his,
-                                                              save_log_file=self.save_log_file)
+                                                              save_log_file=self.save_log_file,
+                                                              key_info_dict=key_info_dict)
             if if_end_request:
                 break
             else:
