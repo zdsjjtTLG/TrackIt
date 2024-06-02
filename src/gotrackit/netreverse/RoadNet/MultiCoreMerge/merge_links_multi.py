@@ -73,15 +73,15 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     # 对迭代器切片
     connected_components_group = cut_group(obj_list=connected_components, n=core_num)
     del connected_components
-    print(len(connected_components_group))
+    n = len(connected_components_group)
     # 测试
     # merge_link_df = get_merge_df_main(link_gdf, node_gdf, connected_components_group[0], two_degrees_sub_graph,
     #                                   ud_graph, allow_ring, ignore_dir, judge_col_name, plain_prj, accu_l_threshold,
     #                                   angle_threshold, restrict_length, restrict_angle, min_length)
     print('starting filter group')
-    pool = multiprocessing.Pool(processes=len(connected_components_group))
+    pool = multiprocessing.Pool(processes=n)
     result_list = []
-    for i in range(0, len(connected_components_group)):
+    for i in range(0, n):
         result = pool.apply_async(get_merge_df_main,
                                   args=(link_gdf, node_gdf, connected_components_group[i], two_degrees_sub_graph,
                                         ud_graph, allow_ring, ignore_dir, limit_col_name, plain_prj, accu_l_threshold,
