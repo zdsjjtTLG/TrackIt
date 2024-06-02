@@ -38,13 +38,9 @@
 <br>
 
 
-**💬version status：05.19 Updated: v0.2.7**
+**💬version status：06.03 Updated: v0.2.9**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
-
-- The efficiency of the map matching interface is optimized, which is slightly improved compared to v0.2.4
-
-- Added grid parameter search to help users determine reasonable matching parameters
 
 - BUG fix
 
