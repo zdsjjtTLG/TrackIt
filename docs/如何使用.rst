@@ -71,7 +71,10 @@ geopandas为最新版本, 如果不是最新版本可能会报错(有个函数�
 2.1.2. GPS数据行程切分
 ::::::::::::::::::::::::::
 
-行程切分概览
+主行程举例： 一辆车从家出发到达公司，将车辆停在车库，熄火后，车辆不再产生GPS数据，下班后再次启动，GPS数据重新产生，早上到达公司的最后一个定位点和下班后启动车辆的第一个定位点，其时间差超过group_gap_threshold，则在此处切分主行程
+
+子行程举例： 一辆车从家出发到达公司，在到达公司之前，在加油站加油，GPS点持续产生，但是定位点集中在加油站附近，产生了停留，那么从家-加油站就是一段子行程
+
 
 
 .. _路网生产:
@@ -483,6 +486,12 @@ Net构建参数见：`构建Net的相关参数`_
     输出GPS数据的时间列的格式，默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
 
     参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
+
+* start_year、start_month、start_day
+    起始年月日，默认2022、5、15
+
+* start_hour、start_minute、start_second
+    起始时分秒，默认10、20、12
 
 * agent_flag
     标志字符，默认agent
