@@ -36,7 +36,9 @@ class TripGeneration(object):
         self.loc_error_miu = loc_error_miu
 
     def generate_rand_trips(self, trip_num: int = 10, instant_output: bool = False,
-                            out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S", agent_flag: str = 'agent'):
+                            out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S", agent_flag: str = 'agent',
+                            start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
+                            start_minute: int = 20, start_second: int = 12):
         trajectory_gdf, gps_gdf, mix_gdf = gpd.GeoDataFrame(), gpd.GeoDataFrame(), gpd.GeoDataFrame()
         data_col = RouteInfoCollector(from_crs=self.net.planar_crs, to_crs=self.net.geo_crs, convert_prj_sys=True)
 
@@ -48,7 +50,8 @@ class TripGeneration(object):
                       agent_id=car_id, speed_miu=self.speed_miu, speed_sigma=self.speed_sigma,
                       loc_frequency=self.loc_frequency, loc_error_sigma=self.loc_error_sigma,
                       loc_error_miu=self.loc_error_miu,
-                      start_time=datetime.datetime(year=2022, month=5, day=12, hour=16, minute=14, second=0),
+                      start_time=datetime.datetime(year=start_year, month=start_month, day=start_day,
+                                                   hour=start_hour, minute=start_minute, second=start_second),
                       save_gap=self.save_gap)
 
             # 开始行车
