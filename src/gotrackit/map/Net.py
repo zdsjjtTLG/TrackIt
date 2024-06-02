@@ -483,6 +483,19 @@ class Net(object):
     def merger_double_link(self):
         self.__link.merge_double_link()
 
+    def check_ln_consistency(self):
+        l_node = self.__link.used_node()
+        n_node = self.__node.node_id_set()
+        gap = n_node - l_node
+        # print(rf'1: {gap}')
+        if gap:
+            # 点层中存在线层没有用的点, 直接删掉
+            self.__node.delete_nodes(node_list=list(gap))
+
+        # n_node = self.__node.node_id_set()
+        # gap = l_node - n_node
+        # print(rf'2: {gap}')
+
     def del_short_links(self, l_threshold: float = 0.5) -> None:
         self.__link.del_short_links(l_threshold=l_threshold)
         self.del_zero_degree_nodes()
