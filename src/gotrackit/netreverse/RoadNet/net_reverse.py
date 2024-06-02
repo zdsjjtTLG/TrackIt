@@ -118,7 +118,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             conn = Conn(net=net, check_buffer=conn_buffer)
             # print(net.geo_crs, net.planar_crs)
             link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
-
+            # net.export_net(export_crs='EPSG:4326', out_fldr=out_fldr, file_type='shp',
+            #                flag_name='modifiedConn')
     # 5.拓扑优化
     print(rf'##########   {flag_name} - Topology Optimization')
     final_link, final_node, dup_info_dict = optimize_net.optimize(link_gdf=link_gdf, node_gdf=new_node,
