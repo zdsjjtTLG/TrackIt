@@ -1324,8 +1324,6 @@ circle_process处理后如图
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
-* node_num_threshold
-    默认2000
 
 * gps_radius
     HTML可视化中GPS点的半径大小，单位米，默认8米
