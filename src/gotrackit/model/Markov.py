@@ -347,6 +347,10 @@ class HiddenMarkov(object):
         else:
             return a_info
 
+    def pre_filter(self):
+        if self.net.is_sub_net:
+            pass
+
     def solve(self, use_lop_p: bool = True):
         """
         :param use_lop_p: 是否使用对数概率, 避免浮点数精度下溢
@@ -579,7 +583,7 @@ class HiddenMarkov(object):
         done_stp_cost_df = pd.concat([done_stp_cost_df, _done_stp_cost_df])
         del _done_stp_cost_df
         if add_single_ft[0]:
-            single_link_ft_path_df = single_link_ft_path_df[single_link_ft_path_df[self.net.weight_field] > cut_off]
+            single_link_ft_path_df = single_link_ft_path_df[single_link_ft_path_df['cost'] > cut_off]
             if not single_link_ft_path_df.empty:
                 done_stp_cost_df = pd.concat(
                     [done_stp_cost_df, single_link_ft_path_df.rename(columns={net_field.FROM_NODE_FIELD: o_node_field,
