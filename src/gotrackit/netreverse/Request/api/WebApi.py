@@ -32,13 +32,10 @@ class GdRoutePlan(object):
         :return:
         """
         api_url = 'https://restapi.amap.com/v5/direction/driving'
+        strategy_list = ['0', '1', '2', '3', '32', '34', '35', '36', '37', '42']
         para_dict = {'key': key}
         if is_rnd_strategy:
-            strategy_list = ['0', '1', '2', '3', '32', '34', '35', '36', '37', '42']
             strategy = strategy_list[np.random.randint(0, len(strategy_list))]
-        else:
-            if strategy is None:
-                strategy = '0'
         para_name = ['od_id', 'origin', 'destination', 'origin_id', 'destination_id', 'origin_type', 'avoidpolygons',
                      'waypoints_loc', 'strategy']
         para_val = [od_id, origin, destination, origin_id, destination_id, origin_type, avoidpolygons, waypoints_loc,
