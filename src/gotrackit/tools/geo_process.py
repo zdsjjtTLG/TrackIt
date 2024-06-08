@@ -3,10 +3,11 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-
+import os
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from .grid import get_grid_data
 from ..GlobalVal import NetField
 from .coord_trans import LngLatTransfer
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
@@ -326,6 +327,51 @@ def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'g
     df.loc[df['cos'] >= 1, 'cos'] = 1
     df['theta'] = 180 * np.arccos(df['cos']) / np.pi
     df.loc[df['theta'] >= 179.9, 'theta'] = 179.9
+
+
+def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDataFrame = None,
+                 cpu_restrict: bool = True) -> gpd.GeoDataFrame:
+    """传入面域, 对路网进行切块, 行不变, 加上新的一列region_id"""
+    n = len(region_gdf)
+    if cpu_restrict:
+        assert n <= os.cpu_count(), f'区域数目:{n}, 大于当前CPU核数{os.cpu_count()}'
+    region_gdf['region_id'] = [i for i in range(1, len(region_gdf) + 1)]
+    if 'region_id' in split_path_gdf.columns:
+        del split_path_gdf['region_id']
+    split_path_gdf['index'] = [i for i in range(len(split_path_gdf))]
+    split_path_gdf = gpd.sjoin(split_path_gdf, region_gdf[['region_id', net_field.GEOMETRY_FIELD]])
+    split_path_gdf.sort_values(by=['index', 'region_id'], ascending=[True, True], inplace=True)
+    split_path_gdf.drop_duplicates(subset=['index'], inplace=True, keep='first')
+    del split_path_gdf['index_right'], split_path_gdf['index']
+    return split_path_gdf
+
+
+def rn_partition_alpha(split_path_gdf: gpd.GeoDataFrame = None, partition_num: int = 3,
+                       is_geo_coord: bool = True):
+    """传入面域, 对路网进行切块, 行不变, 加上新的一列region_id"""
+    link_num = len(split_path_gdf)
+    c_num = os.cpu_count()
+    partition_num = c_num if partition_num > c_num else partition_num
+    partition_len = int(link_num / partition_num) + 1
+    _bound = split_path_gdf.bounds
+    min_x, min_y, max_x, max_y = \
+        _bound['minx'].min(), _bound['miny'].min(), _bound['maxx'].max(), _bound['maxy'].max()
+    grid = get_grid_data(polygon_gdf=gpd.GeoDataFrame(geometry=[Polygon([(min_x, min_y), (max_x, min_y),
+                                                                         (max_x, max_y),
+                                                                         (min_x, max_y)])],
+                                                      crs=split_path_gdf.crs), meter_step=1000,
+                         is_geo_coord=is_geo_coord)
+
+    # add region_id
+    split_path_gdf = rn_partition(split_path_gdf=split_path_gdf, region_gdf=grid, cpu_restrict=False)
+    split_path_gdf.sort_values(by='region_id', ascending=True, inplace=True)
+    grid_count = split_path_gdf.groupby('region_id')[['geometry']].count().reset_index(drop=False)
+    grid_count['_c'] = grid_count['geometry'].cumsum()
+    grid_count['label'] = grid_count['_c'] / partition_len
+    grid_count['label'] = (grid_count['_c'] / partition_len).astype(int)
+    print(split_path_gdf)
+    print(grid_count.groupby('label')[['geometry']].sum())
+
 
 
 if __name__ == '__main__':
