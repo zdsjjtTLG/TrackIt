@@ -8,6 +8,7 @@
 
 import os.path
 import pandas as pd
+import multiprocessing
 import geopandas as gpd
 from ..map.Net import Net
 from .RoadNet.conn import Conn
@@ -54,7 +55,8 @@ class NetReverse(Reverse):
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
                  dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
-                 multi_core_parse: bool = False, parse_core_num: int = 2):
+                 multi_core_parse: bool = False, parse_core_num: int = 2,
+                 multi_core_reverse: bool = False):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -113,6 +115,9 @@ class NetReverse(Reverse):
         self.multi_core_parse = multi_core_parse
         self.parse_core_num = parse_core_num
 
+        # if uses multi core
+        self.multi_core_reverse = multi_core_reverse
+
     def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
                                   region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
@@ -159,18 +164,15 @@ class NetReverse(Reverse):
                           used_core_num=self.parse_core_num)
 
         split_path_gdf = pgd.parse_path_main_multi()
-
-        self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
+        self._generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
     def generate_net_from_path_gdf(self, path_gdf: gpd.GeoDataFrame = None,
-                                   restrict_region_gdf: gpd.GeoDataFrame = None,
                                    slice_num: int = 1, attr_name_list: list = None,
                                    cut_slice: bool = False):
         """
         input crs: EPSG:4326
         从路径gdf创建路网
         :param path_gdf:
-        :param restrict_region_gdf:
         :param slice_num:
         :param attr_name_list:
         :param cut_slice:
@@ -180,10 +182,11 @@ class NetReverse(Reverse):
         if 'road_name' not in path_gdf.columns:
             path_gdf['road_name'] = ''
         attr_name_list = ['road_name'] if attr_name_list is None or len(attr_name_list) == 1 else attr_name_list
-        split_path_gdf = split_path_main(path_gdf=path_gdf, restrict_region_gdf=restrict_region_gdf,
+        split_path_gdf = split_path_main(path_gdf=path_gdf, restrict_region_gdf=self.restrict_region_gdf,
                                          slice_num=slice_num, attr_name_list=attr_name_list,
                                          cut_slice=cut_slice, drop_ft_loc=True)
-        self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
+
+        self._generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
     @staticmethod
     def create_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field_list: list[str] = None,
@@ -292,7 +295,8 @@ class NetReverse(Reverse):
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
-                     od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0) -> tuple[bool, list[str]]:
+                     od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
+                     is_rnd_strategy: bool = True, strategy: str = '32') -> tuple[bool, list[str]]:
         """构造OD -> 请求 -> 二进制存储"""
         assert binary_path_fldr is not None
 
@@ -324,13 +328,24 @@ class NetReverse(Reverse):
                                    file_flag=self.flag_name, log_fldr=log_fldr, save_log_file=save_log_file)
 
         # 是否结束请求, 新生产的路网文件
-        if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his)
+        if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his, strategy=strategy,
+                                                                  is_rnd_strategy=is_rnd_strategy)
 
         return if_end_request, new_file_list
 
     def increment_from_path_gdf(self):
         pass
 
+    def _generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
+        if not self.multi_core_reverse or self.restrict_region_gdf is None or self.restrict_region_gdf.empty:
+            if split_path_gdf.empty:
+                return None
+            self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
+        else:
+            split_path_gdf_dict = self.rn_partition(region_gdf=self.restrict_region_gdf, split_path_gdf=split_path_gdf)
+            if not split_path_gdf_dict:
+                return None
+            self.__generate_net_from_split_path_parallel(split_path_gdf_dict=split_path_gdf_dict)
     def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
         """
 
@@ -362,6 +377,52 @@ class NetReverse(Reverse):
                                  conn_period=self.conn_period,
                                  multi_core_merge=self.multi_core_merge,
                                  core_num=self.merge_core_num)
+
+    @staticmethod
+    def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDataFrame = None) -> \
+            dict[int, gpd.GeoDataFrame]:
+        n = len(region_gdf)
+        assert n <= os.cpu_count(), f'区域数目:{n}, 大于当前CPU核数{os.cpu_count()}'
+        if 'region_id' not in region_gdf.columns:
+            region_gdf['region_id'] = [i for i in range(1, len(region_gdf) + 1)]
+        if 'region_id' in split_path_gdf.columns:
+            del split_path_gdf['region_id']
+        split_path_gdf = gpd.sjoin(split_path_gdf, region_gdf[['region_id', net_field.GEOMETRY_FIELD]])
+        del split_path_gdf['index_right']
+        split_path_gdf_dict = {region: gdf for region, gdf in split_path_gdf.groupby('region_id') if not gdf.empty}
+        return split_path_gdf_dict
+    def __generate_net_from_split_path_parallel(self, split_path_gdf_dict: dict[int, gpd.GeoDataFrame]):
+        """
+        :param split_path_gdf_dict:
+        :return:
+        """
+        core_num = len(split_path_gdf_dict)
+        print(f'using multiprocessing - {core_num} cores')
+        pool = multiprocessing.Pool(processes=core_num)
+        result_list = []
+        for i in split_path_gdf_dict.keys():
+            core_out_fldr = os.path.join(self.net_out_fldr, rf'region-{i}')
+            if os.path.exists(core_out_fldr):
+                pass
+            else:
+                os.makedirs(core_out_fldr)
+
+            result = pool.apply_async(net_reverse.generate_net,
+                                      args=(split_path_gdf_dict[i], core_out_fldr, self.save_split_link, self.plain_prj,
+                                            self.save_tpr_link, self.save_streets_before_modify_minimum,
+                                            self.restrict_angle,
+                                            self.limit_col_name, self.restrict_length, self.accu_l_threshold,
+                                            self.angle_threshold,
+                                            False, 1, self.modify_minimum_buffer, self.flag_name + f'-region{i}',
+                                            self.save_streets_after_modify_minimum, self.save_preliminary,
+                                            self.save_done_topo,
+                                            self.is_process_dup_link, self.process_dup_link_buffer, self.min_length,
+                                            self.dup_link_buffer_ratio,
+                                            self.net_file_type, self.is_modify_conn, self.conn_buffer,
+                                            self.conn_period))
+            result_list.append(result)
+        pool.close()
+        pool.join()
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
@@ -476,4 +537,4 @@ class NetReverse(Reverse):
         single_link_gdf = split_path(path_gdf=single_link_gdf)
         single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
         del link_gdf
-        self.__generate_net_from_split_path(split_path_gdf=single_link_gdf)
+        self._generate_net_from_split_path(split_path_gdf=single_link_gdf)
