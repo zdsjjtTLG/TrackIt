@@ -25,7 +25,6 @@ class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
-                 max_increment_times: int = 2, increment_buffer: float = 15.0,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
@@ -38,7 +37,7 @@ class MapMatch(object):
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
-                 use_para_grid: bool = False, para_grid: ParaGrid = None):
+                 use_para_grid: bool = False, para_grid: ParaGrid = None, is_hierarchical: bool = False):
         """
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
@@ -48,8 +47,6 @@ class MapMatch(object):
         :param time_unit: GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
         :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认100.0
         :param gps_route_buffer_gap: 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
-        :param max_increment_times: 增量搜索次数, 默认2
-        :param increment_buffer: 增量半径, 默认20.0
         :param beta: 该值越大, 状态转移概率对于距离越不敏感, 默认20m
         :param gps_sigma: 该值越大, 发射概率对距离越不敏感, 默认20m
         :param dis_para: 距离的折减系数, 默认0.1
@@ -74,6 +71,7 @@ class MapMatch(object):
         :param instant_output: 是否每匹配完一条轨迹就存储csv匹配结果
         :param use_para_grid: 是否启用网格参数搜索
         :param para_grid: 网格参数对象
+        :param is_hierarchical
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -94,8 +92,6 @@ class MapMatch(object):
         self.dense_interval = dense_interval  # 加密阈值(前后GPS点直线距离超过该值就会启用线性加密)
         self.gps_buffer = gps_buffer  # gps的关联范围(m)
         self.use_sub_net = use_sub_net  # 是否启用子网络
-        self.max_increment_times = max_increment_times
-        self.increment_buffer = increment_buffer
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
         self.heading_para_array = heading_para_array
@@ -132,11 +128,13 @@ class MapMatch(object):
         self.export_all_agents = export_all_agents
         self.visualization_cache_times = visualization_cache_times
         self.multi_core_save = multi_core_save
-        self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap + max_increment_times * increment_buffer
+        self.sub_net_buffer = self.gps_buffer + self.gps_route_buffer_gap
         self.instant_output = instant_output
 
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
+
+        self.is_hierarchical = is_hierarchical
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
@@ -157,8 +155,6 @@ class MapMatch(object):
                 gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                        buffer=self.gps_buffer, time_unit=self.time_unit,
                                        plane_crs=self.plain_crs,
-                                       max_increment_times=self.max_increment_times,
-                                       increment_buffer=self.increment_buffer,
                                        dense_gps=self.dense_gps, dense_interval=self.dense_interval,
                                        dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
             except Exception as e:
@@ -205,7 +201,7 @@ class MapMatch(object):
                                                                   dup_threshold=self.dup_threshold),
                     fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
                     cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
-                    not_conn_cost=self.my_net.not_conn_cost)
+                    not_conn_cost=self.my_net.not_conn_cost, is_hierarchical=self.is_hierarchical)
                 if used_net is None:
                     self.error_list.append(agent_id)
                     continue
@@ -217,7 +213,8 @@ class MapMatch(object):
             hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                    not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid)
+                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid,
+                                   is_hierarchical=self.is_hierarchical)
             if not self.use_para_grid:
                 is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
             else:
@@ -273,7 +270,6 @@ class MapMatch(object):
             mmp = MapMatch(gps_df=gps_df, net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
                            time_unit=self.time_unit, gps_buffer=self.gps_buffer,
                            gps_route_buffer_gap=self.gps_route_buffer_gap,
-                           max_increment_times=self.max_increment_times, increment_buffer=self.increment_buffer,
                            beta=self.beta,
                            gps_sigma=self.gps_sigma, dis_para=self.dis_para, is_lower_f=self.is_lower_f,
                            lower_n=self.lower_n,
@@ -292,7 +288,7 @@ class MapMatch(object):
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
                            multi_core_save=False, instant_output=self.instant_output, use_para_grid=self.use_para_grid,
-                           para_grid=self.para_grid)
+                           para_grid=self.para_grid, is_hierarchical=self.is_hierarchical)
             result = pool.apply_async(mmp.execute,
                                       args=())
             result_list.append(result)

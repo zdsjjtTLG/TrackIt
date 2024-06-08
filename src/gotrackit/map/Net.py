@@ -18,6 +18,7 @@ import geopandas as gpd
 from ..tools.group import cut_group
 from shapely.geometry import LineString
 from ..tools.geo_process import prj_inf
+from ..tools.grid import get_grid_data
 from ..tools.save_file import save_file
 from ..GlobalVal import NetField, PrjConst
 from ..WrapsFunc import function_time_cost
@@ -37,6 +38,7 @@ geometry_field = net_field.GEOMETRY_FIELD
 node_id_field = net_field.NODE_ID_FIELD
 path_field = net_field.NODE_PATH_FIELD
 cost_field = net_field.COST_FIELD
+grid_id_field = net_field.GRID_ID
 o_node_field, d_node_field = net_field.S_NODE, net_field.T_NODE
 
 
@@ -50,7 +52,7 @@ class Net(object):
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
-                 fmm_cache_fldr: str = None,
+                 fmm_cache_fldr: str = None, grid_len: float = 2000.0,
                  cache_name: str = 'cache', recalc_cache: bool = True,
                  cut_off: float = 1200.0, max_cut_off: float = 5000.0, delete_circle: bool = True):
         """
@@ -75,6 +77,7 @@ class Net(object):
         :param cache_cn: 使用几个核能进行路径预计算, 默认2
         :param fmm_cache_fldr: 存储路径预处理结果的文件目录, 默认./
         :param recalc_cache: 是否重新计算FMM路径缓存, 默认True
+        :param grid_len: 栅格边长, m
         :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
         :param cut_off: 路径搜索截断长度, 米, 默认1000m
         :param max_cut_off: 最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
@@ -104,6 +107,10 @@ class Net(object):
         self.recalc_cache = recalc_cache
         self.cache_slice = cache_slice
         self.delete_circle = delete_circle
+        self.grid_len = grid_len
+        self.region_grid = gpd.GeoDataFrame()
+        self.grid_cor_link = pd.DataFrame()
+        self.done_sjoin_cache = False
         if self.cache_slice is None:
             self.cache_slice = 2 * self.cache_cn
 
@@ -181,6 +188,11 @@ class Net(object):
 
     def init_net(self, stp_cost_cache_df: pd.DataFrame = None, cache_prj_inf: dict = None) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
+        if not self.is_sub_net:
+            try:
+                self.cal_sjoin_cache()
+            except Exception as e:
+                print(fr'空间分层计算失败: {repr(e)}')
         if self.fmm_cache:
             if self.is_sub_net:
                 self.set_path_cache(stp_cost_cache_df)
@@ -344,7 +356,7 @@ class Net(object):
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
                                  cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
-                                 fmm_cache: bool = False):
+                                 fmm_cache: bool = False, is_hierarchical: bool = False):
         """
 
         :param gps_array_buffer:
@@ -353,13 +365,18 @@ class Net(object):
         :param cache_id:
         :param not_conn_cost:
         :param fmm_cache:
+        :param is_hierarchical
         :return:
         """
         if gps_array_buffer is None:
             return None
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.planar_crs)
-        sub_single_link_gdf = gpd.sjoin(self.get_link_data(), gps_array_buffer_gdf)
+        single_link_gdf = self.get_link_data()
+        if is_hierarchical:
+            pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
+            single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
+        sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
         if sub_single_link_gdf.empty:
             print(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
             return None
@@ -745,9 +762,11 @@ class Net(object):
         return done_stp_cost_df
 
     def single_link_ft_cost(self) -> pd.DataFrame:
-        return self.__link.get_link_data()[
+        _ = self.__link.get_link_data()[
             [net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, self.weight_field,
              'path']].copy()
+        _.rename(columns={self.weight_field: 'cost'}, inplace=True)
+        return _
 
     def cache_prj_info(self):
         if self.fmm_cache_fldr is None:
@@ -782,6 +801,44 @@ class Net(object):
         self.set_prj_cache(cache_prj_inf)
         with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'wb') as f:
             pickle.dump(cache_prj_inf, f)
+
+    def calc_pre_filter(self, gps_rou_buffer_gdf: gpd.GeoDataFrame = None) -> set[int]:
+        # sjoin between gps & grid
+        gps_cor_grid_df = gpd.sjoin(gps_rou_buffer_gdf, self.region_grid)
+        if gps_cor_grid_df.empty:
+            raise ValueError(r'gps数据关联不到任何路网数据')
+        gps_cor_grid = set(gps_cor_grid_df[grid_id_field])
+        pre_link = set(self.grid_cor_link[self.grid_cor_link[grid_id_field].isin(gps_cor_grid)][link_id_field])
+        return pre_link
+
+    @function_time_cost
+    def cal_sjoin_cache(self):
+        if not self.done_sjoin_cache:
+            min_x, min_y, max_x, max_y = self.get_bounds()
+            self.region_grid = \
+                self.generate_region_grid(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y,
+                                          grid_len=self.grid_len, crs=self.crs)
+            self.region_grid.to_file(r'grid.shp')
+            self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]],
+                                           self.__link.link_gdf[[net_field.LINK_ID_FIELD, geometry_field]])
+            del self.grid_cor_link['index_right']
+            del self.grid_cor_link[geometry_field]
+            self.done_sjoin_cache = True
+
+    @staticmethod
+    def generate_region_grid(grid_len: float = 5000, max_y: float = None, min_y: float = None,
+                             max_x: float = None, min_x: float = None, crs: str = 'EPSG:32650') -> gpd.GeoDataFrame:
+        grid_df = get_grid_data(polygon_gdf=gpd.GeoDataFrame(geometry=[Polygon([(min_x, min_y), (max_x, min_y),
+                                                                                (max_x, max_y),
+                                                                                (min_x, max_y)])],
+                                                             crs=crs), meter_step=grid_len, is_geo_coord=False)
+        return grid_df
+
+    def get_bounds(self) -> tuple[float, float, float, float]:
+        bound_link = self.__link.link_gdf.bounds
+        min_lng, min_lat, max_lng, max_lat = \
+            bound_link['minx'].min(), bound_link['miny'].min(), bound_link['maxx'].max(), bound_link['maxy'].max()
+        return min_lng, min_lat, max_lng, max_lat
 
     @staticmethod
     def split_segment(path_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame or pd.DataFrame:
