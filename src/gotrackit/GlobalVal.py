@@ -28,6 +28,7 @@ class NetField(object):
         self.VEC_LEN = 'lvl'
         self.SEG_COUNT = 'seg_count'
         self.SEG_ACCU_LENGTH = 'seg_accu_length'
+        self.GRID_ID = 'grid_id'
 
 class GpsField(object):
     """gps数据字段"""
