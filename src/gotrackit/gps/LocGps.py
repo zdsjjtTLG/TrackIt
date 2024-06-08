@@ -40,8 +40,7 @@ sub_group_field = gps_field.SUB_GROUP_FIELD
 
 class GpsPointsGdf(object):
 
-    def __init__(self, gps_points_df: pd.DataFrame = None,
-                 buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10,
+    def __init__(self, gps_points_df: pd.DataFrame = None, buffer: float = 200.0,
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plane_crs: str = 'EPSG:32649', dense_gps: bool = True, dense_interval: float = 25.0,
                  dwell_l_length: float = 10.0, dwell_n: int = 3):
@@ -49,8 +48,6 @@ class GpsPointsGdf(object):
 
         :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
         :param buffer: GPS点的buffer半径大小(用于生成候选路段), m
-        :param increment_buffer: 使用buffer进行关联, 可能会存在部分GPS点仍然关联不到任何路段, 对于这部分路段, 将启用增量buffer进一步关联
-        :param max_increment_times: 增量搜索的最大次数
         :param time_format: 时间列的字符格式
         :param plane_crs: 平面投影坐标系
         :param dense_gps: 是否加密GPS点
@@ -62,10 +59,8 @@ class GpsPointsGdf(object):
         self.buffer = buffer
         self.__crs = self.geo_crs
         self.plane_crs = plane_crs
-        self.increment_buffer = increment_buffer
         self.dense_gps = dense_gps
         self.dense_interval = dense_interval
-        self.max_increment_times = 1 if max_increment_times <= 0 else max_increment_times
         self.dwell_l_length = dwell_l_length
         self.dwell_n = dwell_n
         self.__gps_point_dis_dict = dict()
@@ -82,6 +77,8 @@ class GpsPointsGdf(object):
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
         except ValueError:
             print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
+            if self.__gps_points_gdf[time_field].dtype == object:
+                self.__gps_points_gdf[time_field] = self.__gps_points_gdf[time_field].astype(float)
             self.__gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
 
@@ -93,6 +90,7 @@ class GpsPointsGdf(object):
         self.gps_adj_dis_map = dict()
         self.gps_seq_time_map = dict()
         self.gps_seq_geo_map = dict()
+        self.gps_rou_buffer = None
 
         # 存储最原始的GPS信息
         self.__source_gps_points_gdf = self.__gps_points_gdf.copy()
@@ -273,45 +271,38 @@ class GpsPointsGdf(object):
         except:
             simplify_gps_route_l = gps_route_l.simplify(dup_threshold / 10.0)
         gps_array_buffer = simplify_gps_route_l[0].buffer(buffer)
+        self.gps_rou_buffer = gps_array_buffer
         return gps_array_buffer
 
-    def generate_candidate_link(self, net: Net = None) -> tuple[pd.DataFrame, list[int]]:
+    def generate_candidate_link(self, net: Net = None, is_hierarchical: bool = False) -> \
+            tuple[pd.DataFrame, list[int]]:
         """
         计算GPS观测点的候选路段
         :param net:
+        :param is_hierarchical
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
         if gps_buffer_gdf.crs.srs.upper() != self.plane_crs:
             gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
+        gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].buffer(self.buffer)
+        gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
+        origin_seq = set(gps_buffer_gdf[gps_field.POINT_SEQ_FIELD])
 
-        single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+        single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.LINK_ID_FIELD,
+                                               net_field.FROM_NODE_FIELD,
                                                net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
                                                net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]]
+        if not net.is_sub_net and is_hierarchical:
+            pre_filter_link = net.calc_pre_filter(gps_rou_buffer_gdf=gps_buffer_gdf)
+            single_link_gdf = single_link_gdf[single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)]
+
         single_link_gdf.reset_index(inplace=True, drop=True)
-        candidate_link = pd.DataFrame()
-        remain_gps_list = []
-        for i in [i for i in range(0, self.max_increment_times)]:
-            now_buffer = self.buffer + i * self.increment_buffer
-            print(rf'buffer: {now_buffer}m...')
+        candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
+        remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))
 
-            gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].buffer(now_buffer)
-            gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
-            join_df = gpd.sjoin(gps_buffer_gdf, single_link_gdf, how='left')
-
-            _candidate_link = join_df[~join_df[net_field.SINGLE_LINK_ID_FIELD].isna()]
-            candidate_link = pd.concat([candidate_link, _candidate_link])
-            del _candidate_link
-            remain_gps_list = list(join_df[join_df[net_field.SINGLE_LINK_ID_FIELD].isna()][gps_field.POINT_SEQ_FIELD].unique())
-            if not remain_gps_list:
-                break
-
-            gps_buffer_gdf = gps_buffer_gdf[gps_buffer_gdf[gps_field.POINT_SEQ_FIELD].isin(remain_gps_list)].copy()
         if not candidate_link.empty:
             candidate_link.drop(columns=['index_right', 'gps_buffer'], axis=1, inplace=True)
-            for col in [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
-                        net_field.SINGLE_LINK_ID_FIELD, net_field.DIRECTION_FIELD]:
-                candidate_link[col] = candidate_link[col].astype(int)
             # add link geo
             single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
             candidate_link = pd.merge(candidate_link,
