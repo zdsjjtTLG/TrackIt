@@ -36,7 +36,8 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
                  multi_core_merge: bool = False, core_num: int = 3,
                  modify_minimum_buffer: float = 0.8, flag_name: str = None,
-                 save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False, save_done_topo:bool=False,
+                 save_streets_after_modify_minimum: bool = True, save_preliminary: bool = False,
+                 save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
                  dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp', modify_conn: bool = True,
                  conn_buffer: float = 0.8, conn_period: str = 'final'):
@@ -157,3 +158,4 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)
     generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
+    return final_link, final_node
