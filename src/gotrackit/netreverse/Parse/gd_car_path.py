@@ -63,10 +63,13 @@ class ParseGdPath(object):
         if self.is_multi_core:
             c_count = multiprocessing.cpu_count()
             n = self.used_core_num if self.used_core_num <= c_count else c_count
-            print(rf'启用{n}核...')
-            res_list = []
+            file_num = len(self.pickle_file_name_list)
+            n = file_num if file_num <= n else n
             file_name_item = cut_slice(item_list=self.pickle_file_name_list, slice_num=n)
+            n = len(file_name_item)
+            print(rf'启用{n}核...')
             pool = multiprocessing.Pool(processes=n)
+            res_list = []
             for file_name_list in file_name_item:
                 result = pool.apply_async(self.parse_path_main_alpha, args=(file_name_list, False))
                 res_list.append(result)
