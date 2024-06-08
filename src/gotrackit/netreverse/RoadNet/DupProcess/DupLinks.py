@@ -267,7 +267,7 @@ def merge_dup_links_alpha(dup_link_gdf=None, node_gdf=None, node_degrees_dict=No
     for i in range(0, len(sort_df) - 1):
         from_p_type = sort_df.at[i, 'type']
         to_p_type = sort_df.at[i + 1, 'type']
-        print(from_p_type, to_p_type)
+        # print(from_p_type, to_p_type)
         # 两个点都是头部外侧或者尾部外侧, 则直接连接
         if (from_p_type, to_p_type) in [('head_beyond', 'head_beyond'), ('tail_beyond', 'tail_beyond')]:
             new_link_geo_list.append(LineString([node_gdf.at[sort_df.at[i, 'node_id'], 'geometry'],
@@ -287,8 +287,8 @@ def merge_dup_links_alpha(dup_link_gdf=None, node_gdf=None, node_degrees_dict=No
                                                       node_gdf.at[sort_df.at[i + 1, 'node_id'], geometry_field])
 
             if cut_line_list is None:
-                print(initial_geo)
-                print(node_gdf.at[sort_df.at[i + 1, 'node_id'], geometry_field])
+                # print(initial_geo)
+                # print(node_gdf.at[sort_df.at[i + 1, 'node_id'], geometry_field])
 
                 _l_gdf = gpd.GeoDataFrame([], geometry=[initial_geo], crs=origin_crs)
                 _n_gdf = gpd.GeoDataFrame([], geometry=[node_gdf.at[sort_df.at[i + 1, 'node_id'], geometry_field]],

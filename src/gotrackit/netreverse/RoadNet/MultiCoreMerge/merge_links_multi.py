@@ -5,10 +5,10 @@
 
 
 """多进程路网拓扑优化"""
-import collections
-import itertools
+import os
 import pandas as pd
 import networkx as nx
+from tqdm import tqdm
 import multiprocessing
 import geopandas as gpd
 from itertools import chain
@@ -326,7 +326,8 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
     sum_del_node_list = []
     sum_link_data_list = []
 
-    for row in merge_link_df.itertuples():
+    for row in tqdm(merge_link_df.itertuples(), total=len(merge_link_df),
+                    desc=rf'process:{os.getgid()}-Merge Road Sections', ncols=100):
         link_seq_list = getattr(row, 'link_seq')
         head_tail_root_ring = getattr(row, 'head_tail_root_ring')
         dir_list = getattr(row, 'dir_list')

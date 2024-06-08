@@ -5,16 +5,17 @@
 
 
 """路网拓扑优化"""
-import time
 
+import os
 import pandas as pd
+from tqdm import tqdm
 import networkx as nx
 import geopandas as gpd
 from itertools import chain
 from ...GlobalVal import NetField
 from shapely.ops import linemerge
 from geopy.distance import distance
-from shapely.geometry import Point, LineString, MultiLineString
+from shapely.geometry import Point, LineString
 from .get_merged_link_seq import get_merged_link_seq
 from .limit.same_head_tail_limit import same_ht_limit
 from .limit.same_head_tail_limit import get_head_tail_root
@@ -117,12 +118,11 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     sum_del_node_list = []
     sum_merge_link_list = []
     sum_link_data_list = []
-
-    for row in merge_link_df.itertuples():
+    for row in tqdm(merge_link_df.itertuples(), total=len(merge_link_df),
+                    desc=rf'Merge Road Sections', ncols=100):
         link_seq_list = getattr(row, 'link_seq')
         head_tail_root_ring = getattr(row, 'head_tail_root_ring')
         dir_list = getattr(row, 'dir_list')
-
         ring = head_tail_root_ring[0]
         root = head_tail_root_ring[1]
         head = head_tail_root_ring[2]
