@@ -1,65 +1,10 @@
 🔎类方法汇总
 ===================================
 
-1. Net类
+1. NetReverse类
 --------------------
 
-1.1. Net类初始化
-`````````````````````
-
-.. py:class:: Net(link_path:str=None, node_path=None, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32650', init_from_existing: bool = False,is_check: bool = True)
-
-
-参数含义如下：
-
-* link_path
-    link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
-
-* node_path
-    node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
-
-* link_gdf
-    若指定了该参数, 则直接从内存中的gdf创建Net线层
-
-* node_gdf
-    若指定了该参数, 则直接从内存中的gdf创建Net线层
-
-* cut_off
-    路径搜索截断长度, 米, 默认1200.0m
-
-* not_conn_cost
-    不连通路径的开销，默认1200.0m
-
-* return:
-
-
-1.2. Net类方法
-````````````````
-
-create_computational_net
-:::::::::::::::::::::::::::::::::
-
-.. py:class:: Net.create_computational_net(gps_array_buffer:Polygon = None)
-
-
-参数含义如下：
-
-* gps_array_buffer
-    gps影响范围polygon
-
-
-1.3. Net类属性
-````````````````
-crs
-::::::::::::::::::::::::::
-
-有空更，待完善...
-
-
-2. NetReverse类
---------------------
-
-2.1. NetReverse类初始化
+1.1. NetReverse类初始化
 ```````````````````````````
 
 .. py:class:: NetReverse(flag_name: str = '深圳市', plain_prj: str = 'EPSG:32650', ignore_head_tail: bool = False, cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp', is_modify_conn: bool = True, conn_buffer: float = 0.8) -> None
@@ -81,7 +26,14 @@ crs
     路网的输出文件类型，shp 或者 geojson
 
 
-**第二组（路径拆分参数）：**
+**第二组（路径解析、拆分参数）：**
+
+
+* multi_core_parse
+    是否启用多核解析(解析二进制路径文件)，默认False
+
+* parse_core_num
+    多核解析时使用的核数，默认2
 
 * ignore_head_tail
     是否忽略路径首尾的无名道路, 这种一般是小区内部道路，默认True
@@ -99,7 +51,7 @@ crs
     最小连杆长度，米
 
 * restrict_region_gdf
-    限制区域gdf
+    限制区域gdf，若传入此区域，那么仅仅只对在区域范围内的路网进行逆向
 
 * save_split_link
     是否保存拆分路径后的link层文件，默认False
@@ -159,7 +111,6 @@ crs
 
 **第五组（重叠路段处理参数）：**
 
-
 * is_process_dup_link
     是否处理重复路段，默认True
 
@@ -184,7 +135,17 @@ crs
     取值 'final' or 'start', 'final'表示在拓扑优化之后修复联通性, 'start'表示在拓扑优化之前修复联通性
 
 
-2.2. NetReverse类方法
+**第七组（分区逆向参数）：**
+
+* multi_core_reverse(0.3.0推出)
+    是否启用多进程对路网进行并行逆向计算，默认False，大范围路网请求时可以指定为True
+
+* reverse_core_num(0.3.0推出)
+    逆向并行计算要启用的核数，默认2
+
+
+
+1.2. NetReverse类方法
 ```````````````````````````
 
 (1) generate_net_from_request
@@ -400,79 +361,3 @@ crs
 
 生成的新路网在net_out_fldr(NetReverse类初始化参数)下存储
 
-
-3. HiddenMarkov类
---------------------
-有空更，待完善...
-
-
-
-4. GpsPointsGdf类
---------------------
-有空更，待完善...
-
-
-4.1. GpsPointsGdf类初始化
-````````````````````````````````````````
-
-.. py:class:: GpsPointsGdf(gps_points_df: pd.DataFrame = None, buffer: float = 200.0, increment_buffer: float = 20.0, max_increment_times: int = 10, time_format: str = '%Y-%m-%d %H:%M:%S', geo_crs: str = 'EPSG:4326', plane_crs: str = 'EPSG:32649')
-
-参数含义如下：
-
-
-* gps_points_df
-    某一辆车的一次出行的gps数据, pd.DataFrame类型, 必须包含agent_id、lng、lat、time字段
-
-* buffer
-    半径大小, 单位米，用于确定GPS点附近buffer范围内的路段, 这部分路段作为候选路段,如果GPS数据定位误差较小,这个值可以指定的小一点,计算效率会高一点
-
-* increment_buffer
-    增量半径大小, 单位米
-
-* max_increment_times
-    最大搜索次数, int类型, 在buffer范围内搜索候选路段, 若存在GPS点无法关联到任何路段, 则会针对这部分的GPS点以increment_buffer为增量半径, 增加buffer的值继续搜索, 直到关联到了候选路段或者达到了max_increment_times
-
-* time_format
-    gps_points_df数据中time时间列的格式，默认%Y-%m-%d %H:%M:%S
-
-* geo_crs
-    几何坐标系，默认EPSG:4326
-
-* plane_crs
-    平面投影坐标系，默认EPSG:32649
-
-
-4.2. GpsPointsGdf类方法
-```````````````````````````
-
-(1) lower_frequency
-::::::::::::::::::::::::::::::::::::::
-
-GPS数据降频，参数含义如下：
-
-* n
-    n间隔采样，int类型
-
-
-(2) rolling_average
-::::::::::::::::::::::::::::::::::::::
-
-GPS数据滑动窗口平均，参数含义如下：
-
-* window
-    int类型，窗口大小，若启用了该方法对GPS数据进行处理，则航向角信息会被忽略
-
-
-
-(3) get_gps_array_buffer
-::::::::::::::::::::::::::::::::::::::
-
-计算GPS序列点形成的路径的总体影响面域，参数含义如下：
-
-* buffer
-    半径大小，单位米，建议这个buffer参数的取值要大于GpsPointsGdf类初始化中的buffer参数值
-
-
-5. Viterbi类
---------------------
-有空更，待完善...
