@@ -80,8 +80,10 @@ def split_path(path_gdf: gpd.GeoDataFrame = None, restrict_region_gdf: gpd.GeoDa
         print(rf"##########   Don't Enable Region Restrictions")
     else:
         print(rf'##########   Enable Region Restrictions')
+        path_gdf['index'] = [i for i in range(len(path_gdf))]
         path_gdf = gpd.sjoin(path_gdf, restrict_region_gdf[[net_field.GEOMETRY_FIELD]])
-        path_gdf.drop(columns=['index_right'], axis=1, inplace=True)
+        path_gdf.drop_duplicates(subset=['index'], inplace=True, keep='first')
+        del path_gdf['index_right'], path_gdf['index']
         path_gdf.reset_index(inplace=True, drop=True)
         path_gdf = gpd.GeoDataFrame(path_gdf, geometry=net_field.GEOMETRY_FIELD, crs=origin_crs)
     return path_gdf
