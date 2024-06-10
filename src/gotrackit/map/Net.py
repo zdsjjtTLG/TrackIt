@@ -440,8 +440,8 @@ class Net(object):
 
     def export_net(self, export_crs: str = 'EPSG:4326', out_fldr: str = None, flag_name: str = None,
                    file_type: str = 'geojson') -> None:
-        link_file_name = '_'.join([flag_name, 'link']) if flag_name is not None or flag_name != '' else 'link'
-        node_file_name = '_'.join([flag_name, 'node']) if flag_name is not None or flag_name != '' else 'node'
+        link_file_name = '_'.join([flag_name, 'link']) if flag_name is not None and flag_name != '' else 'link'
+        node_file_name = '_'.join([flag_name, 'node']) if flag_name is not None and flag_name != '' else 'node'
 
         export_link_gdf = self.__link.link_gdf.to_crs(export_crs)
         export_node_gdf = self.__node.get_node_data().to_crs(export_crs)
@@ -818,7 +818,7 @@ class Net(object):
             self.region_grid = \
                 self.generate_region_grid(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y,
                                           grid_len=self.grid_len, crs=self.crs)
-            self.region_grid.to_file(r'grid.shp')
+            # self.region_grid.to_file(r'xa_grid.shp')
             self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]],
                                            self.__link.link_gdf[[net_field.LINK_ID_FIELD, geometry_field]])
             del self.grid_cor_link['index_right']
