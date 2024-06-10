@@ -44,40 +44,14 @@
 
 2.1. 模块概览
 ````````````````
-包括了三个模块：`GPS数据生产`_ 、`GPS数据行程切分`_ 、`路网生产`_ 、`地图匹配`_ 以及 `匹配过程可视化`_ 。
 
-
-
-.. _GPS数据生产:
-
-2.1.1. GPS数据生产
-::::::::::::::::::::::::::
-该模块依托路网文件模拟车辆行驶并且产生GPS数据，当用户没有实际的GPS数据时可以借助该模块生产数据。
-
-
-基本流程为：
-
-.. image:: _static/images/GpsGenGraph.png
-    :align: center
-
-----------------------------------------
-
-具体的代码实操见 `GPS数据生产代码示例`_ 。
-
-.. _GPS数据行程切分:
-
-2.1.2. GPS数据行程切分
-::::::::::::::::::::::::::
-
-主行程举例： 一辆车从家出发到达公司，将车辆停在车库，熄火后，车辆不再产生GPS数据，下班后再次启动，GPS数据重新产生，早上到达公司的最后一个定位点和下班后启动车辆的第一个定位点，其时间差超过group_gap_threshold，则在此处切分主行程
-
-子行程举例： 一辆车从家出发到达公司，在到达公司之前，在加油站加油，GPS点持续产生，但是定位点集中在加油站附近，产生了停留，那么从家-加油站就是一段子行程
+包括了五个模块：`路网生产`_ 、`GPS数据生产`_ 、`GPS数据行程切分`_ 、`地图匹配`_ 以及 `匹配过程可视化`_ 。
 
 
 
 .. _路网生产:
 
-2.1.3. 路网生产
+2.1.1. 路网生产
 ::::::::::::::::::::::::::
 
 .. note::
@@ -171,6 +145,36 @@
 
 
 具体的代码实操见 `路网生产代码示例`_
+
+
+.. _GPS数据生产:
+
+2.1.2. GPS数据生产
+::::::::::::::::::::::::::
+
+该模块依托路网文件模拟车辆行驶并且产生GPS数据，当用户没有实际GPS数据时可以借助该模块生产GPS数据。
+
+
+基本流程为：
+
+.. image:: _static/images/GpsGenGraph.png
+    :align: center
+
+----------------------------------------
+
+具体的代码实操见 `GPS数据生产代码示例`_ 。
+
+
+.. _GPS数据行程切分:
+
+2.1.3. GPS数据行程切分
+::::::::::::::::::::::::::
+
+主行程举例： 一辆车从家出发到达公司，将车辆停在车库，熄火后，车辆不再产生GPS数据，下班后再次启动，GPS数据重新产生，早上到达公司的最后一个定位点和下班后启动车辆的第一个定位点，其时间差超过group_gap_threshold，则在此处切分主行程
+
+子行程举例： 一辆车从家出发到达公司，在到达公司之前，在加油站加油，GPS点持续产生，但是定位点集中在加油站附近，产生了停留，那么从家-加油站就是一段子行程
+
+具体的代码实操见 `行程切分代码示例`_
 
 
 .. _地图匹配:
@@ -541,24 +545,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                      region_gdf=target_region_gdf, od_type='region_od')
 
 
-3.1.4. 解析路径源文件, 获取路网
-::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-如果已经有了请求好的路径源文件，可以直接从路径源文件中创建路网，只需要指定路径源文件目录和路径源文件名称列表
-
-示例代码如下：
-
-.. code-block:: python
-    :linenos:
-
-    if __name__ == '__main__':
-        nv = ng.NetReverse(flag_name='test_pickle', net_out_fldr=r'./data/output/reverse/test_pickle/',
-                           plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=20)
-        nv.generate_net_from_pickle(binary_path_fldr=r'./data/output/request/test_taz/',
-                                    pickle_file_name_list=['14_test_taz_gd_path_1'])
-
-
-3.1.5. 基于自定义OD请求路径，获取路网
+3.1.4. 基于自定义OD请求路径，获取路网
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 你可以通过自己的相关算法去构造OD，确保OD表符合 `OD表要求`_ ，然后可以使用自定义OD去请求路径、构造路网
@@ -584,6 +572,23 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 
 本算法包提供了一个依据GPS数据来生产自定义OD的接口，参见 `途径点OD计算`_
+
+
+3.1.5. 解析路径源文件, 获取路网
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+如果已经有了请求好的路径源文件，可以直接从路径源文件中创建路网，只需要指定路径源文件目录和路径源文件名称列表
+
+示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        nv = ng.NetReverse(flag_name='test_pickle', net_out_fldr=r'./data/output/reverse/test_pickle/',
+                           plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=20)
+        nv.generate_net_from_pickle(binary_path_fldr=r'./data/output/request/test_taz/',
+                                    pickle_file_name_list=['14_test_taz_gd_path_1'])
 
 
 3.1.6. 基于已有路网线层, 生产点层
@@ -612,6 +617,37 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                                                                      execute_modify=True,
                                                                                      ignore_merge_rule=True,
                                                                                      out_fldr=r'./data/output/create_node/')
+
+
+3.1.7. 启用多核并行逆向路网(v0.3.0推出)
+:::::::::::::::::::::::::::::::::::::::::
+
+若需要获取大范围的路网，我们推荐使用多核并行请求，即在初始化NetReverse类时，指定multi_core_reverse=True，reverse_core_num=x
+
+程序会自动将路网划分为x个子区域，在每个子区域内进行并行计算，计算结束后，在net_out_fldr下会生成x个子文件夹，分别存放最终的子区域路网，如果你想将这些路网进行合并，请使用路网合并接口
+
+
+3.1.8. 合并gotrackit标准路网(v0.3.0推出)
+:::::::::::::::::::::::::::::::::::::::::
+
+合并多个地区的标准路网，示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        fldr = r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net'
+        net_list = []
+        for i in range(0,6):
+            net_list.append([gpd.read_file(os.path.join(fldr, f'region-{i}', 'FinalLink.shp')),
+                             gpd.read_file(os.path.join(fldr, f'region-{i}', 'FinalNode.shp'))])
+
+        l, n = ng.NetReverse.merge_net(net_list=net_list, conn_buffer=0.2,
+                                       out_fldr=r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge')
+        l.to_file(r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge\link.shp', encoding='gbk')
+        n.to_file(r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge\node.shp', encoding='gbk')
+
+
 
 
 3.2. 路网优化
@@ -967,6 +1003,7 @@ Net构建参数见：`构建Net的相关参数`_
 
 确保GPS数据满足 `GPS定位数据字段要求`_ 。
 
+.. _行程切分代码示例:
 
 5.1. 行程切分
 `````````````````````````````````````````````````````
@@ -1238,13 +1275,6 @@ Net构建参数见：`构建Net的相关参数`_
 
 * gps_route_buffer_gap
     半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认15.0m
-
-* max_increment_times
-    增量搜索次数, 默认2
-
-* increment_buffer
-    增量半径, 默认15.0m
-
 
 * top_k
     选取每个GPS点buffer范围内的最近的top_k个路段，默认20。每个GPS点依据指定的gps_buffer建立圆形缓冲区，缓冲区关联的路段为该GPS点的初步候选路段，然后依据top_k参数选取离该GPS点最近的top_k个路段作为最终候选路段
