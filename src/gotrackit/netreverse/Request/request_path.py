@@ -19,7 +19,7 @@ od_id_field, o_x_field, o_y_field, d_x_field, d_y_field, hh_field, way_points_fi
 class CarPath(object):
     def __init__(self, key_list: list[str] = None, input_file_path: str = None, od_df: pd.DataFrame = None,
                  cache_times: int = 300, ignore_hh: bool = True, out_fldr: str = None, file_flag: str = None,
-                 log_fldr: str = None, save_log_file: bool = False):
+                 log_fldr: str = None, save_log_file: bool = False, wait_until_recovery: bool = False):
         self.key_list = key_list
         self.input_file_path = input_file_path
         self.od_df = od_df
@@ -29,8 +29,9 @@ class CarPath(object):
         self.file_flag = file_flag
         self.log_fldr = log_fldr
         self.save_log_file = save_log_file
+        self.wait_until_recovery = wait_until_recovery
 
-    def get_path(self, remove_his: bool = True):
+    def get_path(self, remove_his: bool = True, is_rnd_strategy: bool = True, strategy: str = '32'):
         otr = RequestOnTime(key_list=self.key_list,
                             od_df=self.od_df,
                             input_file_path=self.input_file_path)
@@ -53,7 +54,9 @@ class CarPath(object):
                                                               log_fldr=self.log_fldr,
                                                               remove_his=remove_his,
                                                               save_log_file=self.save_log_file,
-                                                              key_info_dict=key_info_dict)
+                                                              key_info_dict=key_info_dict,
+                                                              is_rnd_strategy=is_rnd_strategy, strategy=strategy,
+                                                              wait_until_recovery=self.wait_until_recovery)
             if if_end_request:
                 break
             else:
