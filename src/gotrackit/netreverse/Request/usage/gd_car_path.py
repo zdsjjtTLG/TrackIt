@@ -29,7 +29,7 @@ class RequestOnTime(object):
                       request_hh_field: str = None, ignore_hh: bool = False, log_fldr: str = None,
                       save_log_file: bool = False,
                       remove_his: bool = True, key_info_dict: dict[str, int] = None,
-                      is_rnd_strategy: bool = True, strategy: str = '32'):
+                      is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False):
         """
         给一个od表, 按照时间进行请求
         :param out_fldr:
@@ -49,6 +49,7 @@ class RequestOnTime(object):
         :param key_info_dict:
         :param is_rnd_strategy
         :param strategy
+        :param wait_until_recovery
         :return:
         """
 
@@ -146,10 +147,13 @@ class RequestOnTime(object):
 
             # 配额达到上限
             if is_end:
-                logging.info(rf'开始休眠等待配额恢复...')
-                time.sleep(3600)
-                self.key_list = self.origin_key_list.copy()
-                key_info_dict = {k: 0 for k in self.key_list}
+                if wait_until_recovery:
+                    logging.info(rf'开始休眠等待配额恢复...')
+                    time.sleep(3600)
+                    self.key_list = self.origin_key_list.copy()
+                    key_info_dict = {k: 0 for k in self.key_list}
+                else:
+                    return True, new_file_list
 
     @staticmethod
     def request_hh_df(request_df=None, cache_times=None, request_hh=None,
@@ -190,7 +194,7 @@ class RequestOnTime(object):
                 elif info_code in [10003, 10044, 10014, 10019, 10020, 10021, 10029, 10045]:
                     logging.info(rf'Failure - od: {od_id}, info_code: {info_code}, Quotas Exceeded, count: {_count}.')
                     key_info_dict[key] += 1
-                    if key_info_dict[key] >= 30 and key in key_list:
+                    if key_info_dict[key] >= 5 and key in key_list:
                         logging.info(rf'A key has reached the quota limit and is abandoned.')
                         key_list.remove(key)
                     if not key_list:
