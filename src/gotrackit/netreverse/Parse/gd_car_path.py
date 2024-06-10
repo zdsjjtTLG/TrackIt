@@ -381,6 +381,11 @@ def parse_single_path(json_data: dict = None, path_seq: int = 0,
         path_gdf['seq'] = [i for i in range(1, len(path_gdf) + 1)]
         # scheme(路径方案编号), seq(路段序列), time_cost, toll, road_name, geometry
         # scheme唯一确定一条路径, (scheme, seq)唯一确定一个路段
+    if not path_gdf.empty:
+        try:
+            path_gdf['geometry'] = path_gdf['geometry'].remove_repeated_points(1e-6)
+        except:
+            pass
     return path_gdf
 
 
