@@ -203,22 +203,24 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
 
 
 def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
-                 node_gdf: gpd.GeoDataFrame or pd.DataFrame = None) -> None:
+                 node_gdf: gpd.GeoDataFrame or pd.DataFrame = None, start_link_id: int = 1,
+                 start_node_id: int = 1) -> None:
     """
     change link and node inplace
     :param link_gdf:
     :param node_gdf:
+    :param start_node_id
+    :param start_link_id
     :return:
     """
     origin_node = set(node_gdf[node_id_field])
     node_map = {origin_node: new_node for origin_node, new_node in
-                zip(origin_node, [i for i in range(1, len(origin_node) + 1)])}
+                zip(origin_node, [i for i in range(start_node_id, len(origin_node) + start_node_id)])}
 
     node_gdf[node_id_field] = node_gdf[node_id_field].map(node_map)
-    link_gdf[link_id_field] = [i for i in range(1, len(link_gdf) + 1)]
-    link_gdf[[from_node_field, to_node_field]] = link_gdf.apply(lambda row: (node_map[row[from_node_field]],
-                                                                             node_map[row[to_node_field]]), axis=1,
-                                                                result_type='expand')
+    link_gdf[link_id_field] = [i for i in range(start_link_id, len(link_gdf) + start_link_id)]
+    link_gdf[from_node_field] = link_gdf[from_node_field].map(node_map)
+    link_gdf[to_node_field] = link_gdf[to_node_field].map(node_map)
 
 
 def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> \
@@ -331,7 +333,7 @@ def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'g
 
 def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDataFrame = None,
                  cpu_restrict: bool = True) -> gpd.GeoDataFrame:
-    """传入面域, 对路网进行切块, 行不变, 加上新的一列region_id"""
+    """传入面域, 对路网进行切块(依据region_gdf), 行不变, 加上新的一列region_id"""
     n = len(region_gdf)
     if cpu_restrict:
         assert n <= os.cpu_count(), f'区域数目:{n}, 大于当前CPU核数{os.cpu_count()}'
@@ -340,6 +342,8 @@ def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDat
         del split_path_gdf['region_id']
     split_path_gdf['index'] = [i for i in range(len(split_path_gdf))]
     split_path_gdf = gpd.sjoin(split_path_gdf, region_gdf[['region_id', net_field.GEOMETRY_FIELD]])
+    if split_path_gdf.empty:
+        return split_path_gdf
     split_path_gdf.sort_values(by=['index', 'region_id'], ascending=[True, True], inplace=True)
     split_path_gdf.drop_duplicates(subset=['index'], inplace=True, keep='first')
     del split_path_gdf['index_right'], split_path_gdf['index']
@@ -359,19 +363,20 @@ def rn_partition_alpha(split_path_gdf: gpd.GeoDataFrame = None, partition_num: i
     grid = get_grid_data(polygon_gdf=gpd.GeoDataFrame(geometry=[Polygon([(min_x, min_y), (max_x, min_y),
                                                                          (max_x, max_y),
                                                                          (min_x, max_y)])],
-                                                      crs=split_path_gdf.crs), meter_step=1000,
+                                                      crs=split_path_gdf.crs), meter_step=2000,
                          is_geo_coord=is_geo_coord)
 
     # add region_id
     split_path_gdf = rn_partition(split_path_gdf=split_path_gdf, region_gdf=grid, cpu_restrict=False)
+    if split_path_gdf.empty:
+        return split_path_gdf
     split_path_gdf.sort_values(by='region_id', ascending=True, inplace=True)
-    grid_count = split_path_gdf.groupby('region_id')[['geometry']].count().reset_index(drop=False)
-    grid_count['_c'] = grid_count['geometry'].cumsum()
-    grid_count['label'] = grid_count['_c'] / partition_len
-    grid_count['label'] = (grid_count['_c'] / partition_len).astype(int)
-    print(split_path_gdf)
-    print(grid_count.groupby('label')[['geometry']].sum())
-
+    grid_count = split_path_gdf.groupby('region_id')[['geometry']].count().rename(
+        columns={'geometry': 'count'}).reset_index(drop=False)
+    grid_count['label'] = (grid_count['count'].cumsum() / partition_len).astype(int)
+    region_group_map = {r: g for r, g in zip(grid_count['region_id'], grid_count['label'])}
+    split_path_gdf['region_id'] = split_path_gdf['region_id'].map(region_group_map)
+    return split_path_gdf
 
 
 if __name__ == '__main__':
