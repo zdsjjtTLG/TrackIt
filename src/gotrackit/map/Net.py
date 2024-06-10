@@ -107,7 +107,7 @@ class Net(object):
         self.recalc_cache = recalc_cache
         self.cache_slice = cache_slice
         self.delete_circle = delete_circle
-        self.grid_len = grid_len
+        self.grid_len = 2000.0 if grid_len < 2000.0 else grid_len
         self.region_grid = gpd.GeoDataFrame()
         self.grid_cor_link = pd.DataFrame()
         self.done_sjoin_cache = False
