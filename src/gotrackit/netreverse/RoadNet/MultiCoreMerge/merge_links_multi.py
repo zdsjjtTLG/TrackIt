@@ -320,18 +320,17 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
 
     # 直接修改传入的link_gdf
     print(r'##########   Merge Road Sections')
+    node_geo_map = {node: geo for node, geo in zip(node_gdf[node_id_field], node_gdf[geometry_field])}
     node_gdf.set_index(node_id_field, inplace=True)
 
     merge_info_dict = dict()
     sum_del_node_list = []
     sum_link_data_list = []
 
-    for row in tqdm(merge_link_df.itertuples(), total=len(merge_link_df),
-                    desc=rf'process:{os.getgid()}-Merge Road Sections', ncols=100):
+    for row in tqdm(merge_link_df.itertuples(), total=len(merge_link_df), desc=rf'Merge Road Sections', ncols=100):
         link_seq_list = getattr(row, 'link_seq')
         head_tail_root_ring = getattr(row, 'head_tail_root_ring')
         dir_list = getattr(row, 'dir_list')
-
         ring = head_tail_root_ring[0]
         root = head_tail_root_ring[1]
         head = head_tail_root_ring[2]
@@ -341,10 +340,16 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
         to_be_merge_link_gdf = link_gdf[link_gdf['sorted_ft'].isin(link_seq_list)].copy()
 
         # 修正线型(保证相接的点的坐标一致)
-        to_be_merge_link_gdf['geometry'] = to_be_merge_link_gdf.apply(
-            lambda item: LineString([node_gdf.at[item[from_node_id_field], geometry_field]] +
-                                    list(item['geometry'].coords)[1:-1] +
-                                    [node_gdf.at[item[to_node_id_field], geometry_field]]), axis=1)
+        # to_be_merge_link_gdf['geometry'] = to_be_merge_link_gdf.apply(
+        #     lambda item: LineString([node_gdf.at[item[from_node_id_field], geometry_field]] +
+        #                             list(item['geometry'].coords)[1:-1] +
+        #                             [node_gdf.at[item[to_node_id_field], geometry_field]]), axis=1)
+        to_be_merge_link_gdf['geometry'] = [LineString([node_geo_map[f]] +
+                                                       list(line_geo.coords)[1:-1] +
+                                                       [node_geo_map[t]]) for line_geo, f, t in
+                                            zip(to_be_merge_link_gdf['geometry'],
+                                                to_be_merge_link_gdf[from_node_id_field],
+                                                to_be_merge_link_gdf[to_node_id_field])]
         merge_link_index = list(to_be_merge_link_gdf.index)
 
         if not ring:
@@ -358,11 +363,12 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
                 new_dir = 1
                 d_g = nx.DiGraph()
 
-                to_be_merge_link_gdf['_d_from_to_'] = \
-                    to_be_merge_link_gdf.apply(lambda x: [x[from_node_id_field], x[to_node_id_field]], axis=1)
-                d_edge_list = to_be_merge_link_gdf['_d_from_to_'].to_list()
-
-                d_g.add_edges_from(d_edge_list)
+                # to_be_merge_link_gdf['_d_from_to_'] = \
+                #     to_be_merge_link_gdf.apply(lambda x: [x[from_node_id_field], x[to_node_id_field]], axis=1)
+                # d_edge_list = to_be_merge_link_gdf['_d_from_to_'].to_list()
+                # d_g.add_edges_from(d_edge_list)
+                d_g.add_edges_from([[f, t] for f, t in zip(to_be_merge_link_gdf[from_node_id_field],
+                                                           to_be_merge_link_gdf[to_node_id_field])])
                 if nx.has_path(d_g, head, tail):
                     assume_from_node = head
                     assume_to_node = tail
@@ -381,7 +387,8 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
         merge_line = linemerge(merge_line_list)
 
         # 获取此时假定的拓扑起点的坐标
-        assumed_from_point = node_gdf.at[assume_from_node, geometry_field]
+        # assumed_from_point = node_gdf.at[assume_from_node, geometry_field]
+        assumed_from_point = node_geo_map[assume_from_node]
 
         # 获取实际的拓扑线段的起终点坐标
         # 合并后有可能出现多段线
@@ -449,7 +456,6 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
             new_link_dict[key].append(data_dict[key])
     new_link_df = pd.DataFrame(new_link_dict)
     return new_link_df, sum_del_node_list, merge_info_dict
-
 
 def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
     """
