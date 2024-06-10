@@ -23,9 +23,9 @@ from .Parse.gd_car_path import ParseGdPath
 from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
-from ..tools.geo_process import clean_link_geo, remapping_id
 from .RoadNet.Tools.process import merge_double_link, create_single_link
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
+from ..tools.geo_process import clean_link_geo, remapping_id, rn_partition, rn_partition_alpha
 
 net_field = NetField()
 gps_field = GpsField()
@@ -56,7 +56,7 @@ class NetReverse(Reverse):
                  dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
                  multi_core_parse: bool = False, parse_core_num: int = 2,
-                 multi_core_reverse: bool = False):
+                 multi_core_reverse: bool = False, reverse_core_num: int = 2):
         """
         :param flag_name: 标志字符(项目名称)
         :param plain_prj: 平面投影坐标系
@@ -117,6 +117,7 @@ class NetReverse(Reverse):
 
         # if uses multi core
         self.multi_core_reverse = multi_core_reverse
+        self.reverse_core_num = reverse_core_num
 
     def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
@@ -124,7 +125,8 @@ class NetReverse(Reverse):
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                                   log_fldr: str = None, save_log_file: bool = False,
                                   min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
-                                  od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0) -> None:
+                                  od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
+                                  wait_until_recovery: bool = False) -> None:
         """构造OD -> 请求 -> 二进制存储 -> 路网生产"""
         self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
                           od_file_path=od_file_path,
@@ -135,7 +137,7 @@ class NetReverse(Reverse):
                           log_fldr=log_fldr, save_log_file=save_log_file,
                           min_lng=min_lng, min_lat=min_lat,
                           w=w, h=h, od_num=od_num, gap_n=gap_n,
-                          min_od_length=min_od_length)
+                          min_od_length=min_od_length, wait_until_recovery=wait_until_recovery)
         pickle_file_name_list = os.listdir(binary_path_fldr)
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
@@ -296,7 +298,8 @@ class NetReverse(Reverse):
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                     is_rnd_strategy: bool = True, strategy: str = '32') -> tuple[bool, list[str]]:
+                     is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False) \
+            -> tuple[bool, list[str]]:
         """构造OD -> 请求 -> 二进制存储"""
         assert binary_path_fldr is not None
 
@@ -325,7 +328,8 @@ class NetReverse(Reverse):
 
         path_request_obj = CarPath(key_list=key_list, input_file_path=od_file_path, od_df=od_df,
                                    cache_times=cache_times, ignore_hh=ignore_hh, out_fldr=binary_path_fldr,
-                                   file_flag=self.flag_name, log_fldr=log_fldr, save_log_file=save_log_file)
+                                   file_flag=self.flag_name, log_fldr=log_fldr, save_log_file=save_log_file,
+                                   wait_until_recovery=wait_until_recovery)
 
         # 是否结束请求, 新生产的路网文件
         if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his, strategy=strategy,
@@ -337,14 +341,17 @@ class NetReverse(Reverse):
         pass
 
     def _generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
-        if not self.multi_core_reverse or self.restrict_region_gdf is None or self.restrict_region_gdf.empty:
+        if not self.multi_core_reverse:
             if split_path_gdf.empty:
                 return None
             self.__generate_net_from_split_path(split_path_gdf=split_path_gdf)
         else:
-            split_path_gdf_dict = self.rn_partition(region_gdf=self.restrict_region_gdf, split_path_gdf=split_path_gdf)
-            if not split_path_gdf_dict:
+            split_path_gdf = rn_partition_alpha(split_path_gdf=split_path_gdf, partition_num=self.reverse_core_num,
+                                                is_geo_coord=True)
+            if split_path_gdf.empty:
                 return None
+            split_path_gdf_dict = {region: gdf.reset_index(drop=True) for region, gdf in
+                                   split_path_gdf.groupby('region_id')}
             self.__generate_net_from_split_path_parallel(split_path_gdf_dict=split_path_gdf_dict)
     def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
         """
@@ -378,19 +385,6 @@ class NetReverse(Reverse):
                                  multi_core_merge=self.multi_core_merge,
                                  core_num=self.merge_core_num)
 
-    @staticmethod
-    def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDataFrame = None) -> \
-            dict[int, gpd.GeoDataFrame]:
-        n = len(region_gdf)
-        assert n <= os.cpu_count(), f'区域数目:{n}, 大于当前CPU核数{os.cpu_count()}'
-        if 'region_id' not in region_gdf.columns:
-            region_gdf['region_id'] = [i for i in range(1, len(region_gdf) + 1)]
-        if 'region_id' in split_path_gdf.columns:
-            del split_path_gdf['region_id']
-        split_path_gdf = gpd.sjoin(split_path_gdf, region_gdf[['region_id', net_field.GEOMETRY_FIELD]])
-        del split_path_gdf['index_right']
-        split_path_gdf_dict = {region: gdf for region, gdf in split_path_gdf.groupby('region_id') if not gdf.empty}
-        return split_path_gdf_dict
     def __generate_net_from_split_path_parallel(self, split_path_gdf_dict: dict[int, gpd.GeoDataFrame]):
         """
         :param split_path_gdf_dict:
@@ -441,13 +435,14 @@ class NetReverse(Reverse):
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
-        conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name, generate_mark=generate_mark)
-        net.export_net(export_crs=link_gdf.crs.srs, out_fldr=self.net_out_fldr, file_type=self.net_file_type,
-                       flag_name='modifiedConn')
-        net.to_geo_prj()
-        link_gdf, node_gdf = net.get_bilateral_link_data(), net.get_node_data()
+        link_gdf, node_gdf = conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name,
+                                          generate_mark=generate_mark)
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
+        save_file(data_item=link_gdf, file_type=self.net_file_type, file_name='modifiedConn',
+                  out_fldr=self.net_out_fldr)
+        save_file(data_item=node_gdf, file_type=self.net_file_type, file_name='modifiedConn',
+                  out_fldr=self.net_out_fldr)
         return link_gdf, node_gdf
 
     def fix_minimum_gap(self, node_gdf: gpd.GeoDataFrame = None, link_gdf: gpd.GeoDataFrame = None) -> \
@@ -538,3 +533,29 @@ class NetReverse(Reverse):
         single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
         del link_gdf
         self._generate_net_from_split_path(split_path_gdf=single_link_gdf)
+
+    @staticmethod
+    def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]] = None,
+                  conn_buffer: float = 0.5, out_fldr=r'./'):
+        """
+        路网合并
+        :param net_list:
+        :param conn_buffer:
+        :param out_fldr:
+        :return:
+        """
+        max_link, max_node = 0, 0
+        link_gdf, node_gdf = gpd.GeoDataFrame(), gpd.GeoDataFrame()
+        for _link, _node in net_list:
+            remapping_id(link_gdf=_link, node_gdf=_node, start_link_id=max_link + 1,
+                         start_node_id=max_node + 1)
+            link_gdf = pd.concat([link_gdf, _link])
+            node_gdf = pd.concat([node_gdf, _node])
+            max_link, max_node = link_gdf[net_field.LINK_ID_FIELD].max(), node_gdf[net_field.NODE_ID_FIELD].max()
+        link_gdf.reset_index(inplace=True, drop=True)
+        node_gdf.reset_index(inplace=True, drop=True)
+        n = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
+        conn = Conn(net=n, check_buffer=conn_buffer)
+        link, node = conn.execute(out_fldr=out_fldr,
+                                  file_name='NetMerge', generate_mark=True)
+        return link, node
