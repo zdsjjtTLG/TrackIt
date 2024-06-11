@@ -45,6 +45,8 @@ class GpsArray(object):
             self.gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
         except ValueError:
+            if self.gps_points_gdf[time_field].dtype == object:
+                self.gps_points_gdf[time_field] = self.gps_points_gdf[time_field].astype(float)
             print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
             self.gps_points_gdf[gps_field.TIME_FIELD] = \
                 pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
