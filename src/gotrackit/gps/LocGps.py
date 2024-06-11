@@ -294,9 +294,11 @@ class GpsPointsGdf(object):
                                                net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
                                                net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]]
         if not net.is_sub_net and is_hierarchical:
-            pre_filter_link = net.calc_pre_filter(gps_rou_buffer_gdf=gps_buffer_gdf)
-            single_link_gdf = single_link_gdf[single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)]
-
+            try:
+                pre_filter_link = net.calc_pre_filter(gps_rou_buffer_gdf=gps_buffer_gdf)
+                single_link_gdf = single_link_gdf[single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)]
+            except Exception as e:
+                print(repr(e), '空间分层关联失效.')
         single_link_gdf.reset_index(inplace=True, drop=True)
         candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))

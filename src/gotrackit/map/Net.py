@@ -374,8 +374,11 @@ class Net(object):
                                                 crs=self.planar_crs)
         single_link_gdf = self.get_link_data()
         if is_hierarchical:
-            pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
-            single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
+            try:
+                pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
+                single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
+            except Exception as e:
+                print(repr(e), '空间分层关联失效.')
         sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
         if sub_single_link_gdf.empty:
             print(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
@@ -824,7 +827,7 @@ class Net(object):
             self.region_grid = \
                 self.generate_region_grid(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y,
                                           grid_len=self.grid_len, crs=self.crs)
-            # self.region_grid.to_file(r'xa_grid.shp')
+            self.region_grid.to_file(r'grid.shp')
             self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]],
                                            self.__link.link_gdf[[net_field.LINK_ID_FIELD, geometry_field]])
             del self.grid_cor_link['index_right']
