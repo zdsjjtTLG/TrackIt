@@ -52,7 +52,7 @@ class Net(object):
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
-                 fmm_cache_fldr: str = None, grid_len: float = 2000.0,
+                 fmm_cache_fldr: str = None, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
                  cut_off: float = 1200.0, max_cut_off: float = 5000.0, delete_circle: bool = True):
         """
@@ -78,6 +78,7 @@ class Net(object):
         :param fmm_cache_fldr: 存储路径预处理结果的文件目录, 默认./
         :param recalc_cache: 是否重新计算FMM路径缓存, 默认True
         :param grid_len: 栅格边长, m
+        :param is_hierarchical: 是否启用空间分层
         :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
         :param cut_off: 路径搜索截断长度, 米, 默认1000m
         :param max_cut_off: 最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
@@ -108,6 +109,7 @@ class Net(object):
         self.cache_slice = cache_slice
         self.delete_circle = delete_circle
         self.grid_len = 2000.0 if grid_len < 2000.0 else grid_len
+        self.is_hierarchical = is_hierarchical
         self.region_grid = gpd.GeoDataFrame()
         self.grid_cor_link = pd.DataFrame()
         self.done_sjoin_cache = False
@@ -188,7 +190,7 @@ class Net(object):
 
     def init_net(self, stp_cost_cache_df: pd.DataFrame = None, cache_prj_inf: dict = None) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
-        if not self.is_sub_net:
+        if not self.is_sub_net and self.is_hierarchical:
             try:
                 self.cal_sjoin_cache()
             except Exception as e:
@@ -356,7 +358,7 @@ class Net(object):
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
                                  cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
-                                 fmm_cache: bool = False, is_hierarchical: bool = False):
+                                 fmm_cache: bool = False):
         """
 
         :param gps_array_buffer:
@@ -365,7 +367,6 @@ class Net(object):
         :param cache_id:
         :param not_conn_cost:
         :param fmm_cache:
-        :param is_hierarchical
         :return:
         """
         if gps_array_buffer is None:
@@ -373,7 +374,7 @@ class Net(object):
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.planar_crs)
         single_link_gdf = self.get_link_data()
-        if is_hierarchical:
+        if self.is_hierarchical:
             try:
                 pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
                 single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
@@ -396,7 +397,7 @@ class Net(object):
                       ft_link_mapping=self.get_ft_node_link_mapping(),
                       link_ft_mapping=self.link_ft_map, link_f_mapping=self.link_f_map, link_t_mapping=self.link_t_map,
                       double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off,
-                      delete_circle=False)
+                      delete_circle=False, is_hierarchical=False)
         sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
         return sub_net
 
