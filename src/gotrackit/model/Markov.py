@@ -591,7 +591,7 @@ class HiddenMarkov(object):
                     [done_stp_cost_df, single_link_ft_path_df.rename(columns={net_field.FROM_NODE_FIELD: o_node_field,
                                                                               net_field.TO_NODE_FIELD: d_node_field})])
                 done_stp_cost_df.drop_duplicates(subset=[o_node_field, d_node_field], keep='first', inplace=True)
-            print('add single ft')
+            # print('add single ft')
             add_single_ft[0] = False
         done_stp_cost_df.reset_index(inplace=True, drop=True)
         return done_stp_cost_df
