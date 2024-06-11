@@ -790,11 +790,17 @@ class Net(object):
             [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.GEOMETRY_FIELD, net_field.LENGTH_FIELD]].copy()
 
         cache_prj_gdf = self.split_segment(single_link_gdf)
-
-        # cache_prj_gdf.drop(columns=['f_loc', 't_loc', net_field.GEOMETRY_FIELD], axis=1, inplace=True)
         cache_prj_gdf[net_field.SEG_COUNT] = \
             cache_prj_gdf.groupby([net_field.FROM_NODE_FIELD,
                                    net_field.TO_NODE_FIELD])[net_field.X_DIFF].transform('count')
+        dup = cache_prj_gdf[(cache_prj_gdf[net_field.VEC_LEN] == 0) &
+                            (cache_prj_gdf[net_field.SEG_COUNT] > 1)]
+        if not dup.empty:
+            cache_prj_gdf.drop(index=dup.index, inplace=True, axis=0)
+            cache_prj_gdf.reset_index(inplace=True, drop=True)
+            cache_prj_gdf[net_field.SEG_COUNT] = \
+                cache_prj_gdf.groupby([net_field.FROM_NODE_FIELD,
+                                       net_field.TO_NODE_FIELD])[net_field.X_DIFF].transform('count')
         cache_prj_inf = {1: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] == 1].copy().reset_index(drop=True),
                          2: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] > 1].copy().reset_index(drop=True)}
         del cache_prj_gdf
@@ -847,7 +853,6 @@ class Net(object):
         :param path_gdf: gpd.GeoDataFrame(), 必需参数, 必须字段: [geometry], crs要求EPSG:4326
         :return: gpd.GeoDataFrame(),
         """
-        origin_crs = path_gdf.crs.srs
         path_gdf['point_list'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: list(x.coords))
         path_gdf['line_list'] = path_gdf['point_list'].apply(
             lambda x: [(x[i], x[i + 1]) for i in range(0, len(x) - 1)])
