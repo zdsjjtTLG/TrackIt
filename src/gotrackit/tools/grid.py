@@ -82,15 +82,15 @@ def generate_mesh(polygon_obj: Polygon = None, meter_step: float = 100.0, is_geo
         generate_range(polygon_obj=polygon_obj, meter_step=meter_step, is_geo_coord=is_geo_coord)
 
     all_grid_list = []
+
+    def generate(xy):
+        return Polygon([(xy[0], xy[1]), (xy[0] + lon_step, xy[1]),
+                        (xy[0] + lon_step, xy[1] - lat_step), (xy[0], xy[1] - lat_step)])
+
     for n in range(width_n):
         point_list = [(min_x + k * lon_step, max_y - n * lat_step) for k in range(length_n)]
-
-        def generate(xy):
-            return Polygon([(xy[0], xy[1]), (xy[0] + lon_step, xy[1]),
-                            (xy[0] + lon_step, xy[1] - lat_step), (xy[0], xy[1] - lat_step)])
-
         grid_list = list(map(generate, point_list))
-        all_grid_list += grid_list
+        all_grid_list.extend(grid_list)
 
     index_list = [[i, j] for i in range(width_n) for j in range(length_n)]
 
