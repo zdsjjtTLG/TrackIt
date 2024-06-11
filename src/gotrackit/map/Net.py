@@ -827,9 +827,11 @@ class Net(object):
             self.region_grid = \
                 self.generate_region_grid(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y,
                                           grid_len=self.grid_len, crs=self.crs)
-            self.region_grid.to_file(r'grid.shp')
             self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]],
                                            self.__link.link_gdf[[net_field.LINK_ID_FIELD, geometry_field]])
+            self.region_grid = self.region_grid[
+                self.region_grid[grid_id_field].isin(set(self.grid_cor_link[grid_id_field]))]
+            # self.region_grid.to_file(r'grid.shp')
             del self.grid_cor_link['index_right']
             del self.grid_cor_link[geometry_field]
             self.done_sjoin_cache = True
@@ -840,7 +842,8 @@ class Net(object):
         grid_df = get_grid_data(polygon_gdf=gpd.GeoDataFrame(geometry=[Polygon([(min_x, min_y), (max_x, min_y),
                                                                                 (max_x, max_y),
                                                                                 (min_x, max_y)])],
-                                                             crs=crs), meter_step=grid_len, is_geo_coord=False)
+                                                             crs=crs), meter_step=grid_len, is_geo_coord=False,
+                                generate_index=False)
         return grid_df
 
     def get_bounds(self) -> tuple[float, float, float, float]:

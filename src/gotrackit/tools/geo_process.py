@@ -364,7 +364,7 @@ def rn_partition_alpha(split_path_gdf: gpd.GeoDataFrame = None, partition_num: i
                                                                          (max_x, max_y),
                                                                          (min_x, max_y)])],
                                                       crs=split_path_gdf.crs), meter_step=2000,
-                         is_geo_coord=is_geo_coord)
+                         is_geo_coord=is_geo_coord, generate_index=False)
 
     # add region_id
     split_path_gdf = rn_partition(split_path_gdf=split_path_gdf, region_gdf=grid, cpu_restrict=False)
