@@ -298,7 +298,7 @@ class GpsPointsGdf(object):
                 pre_filter_link = net.calc_pre_filter(gps_rou_buffer_gdf=gps_buffer_gdf)
                 single_link_gdf = single_link_gdf[single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)]
             except Exception as e:
-                print(repr(e), '空间分层关联失效.')
+                print(repr(e), '空间分层关联失效')
         single_link_gdf.reset_index(inplace=True, drop=True)
         candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))

@@ -378,7 +378,7 @@ class Net(object):
                 pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
                 single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
             except Exception as e:
-                print(repr(e), '空间分层关联失效.')
+                print(repr(e), '空间分层关联失效')
         sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
         if sub_single_link_gdf.empty:
             print(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
