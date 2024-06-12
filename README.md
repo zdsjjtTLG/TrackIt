@@ -48,6 +48,8 @@
 
 - 地图匹配：小BUG修复、部分code写法优化
 
+- 地图匹配：移除两个参数：max_increment_times、increment_buffer
+
 <br>
 
 
