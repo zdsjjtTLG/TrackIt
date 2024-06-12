@@ -2,8 +2,6 @@
 # @Time    : 2024/3/31 18:17
 # @Author  : TangKai
 # @Team    : ZheChengData
-import collections
-import itertools
 
 import pandas as pd
 
