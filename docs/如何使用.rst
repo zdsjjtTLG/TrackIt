@@ -607,6 +607,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         nv = ng.NetReverse()
         link_gdf = gpd.read_file(r'./data/output/create_node/link.shp')
         print(link_gdf)
+        # update_link_field_list是需要更新的路网基本属性字段：link_id，from_node，to_node，length，dir
+        # 示例中：link_gdf本身已有dir字段，所以没有指定更新dir
         new_link_gdf, new_node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
                                                                                      update_link_field_list=['link_id',
                                                                                                              'from_node',
