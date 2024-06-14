@@ -837,7 +837,9 @@ class HiddenMarkov(object):
         """获取可视化结果"""
         if self.__plot_mix_gdf is None:
             # print('初次计算')
-            single_link_gdf = self.net.get_link_data()
+            single_link_gdf = self.net.get_link_data()[
+                [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+                 net_field.LENGTH_FIELD, net_field.SINGLE_LINK_ID_FIELD, net_field.GEOMETRY_FIELD]]
             single_link_gdf.reset_index(inplace=True, drop=True)
             node_gdf = self.net.get_node_data()
 
