@@ -39,6 +39,10 @@ class Link(object):
         self.planar_crs = planar_crs
         self.link_gdf = link_gdf.copy()
         self.link_gdf.index = self.link_gdf[link_id_field]
+        try:
+            self.link_gdf[geometry_field] = self.link_gdf[geometry_field].remove_repeated_points(1e-7)
+        except:
+            pass
         self.weight_field = weight_field
         self.__available_link_id = []
         self.delete_circle = delete_circle
@@ -299,20 +303,6 @@ class Link(object):
     def merge_double_link(self):
         self.link_gdf = merge_double_link(link_gdf=self.link_gdf)
         self.link_gdf.index = self.link_gdf[link_id_field]
-
-    @DeprecationWarning
-    def one_out_degree_nodes(self) -> list[int]:
-        """只有一个出度的节点集合"""
-        if self.__one_out_degree_nodes is None:
-            in_degree_df = pd.DataFrame(self.__graph.in_degree(), columns=[net_field.NODE_ID_FIELD, 'in_degree'])
-            out_degree_df = pd.DataFrame(self.__graph.out_degree(), columns=[net_field.NODE_ID_FIELD, 'out_degree'])
-            self.__one_out_degree_nodes = list(
-                set(in_degree_df[(in_degree_df['in_degree'] == 0)][net_field.NODE_ID_FIELD]) & \
-                set(out_degree_df[(out_degree_df['out_degree'] == 1)][
-                        net_field.NODE_ID_FIELD]))
-            return self.__one_out_degree_nodes
-
-        return self.__one_out_degree_nodes
 
     def get_link_geo(self, link_id: int = None, _type: str = 'single') -> LineString:
         if _type == 'single':
