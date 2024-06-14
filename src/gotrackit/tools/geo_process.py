@@ -327,6 +327,7 @@ def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'g
     df.loc[df['cos'] == -np.inf, 'cos'] = np.inf
     df.loc[df['cos'] <= -1, 'cos'] = -1
     df.loc[df['cos'] >= 1, 'cos'] = 1
+    df['cos'] = df['cos'].fillna(1)
     df['theta'] = 180 * np.arccos(df['cos']) / np.pi
     df.loc[df['theta'] >= 179.9, 'theta'] = 179.9
 
