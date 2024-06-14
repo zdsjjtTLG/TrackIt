@@ -1174,16 +1174,12 @@ Net构建参数见：`构建Net的相关参数`_
         # gps_df = gps_df[gps_df['agent_id'] == 'xa_car_4']
 
         # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
-        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'./data/input/net/xian/modifiedConn_node.shp')
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net = Net(link_gdf=link,
+                     node_gdf=node)
         my_net.init_net()  # net初始化
-
-        # 或者
-        # link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
-        # node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
-        # my_net = Net(link_gdf=link,
-        #              node_gdf=node)
-        # my_net.init_net()  # net初始化
 
         # 3. 匹配
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
@@ -1388,10 +1384,10 @@ Net构建参数见：`构建Net的相关参数`_
     点层数据的路径
 
 * link_gdf
-    线层数据GeoDataFrame，与link_path只能指定其中一个
+    线层数据GeoDataFrame，与link_path只能指定其中一个, 推荐采用传入link_gdf的方式
 
 * node_gdf
-    点层数据GeoDataFrame，与node_path只能指定其中一个
+    点层数据GeoDataFrame，与node_path只能指定其中一个, 推荐采用传入node_gdf的方式
 
 * cut_off
     路径搜索截断长度, 米, 默认1200.0m
@@ -1433,8 +1429,11 @@ Net构建参数见：`构建Net的相关参数`_
 
     if __name__ == '__main__':
         # 构建net时指定fmm_cache参数为True, 表示在这次构建net对象时进行预计算
-        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'./data/input/net/xian/modifiedConn_node.shp',
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net = Net(link_gdf=link,
+                     node_gdf=node,
                      fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=True,
                      cut_off=800.0,
                      cache_slice=6)
@@ -1452,9 +1451,12 @@ Net构建参数见：`构建Net的相关参数`_
     :linenos:
 
     if __name__ == '__main__':
-        # 构建net时指定fmm_cache参数为True, 表示在这次构建net对象时进行预计算,
-        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'./data/input/net/xian/modifiedConn_node.shp',
+        # 构建net时指定fmm_cache参数为True, 表示在这次构建net对象时进行预计算
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net = Net(link_gdf=link,
+                     node_gdf=node,
                      fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False)
         my_net.init_net()  # net初始化
 
@@ -1521,8 +1523,11 @@ Net构建参数见：`构建Net的相关参数`_
         print(gps_df)
 
         # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
-        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                     node_path=r'./data/input/net/xian/modifiedConn_node.shp',
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net = Net(link_gdf=link,
+                     node_gdf=node,
                      fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False)
         my_net.init_net()  # net初始化
 
@@ -1565,7 +1570,7 @@ Net构建参数见：`构建Net的相关参数`_
 
     if __name__ == '__main__':
 
-        # 读取link和node
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
         link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
         node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
         link = link.to_crs('你选定的平面投影坐标系')
@@ -1625,8 +1630,11 @@ beta、gps_sigma、omitted_l、use_heading_inf
     if __name__ == '__main__':
 
         gps_df = gpd.read_file(r'./data/output/gps/dense_example/test999.geojson')
-        my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
-                 node_path=r'./data/input/net/xian/modifiedConn_node.shp', fmm_cache=True,
+
+        # 请留意shp文件的编码，可以显示指定encoding，确保字段没有乱码
+        link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+        node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+        my_net = Net(link_gdf=link, node_gdf=node, fmm_cache=True,
                  recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian')
         my_net.init_net()
 
@@ -1898,7 +1906,24 @@ gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)�
 .. image:: _static/images/crs_error.png
     :align: center
 
+--------------------------------------------------------
+
 
 7.6.  输出的路网文件字段中：中文变为乱码
 ````````````````````````````````````````````````````````````````````````````````````````````````````````````````
 gotrackit存储路网文件时，默认编码为gbk，你需要检查你的原始路网文件的编码是否为gbk
+
+--------------------------------------------------------------------------------------
+
+
+7.7.  输出HTML失败： Object of type bytes is not JSON serializable
+````````````````````````````````````````````````````````````````````````````````````````````````````````````````
+可能是路网文件编码问题，比如下图的错误原因是：gpd.read_file()读取路网时没有指定合适的编码，导致road_name列是bytes类型，但是gotrackit在输出HTML时会默认将用户路网的所有字段进行输出，所以导致了输出失败
+
+.. image:: _static/images/json_serializable.png
+    :align: center
+--------------------------------------------------------------------------------------
+
+解决方案：读取shp文件时指定正确的编码 或者 删除有编码问题的字段再构建Net
+
+gotrackit：v0.3.1会对输出HTML的路网字段进行限制，只输出关键拓扑字段
