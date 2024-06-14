@@ -271,9 +271,6 @@ class Net(object):
     def get_node_loc(self, node_id: int = None) -> tuple:
         return self.__node.get_node_loc(node_id)
 
-    def get_one_out_degree_nodes(self) -> list[int]:
-        return self.__link.one_out_degree_nodes()
-
     def get_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_link_data()
 
