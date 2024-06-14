@@ -1891,11 +1891,14 @@ gdal(3.8.4)、shapely(2.0.3)、fiona(1.9.5)、pyproj(3.6.1)、geopandas(0.14.3)�
 
     if __name__ == '__main__':
 
-        # 读取数据
-        df = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+        # 方案1：去除重复点后再构建Net
+        link_gdf = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+        link_gdf['geometry'] = link_gdf['geometry'].remove_repeated_points(1e-6)
 
-        # 处理geometry
-        link_gdf = ng.NetReverse.clean_link_geo(gdf=df, plain_crs='EPSG:32649', l_threshold=1.0)
+
+        # 方案2：使用清洗接口后再构建Net
+        link_gdf = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=link_gdf, plain_crs='EPSG:32649', l_threshold=1.0)
 
 
 7.5.  Invalid projection: EPSG:nan
@@ -1927,3 +1930,29 @@ gotrackit存储路网文件时，默认编码为gbk，你需要检查你的原�
 解决方案：读取shp文件时指定正确的编码 或者 删除有编码问题的字段再构建Net
 
 gotrackit：v0.3.1会对输出HTML的路网字段进行限制，只输出关键拓扑字段
+
+
+7.8.  计算发射矩阵出错:ValueError(cannot convert float NaN to integer )
+````````````````````````````````````````````````````````````````````````````````````````````````````````````````
+这个错误是因为路网线层中线型有重叠折点
+
+
+.. image:: _static/images/dup_zd_error.png
+    :align: center
+--------------------------------------------------------------------------------------
+
+解决方案-示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+
+        # 方案1：去除重复点后再构建Net
+        link_gdf = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+        link_gdf['geometry'] = link_gdf['geometry'].remove_repeated_points(1e-6)
+
+
+        # 方案2：使用清洗接口后再构建Net
+        link_gdf = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
+        link_gdf = ng.NetReverse.clean_link_geo(gdf=link_gdf, plain_crs='EPSG:32649', l_threshold=1.0)
