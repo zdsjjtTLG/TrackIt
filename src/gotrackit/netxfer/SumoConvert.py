@@ -9,10 +9,12 @@ import numpy as np
 import pandas as pd
 import multiprocessing
 import geopandas as gpd
+from shapely.ops import linemerge
 import xml.etree.cElementTree as ET
 from ..tools.group import cut_group
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point, Polygon
+
 
 """SUMO路网转换的相关方法"""
 
@@ -140,7 +142,7 @@ class SumoConvert(object):
     @function_time_cost
     def get_net_shp(self, net_path: str = None, crs: str = None, prj4_str: str = None, core_num: int = 1,
                     l_threshold: float = 1.0) -> \
-            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFrame]:
         """
         必须时平面投影
         从net.xml解析微观车道级路网
@@ -158,8 +160,6 @@ class SumoConvert(object):
         if crs is None:
             assert prj4_str is not None
             crs = 'EPSG:' + prj4_2_crs(prj4_str=prj4_str)
-
-
 
         all_edge_ele = list(net_root.findall('edge'))
         all_junction_ele = list(net_root.findall('junction'))
@@ -210,9 +210,6 @@ class SumoConvert(object):
                                                                                 junction_ele_list=all_junction_ele,
                                                                                 conn_ele_list=all_conn_ele)
 
-        self.process_conn(pre_conn_df=conn_df)
-        print(conn_df)
-
         junction_gdf = gpd.GeoDataFrame(junction_gdf, geometry='geometry', crs=crs)
         lane_gdf = gpd.GeoDataFrame(lane_gdf, geometry='geometry', crs=crs)
         avg_edge_gdf = gpd.GeoDataFrame(avg_edge_gdf, geometry='geometry', crs=crs)
@@ -226,7 +223,26 @@ class SumoConvert(object):
                                                                               off_line_l=(item[
                                                                                               LANE_WIDTH_KEY] - 0.01) / 2),
                                                               axis=1)
-        return lane_gdf, junction_gdf, lane_polygon_gdf, avg_edge_gdf
+        conn_df = self.process_conn(pre_conn_df=conn_df)
+
+        conn_gdf = self.tess_lane(conn_df=conn_df, lane_gdf=lane_gdf)
+        return lane_gdf, junction_gdf, lane_polygon_gdf, avg_edge_gdf, conn_gdf
+
+    @staticmethod
+    def tess_lane(conn_df: pd.DataFrame = None, lane_gdf: gpd.GeoDataFrame = None):
+        normal_lane = lane_gdf[~lane_gdf['edge_id'].str.startswith(':')]
+        conn_lane = lane_gdf[lane_gdf['edge_id'].str.startswith(':')]
+        print(normal_lane)
+        print(conn_lane)
+        conn_df = conn_df.explode(column=['via'], ignore_index=True)
+        conn_lane['lane_id'] = conn_lane['edge_id'].astype(str) + '_' + conn_lane['index'].astype(str)
+
+        conn_df = pd.merge(conn_df, conn_lane[['lane_id', 'geometry']], left_on='via', right_on=['lane_id'])
+        conn_df = conn_df.groupby(['from_edge', 'from_lane_index',
+                                   'to_edge', 'to_lane_index']).agg({'geometry': list}).reset_index(drop=False)
+        conn_df['geometry'] = conn_df['geometry'].apply(lambda x: linemerge(x))
+        conn_gdf = gpd.GeoDataFrame(conn_df, geometry='geometry', crs=lane_gdf.crs)
+        return conn_gdf
 
     def parse_elements(self, edge_ele_list: list[ET.Element] = None, junction_ele_list: list[ET.Element] = None,
                        conn_ele_list: list[ET.Element] = None) \
@@ -245,7 +261,7 @@ class SumoConvert(object):
         lane_df = pd.DataFrame(lane_item_list,
                                columns=['edge_' + EDGE_ID_KEY, EDGE_FROM_KEY, EDGE_TO_KEY, EDGE_FUNCTION_KEY,
                                         LANE_INDEX_KEY, LANE_SPEED_KEY, LANE_LENGTH_KEY, LANE_WIDTH_KEY,
-                                        LANE_SHAPE_KEY])
+                                        LANE_SHAPE_KEY, 'allow'])
         avg_edge_df = pd.DataFrame(avg_edge_item_list,
                                    columns=['edge_' + EDGE_ID_KEY, EDGE_FROM_KEY, EDGE_TO_KEY, EDGE_FUNCTION_KEY,
                                             EDGE_SHAPE_KEY])
@@ -271,7 +287,7 @@ class SumoConvert(object):
     @staticmethod
     def parse_net_edge(net_edge_obj: ET.Element = None) -> \
             tuple[
-                list[list[str, str, str, str, int, float, float, float, LineString]],
+                list[list[str, str, str, str, int, float, float, float, LineString, str]],
                 list[str, str, str, str, LineString]
             ]:
         """
@@ -293,6 +309,10 @@ class SumoConvert(object):
                 lane_obj.get(LANE_INDEX_KEY), lane_obj.get(
                 LANE_SHAPE_KEY), lane_obj.get(LANE_LENGTH_KEY)
 
+            lane_allow = lane_obj.get('allow')
+            if lane_allow is None:
+                lane_allow = 'passenger'
+
             if lane_id is None or lane_index is None:
                 # print(net_edge_obj.get(EDGE_ID_KEY))
                 continue
@@ -309,7 +329,7 @@ class SumoConvert(object):
 
             lane_item_list.append(
                 [edge_id, edge_from, edge_to, edge_function, int(lane_index), float(lane_speed),
-                 float(lane_length), float(lane_width), lane_shape])
+                 float(lane_length), float(lane_width), lane_shape, lane_allow])
 
         avg_center_line = LineString()
         if edge_function == 'normal':
@@ -369,22 +389,28 @@ class SumoConvert(object):
         pre_conn_df['to_lane_id'] = pre_conn_df[CONN_TO_EDGE_KEY] + '_' + pre_conn_df[CONN_TO_LANE_KEY]
 
         cm = pre_conn_df['from_lane_id'].str.contains('M')
-        a_pre_conn_df = pre_conn_df[~cm]
-        b_pre_conn_df = pre_conn_df[cm]
+        a_pre_conn_df = pre_conn_df[~cm].copy()
+        b_pre_conn_df = pre_conn_df[cm].copy()
         entrance_exit_list = []
         turn_list = []
+        a_pre_conn_df.reset_index(inplace=True, drop=True)
+        a_pre_conn_df['from_edge'] = a_pre_conn_df[EDGE_FROM_KEY]
         for row in a_pre_conn_df.itertuples():
             from_lane_id, to_lane_id, via_lane_id = getattr(row, 'from_lane_id'), getattr(row, 'to_lane_id'), \
                 getattr(row, 'via')
-            from_edge, from_lane_index, to_edge, to_lane_index = getattr(row, CONN_FROM_EDGE_KEY), \
-                getattr(row, CONN_TO_EDGE_KEY), getattr(row, CONN_FROM_LANE_KEY), getattr(row, CONN_TO_LANE_KEY)
+            from_edge, from_lane_index, to_edge, to_lane_index = getattr(row, 'from_edge'), \
+                getattr(row, CONN_FROM_LANE_KEY), getattr(row, CONN_TO_EDGE_KEY), getattr(row, CONN_TO_LANE_KEY)
             entrance_exit_list.append([from_edge, from_lane_index, to_edge, to_lane_index])
             _turn = []
             _x = b_pre_conn_df[b_pre_conn_df['from_lane_id'] == via_lane_id]
             while not _x.empty:
                 _turn.append(via_lane_id)
-                via_lane_id = _x.iat[0, 'from_lane_id']
+                via_lane_id = _x.at[_x.index[0], 'via']
                 _x = b_pre_conn_df[b_pre_conn_df['from_lane_id'] == via_lane_id]
+            turn_list.append(_turn)
+        res = pd.DataFrame(entrance_exit_list, columns=['from_edge', 'from_lane_index', 'to_edge', 'to_lane_index'])
+        res['via'] = turn_list
+        return res
 
     # 转换plain edge和plain node文件的坐标系
     def convert_plain_crs(self, plain_edge_path: str = None, plain_node_path: str = None, from_crs='EPSG:4326',
