@@ -841,14 +841,21 @@ class HiddenMarkov(object):
                 [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                  net_field.LENGTH_FIELD, net_field.SINGLE_LINK_ID_FIELD, net_field.GEOMETRY_FIELD]]
             single_link_gdf.reset_index(inplace=True, drop=True)
-            node_gdf = self.net.get_node_data()
+            node_gdf = self.net.get_node_data()[[net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD]]
 
             # 如果不是子网络则要计算buffer范围内的路网
             if not self.net.is_sub_net:
                 gps_array_buffer = self.gps_points.get_gps_array_buffer(buffer=sub_net_buffer,
                                                                         dup_threshold=dup_threshold)
-                gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
-                                                        crs=self.net.planar_crs)
+                gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]},
+                                                        geometry=net_field.GEOMETRY_FIELD, crs=self.net.planar_crs)
+                if self.net.is_hierarchical:
+                    try:
+                        pre_filter_link = self.net.calc_pre_filter(gps_rou_buffer_gdf=gps_array_buffer_gdf)
+                        single_link_gdf = single_link_gdf[
+                            single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)].copy()
+                    except Exception as e:
+                        print(repr(e), '空间分层关联失效')
                 single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
                 used_node = set(single_link_gdf[net_field.FROM_NODE_FIELD]) | set(single_link_gdf[net_field.TO_NODE_FIELD])
                 node_gdf = node_gdf[node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].copy()
@@ -863,16 +870,13 @@ class HiddenMarkov(object):
             # 匹配路段
             if use_gps_source:
                 plot_gps_gdf = self.gps_points.source_gps[
-                    [gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD,
-                     gps_field.LAT_FIELD, gps_field.TIME_FIELD, gps_field.GEOMETRY_FIELD]].copy()
+                    [gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD,
+                     gps_field.GEOMETRY_FIELD]]
             else:
-                plot_gps_gdf = self.gps_match_res_gdf.copy()
-                plot_gps_gdf = plot_gps_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD,
-                                             gps_field.LAT_FIELD, gps_field.TIME_FIELD,
-                                             gps_field.GEOMETRY_FIELD]].copy()
-
+                plot_gps_gdf = self.gps_match_res_gdf[
+                    [gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD,
+                     gps_field.GEOMETRY_FIELD]].copy()
             # GPS点转化为circle polygon
-            plot_gps_gdf.drop(columns=[gps_field.LNG_FIELD, gps_field.LAT_FIELD], axis=1, inplace=True)
             if plot_gps_gdf.crs != plain_crs:
                 plot_gps_gdf = plot_gps_gdf.to_crs(plain_crs)
             plot_gps_gdf[net_field.GEOMETRY_FIELD] = plot_gps_gdf[net_field.GEOMETRY_FIELD].buffer(gps_radius)
