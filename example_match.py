@@ -21,65 +21,6 @@ from gotrackit.model.Para import ParaGrid
 from src.gotrackit.WrapsFunc import function_time_cost
 
 # test 1
-def t_lane_match():
-    """车道匹配测试"""
-
-    # def generate_net_from_lane():
-    #     lane_center_gdf = gpd.read_file(r'data/input/net/test/lane/edge_3857.shp')
-    #     print(lane_center_gdf)
-    #     print(lane_center_gdf['id'].unique())
-    #     lane_center_gdf = lane_center_gdf.to_crs('EPSG:4326')
-    #
-    #     nv = ng.NetReverse()
-    #     link_gdf, node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=lane_center_gdf,
-    #                                                                          update_link_field_list=['link_id',
-    #                                                                                                  'from_node',
-    #                                                                                                  'to_node',
-    #                                                                                                  'dir', 'length'],
-    #                                                                          execute_modify=True,
-    #                                                                          modify_minimum_buffer=0.35,
-    #                                                                          fill_dir=1,
-    #                                                                          plain_prj='EPSG:32650',
-    #                                                                          out_fldr=r'./data/input/net/lane/')
-
-    # clean
-
-    link_gdf = gpd.read_file(r'data/input/net/test/lane/LinkAfterModify.shp')
-    node_gdf = gpd.read_file(r'data/input/net/test/lane/NodeAfterModify.shp')
-    my_net = Net(link_gdf=link_gdf, node_gdf=node_gdf, not_conn_cost=1200, fmm_cache=False, recalc_cache=False,
-                 fmm_cache_fldr='./data/input/net/test/lane/')
-    my_net.init_net()
-
-    trajectory_gdf = gpd.read_file(r'./data/output/gps/lane/trajectory_3857.shp')
-    trajectory_gdf.rename(columns={'id': 'agent_id'}, inplace=True)
-
-    # 抽样测试
-    select_agent = list(trajectory_gdf.sample(frac=0.0003)['agent_id'].unique())
-    # select_agent = [183, 149, 251, 290] # test, example
-    print(rf'{len(select_agent)} selected agents......')
-    trajectory_gdf = trajectory_gdf[trajectory_gdf['agent_id'].isin(select_agent)]
-    trajectory_gdf.reset_index(inplace=True, drop=True)
-
-    # trajectory_gdf['time'] = pd.to_datetime(trajectory_gdf['time'], unit='ms')
-    trajectory_gdf = trajectory_gdf.to_crs('EPSG:4326')
-
-    trajectory_gdf[['lng', 'lat']] = trajectory_gdf.apply(lambda item: (item['geometry'].x, item['geometry'].y),
-                                                          result_type='expand', axis=1)
-    print(trajectory_gdf['time'])
-    # match
-    mpm = MapMatch(net=my_net, gps_df=trajectory_gdf,
-                   is_rolling_average=False, window=2, gps_buffer=20, use_sub_net=False, time_unit='ms',
-                   flag_name='check_0325', export_html=True, export_geo_res=True,
-                   out_fldr=r'./data/output/match_visualization/lane',
-                   use_heading_inf=True, is_lower_f=True, lower_n=5,
-                   del_dwell=False, dense_gps=False, top_k=15, omitted_l=6.0, multi_core_save=True,
-                   export_all_agents=True)
-    match_res, warn_info, error_info = mpm.execute()
-
-    print(match_res)
-    print(warn_info)
-    print(error_info)
-
 
 def t_cq_match():
     gps_df = gpd.read_file(rf'./data/output/gps/cq/gps.shp')
@@ -87,8 +28,9 @@ def t_cq_match():
                                           result_type='expand')
     gps_df.drop(columns=['geometry'], axis=1, inplace=True)
     my_net = Net(link_path=r'./data/input/net/test/cq/modifiedConn_link.shp',
-                 node_path=r'./data/input/net/test/cq/modifiedConn_node.shp', not_conn_cost=1200, fmm_cache=False,
-                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/test/cq/')
+                 node_path=r'./data/input/net/test/cq/modifiedConn_node.shp', not_conn_cost=1200, fmm_cache=True,
+                 cache_cn=3,
+                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/test/cq/', is_hierarchical=True)
     my_net.init_net()
     pgd = ParaGrid(beta_list=[1.0, 2.0,6.0], gps_sigma_list=[10.0, 20.0, 120.0])
     # match
@@ -96,7 +38,7 @@ def t_cq_match():
                    is_rolling_average=False, flag_name='cq_test',
                    export_html=True, export_geo_res=True,
                    out_fldr=r'./data/output/match_visualization/cq', dense_gps=False,
-                   use_sub_net=False, multi_core_save=True, instant_output=True, use_para_grid=False, para_grid=pgd)
+                   use_sub_net=True, multi_core_save=True, instant_output=True, use_para_grid=True, para_grid=pgd)
     match_res, warn_info, error_info = mpm.execute()
     print(warn_info)
     print(match_res)
@@ -118,20 +60,20 @@ def t_sample_match():
     # my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
     #              node_path=r'./data/input/net/xian/modifiedConn_node.shp')
     my_net = Net(link_gdf=l,
-                 node_gdf=n, fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False, cache_cn=1,
-                 cache_slice=6)
+                 node_gdf=n, fmm_cache=False, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False, cache_cn=1,
+                 cache_slice=6, grid_len=2000, is_hierarchical=False)
     my_net.init_net()  # net初始化
-
     # my_net = Net(link_gdf=l,
     #              node_gdf=n)
     # my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-                   use_sub_net=False, use_heading_inf=True,
+                   use_sub_net=True, use_heading_inf=True,
                    omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
                    lower_n=2, is_lower_f=True,
                    is_rolling_average=True, window=3,
-                   export_html=False, export_geo_res=False, use_gps_source=False,
+                   export_html=True, export_geo_res=False, use_gps_source=False,
+                   export_all_agents=True,
                    out_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
                    gps_radius=20.0)
     # 第一个返回结果是匹配结果表
@@ -162,11 +104,11 @@ def t_sample_0424_match():
     # n = gpd.read_file(r'./data/input/net/xian/NodeAfterModify.shp')
     my_net = Net(link_gdf=l,
                  node_gdf=n, fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False, cache_cn=3,
-                 cache_slice=6, cut_off=1000, not_conn_cost=1200.0)
+                 cache_slice=6, cut_off=1000, not_conn_cost=1200.0, is_hierarchical=True)
     my_net.init_net()  # net初始化
     a = time.time()
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=500, flag_name='xa_sample_0424',
-                   use_sub_net=False, use_heading_inf=True,
+                   use_sub_net=True, use_heading_inf=True,
                    omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
                    lower_n=2, is_lower_f=False, top_k=20,
                    is_rolling_average=False, window=3,
@@ -238,7 +180,9 @@ def dense_example():
     gps_df = gpd.read_file(r'./data/output/gps/dense_example/test999.geojson')
     my_net = Net(link_path=r'./data/input/net/xian/modifiedConn_link.shp',
                  node_path=r'./data/input/net/xian/modifiedConn_node.shp', fmm_cache=True,
-                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian')
+                 recalc_cache=False, fmm_cache_fldr=r'./data/input/net/xian', grid_len=1000, cache_cn=1,
+                 is_hierarchical=True)
+
     my_net.init_net()
     pgd = ParaGrid(use_heading_inf_list=[False, True], beta_list=[0.1, 1.0], gps_sigma_list=[1.0, 5.0])
     # match
@@ -247,7 +191,7 @@ def dense_example():
                    gps_buffer=400,
                    out_fldr=r'./data/output/match_visualization/dense_example',
                    dense_gps=True,
-                   use_sub_net=True, dense_interval=50.0, use_gps_source=False, use_heading_inf=True,
+                   use_sub_net=False, dense_interval=50.0, use_gps_source=False, use_heading_inf=True,
                    gps_radius=15.0, use_para_grid=True, para_grid=pgd)
     res, warn_info, error_info = mpm.execute()
     print(res)
@@ -266,18 +210,18 @@ def t_0326_taxi():
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp',
                  not_conn_cost=2000, fmm_cache=True, recalc_cache=False, cut_off=500.0,
-                 fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=6)
+                 fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=6, is_hierarchical=True)
     my_net.init_net()
     pgd = ParaGrid(gps_sigma_list=[10, 20, 30], beta_list=[10, 20, 30])
     # match
     mpm = MapMatch(net=my_net, gps_df=gps_df,
                    is_rolling_average=True, window=2, flag_name='0326_taxi',
-                   export_html=True, export_geo_res=True, gps_sigma=20, beta=10.0,
+                   export_html=True, export_geo_res=True,
                    gps_buffer=500, out_fldr=r'./data/output/match_visualization/0326_taxi',
                    heading_para_array=np.array([1.0, 1.0, 0.1, 0.1, 0.00001, 0.00001, 0.000001, 0.0000001, 0.0000001]),
                    dense_gps=True, dense_interval=120, use_heading_inf=False,
                    top_k=60, dwell_n=0,
-                   use_sub_net=False, use_gps_source=False, gps_radius=20, instant_output=True, use_para_grid=True,
+                   use_sub_net=False, use_gps_source=False, gps_radius=20, instant_output=True, use_para_grid=False,
                    para_grid=pgd)
     res, may_error_info, error_info = mpm.execute()
     print(res)
@@ -315,6 +259,7 @@ def bug_0329():
     gps_df = gps_df.to_crs('EPSG:4326')
     gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
                                           result_type='expand')
+    pd.to_datetime()
     #
     # gps_df['seq'] = [i for i in range(0, len(gps_df))]
     # gps_df.to_file(r'aaa.shp')
@@ -360,7 +305,7 @@ def bug_0402():
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=1000.0,
                  fmm_cache=True, fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=6,
-                 recalc_cache=False, cut_off=1200.0)
+                 recalc_cache=False, cut_off=1200.0, grid_len=2000, is_hierarchical=True)
     my_net.init_net()  # net初始化
     # my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
     #              node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=1500)
@@ -375,7 +320,7 @@ def bug_0402():
     #                out_fldr=r'./data/output/match_visualization/0402BUG/',
     #                use_gps_source=True, gps_radius=10.0)
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=120, flag_name='id1', time_unit='ms',
-                   use_sub_net=False, use_heading_inf=False, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=False,
                    is_rolling_average=True, window=2, dense_interval=80, dense_gps=False,
                    omitted_l=1.0, del_dwell=True, dwell_l_length=15.0,
                    export_html=True, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
@@ -394,9 +339,17 @@ def bug_0516():
     # 1.读取GPS数据
     # 这是一个有10辆车的GPS数据的文件, 已经做过了数据清洗以及行程切分
     # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
-    gps_df = pd.read_csv(r'./data/input/net/test/0516BUG/车辆轨迹V3.csv', encoding='gbk')
-    gps_df = gps_df[['agent_id', 'time', 'lng', 'lat']].copy()
+    # gps_df = pd.read_csv(r'./data/input/net/test/0516BUG/车辆轨迹V3.csv', encoding='gbk')
+    # gps_df = gps_df[['agent_id', 'time', 'lng', 'lat']].copy()
+    # print(gps_df)
+    gps_df = gpd.read_file(r'./data/input/net/test/0516BUG/gps_test_0605.shp')
+    gps_df = gps_df[gps_df['id'] == 123]
+    gps_df['agent_id'] = 1111
     print(gps_df)
+    gps_df['time'] = [datetime.datetime.now().timestamp() + i for i in range(len(gps_df))]
+    gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
+                                          result_type='expand')
+    del gps_df['geometry']
     # link = gpd.read_file(r'./data/input/net/test/0516BUG/shp/link.shp')
     # node = gpd.read_file(r'./data/input/net/test/0516BUG/shp/Final_node_net.shp')
     #
@@ -415,17 +368,17 @@ def bug_0516():
     # link.to_file(r'./data/input/net/test/0516BUG/shp/link.shp')
     # 2.构建一个net, 要求路网线层和路网点层必须是WGS-84, EPSG:4326 地理坐标系
     my_net = Net(link_gdf=link,
-                 node_gdf=node, not_conn_cost=2000.0, cut_off=600.0)
+                 node_gdf=node, not_conn_cost=2000.0, cut_off=1000.0, grid_len=4000, is_hierarchical=True)
     my_net.init_net()  # net初始化
     # para_grid = ParaGrid(gps_sigma_list=[i for i in range(1, 40, 10)],
     #                      beta_list=[0.1, 6.0], use_heading_inf_list=[False, True])
-    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=500.0, flag_name='id1',
-                   use_sub_net=False, use_heading_inf=False, max_increment_times=2, increment_buffer=20,
-                   is_rolling_average=True, window=2, dense_interval=200.0, dense_gps=True,
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=700.0, flag_name='id1',
+                   use_sub_net=True, use_heading_inf=False,
+                   is_rolling_average=False, window=2, dense_interval=400.0, dense_gps=True,
                    omitted_l=20.1, del_dwell=False, dwell_l_length=15.0,
-                   export_html=True, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
+                   export_html=True, export_geo_res=True, top_k=20, is_lower_f=False, lower_n=2,
                    out_fldr=r'./data/output/match_visualization/0516BUG/',
-                   use_gps_source=False, gps_radius=10.0)
+                   use_gps_source=False, gps_radius=20.0, instant_output=True)
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
@@ -435,13 +388,55 @@ def bug_0516():
     # print(match_res)
 
 
+def bug_0614():
+    # 1.读取GPS数据
+    # 这是一个有10辆车的GPS数据的文件, 已经做过了数据清洗以及行程切分
+    # 用于地图匹配的GPS数据需要用户自己进行清洗以及行程切分
+    # gps_df = pd.read_excel(r'./data/input/net/test/0614BUG/车辆轨迹_川ACF929_0613.xlsx')
+    # gps_df.rename(columns={'时间': 'time', '经度': 'lng', '纬度': 'lat'}, inplace=True)
+    # gps_df = gps_df[['agent_id', 'time', 'lng', 'lat']].copy()
+    # print(gps_df)
+    gps_df = pd.read_csv(r'./data/input/net/test/0614BUG/20240320_to_20240320_data_chunk_0.csv')
+    gps_df = gps_df[gps_df['plateNo'] == '川ABQ128'].copy()
+    # gps_df = gps_df[gps_df['plateNo'] == '川ADK592'].copy()
+    gps_df.rename(columns={'posTime': 'time', 'new_longitude': 'lng', 'new_latitude': 'lat'}, inplace=True)
+    gps_df['agent_id'] = 113
+    # plateNo,plateColor,posTime,posDate,longitude,latitude,new_latitude,new_longitude,gpsSpeed
+    print(gps_df)
+
+    # link = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\net\test\0614BUG\net_final\merge_FinalLink.shp', encoding='gbk')
+    # node = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\net\test\0614BUG\net_final\merge_FinalNode.shp', encoding='gbk')
+    #
+    # my_net = Net(link_gdf=link,
+    #              node_gdf=node, not_conn_cost=2500.0, cut_off=1200.0, grid_len=4000, is_hierarchical=True)
+    # my_net.init_net()  # net初始化
+    #
+    # with open(r'F:\PyPrj\TrackIt\data\input\net\test\0614BUG\net_final\net', 'wb') as f:
+    #     pickle.dump(my_net, f)
+
+    with open(r'F:\PyPrj\TrackIt\data\input\net\test\0614BUG\net_final\net', 'rb') as f:
+        my_net = pickle.load(f)
+
+    p = ParaGrid(gps_sigma_list=[30, 40, 50, 60, 70, 80], beta_list=[4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=900.0, flag_name='id1',
+                   use_sub_net=True, use_heading_inf=True, time_unit='ms',
+                   is_rolling_average=True, window=2, dense_interval=400.0, dense_gps=True,
+                   omitted_l=20.1, del_dwell=False, dwell_l_length=15.0,
+                   export_html=True, export_geo_res=True, top_k=50, is_lower_f=False, lower_n=2,
+                   out_fldr=r'./data/output/match_visualization/0614BUG/',
+                   use_gps_source=False, gps_radius=20.0, instant_output=True, para_grid=p, use_para_grid=False)
+    a, b, c = mpm.execute()
+    print(b.keys())
+    print(b)
+
 def agents_150_test():
     # 1.读取GPS数据
     gps_df = pd.read_csv(r'./data/input/net/test/0402BUG/gps/150_agents.csv')
     my_net = Net(link_path=r'./data/input/net/test/0402BUG/load/new_link.shp',
                  node_path=r'./data/input/net/test/0402BUG/load/modifiedConn_node.shp', not_conn_cost=999.0,
                  fmm_cache=True, fmm_cache_fldr=r'./data/input/net/test/0402BUG/load/', cache_cn=5,
-                 recalc_cache=False)
+                 recalc_cache=False, is_hierarchical=True)
     my_net.init_net()  # net初始化
 
     a = time.time()
@@ -449,11 +444,11 @@ def agents_150_test():
                          beta_list=[500, 1000], use_heading_inf_list=[False])
     a = time.time()
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=120, flag_name='id1',
-                   use_sub_net=True, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=True, window=2, dense_interval=80, dense_gps=False,
                    omitted_l=20.1, del_dwell=True, dwell_l_length=15.0,
-                   export_html=False, export_geo_res=False, top_k=20,
-                   out_fldr=r'./data/output/match_visualization/0402BUG/', instant_output=True,
+                   export_html=True, export_geo_res=False, top_k=20,
+                   out_fldr=r'./data/output/match_visualization/0402BUG/', instant_output=False,
                    use_gps_source=True, gps_radius=10.0, use_para_grid=False, para_grid=para_grid)
     # match_res, warn_info, error_info = mpm.execute()
     match_res, warn_info, error_info = mpm.multi_core_execute(core_num=6)
@@ -477,7 +472,7 @@ def route2gps():
     my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=50, flag_name='cd_route2gps',
-                   use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='"%Y-%m-%d %H:%M:%S"', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=True, dwell_l_length=20.0, dwell_n=0,
@@ -511,7 +506,7 @@ def simple_0419_net():
 
     my_net.init_net()  # net初始化
     mpm = MapMatch(net=my_net, gps_df=gps, gps_buffer=500, flag_name='cd_route2gps',
-                   use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=False, window=3, is_lower_f=True, lower_n=2, dense_gps=False,
                    omitted_l=2.0, del_dwell=True,
                    gps_sigma=30,
@@ -551,7 +546,7 @@ def route2gps_break_test():
     my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=5500, flag_name='cd_route2gps_break',
-                   use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='"%Y-%m-%d %H:%M:%S"', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=True, dwell_l_length=20.0, dwell_n=0,
@@ -587,7 +582,7 @@ def bug_0429_a():
     my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=600, flag_name='0429_bug',
-                   use_sub_net=False, use_heading_inf=False, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=False,
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='%Y-%m-%d %H:%M:%S', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=False, dwell_l_length=20.0, dwell_n=0,
@@ -653,10 +648,10 @@ def leeds_yg_test():
     #
     gps_df['time'] = [datetime.datetime.now().timestamp() + i for i in range(0, len(gps_df))]
     my_net = Net(link_path='./data/input/net/test/0506yg/aaa_link.shp',
-                 node_path='./data/input/net/test/0506yg/aaa_node.shp')
+                 node_path='./data/input/net/test/0506yg/aaa_node.shp', is_hierarchical=True)
     my_net.init_net()  # net初始化
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=60.0, flag_name='yg1',
-                   use_sub_net=True, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=True, use_heading_inf=True,
                    is_rolling_average=False, window=2, dense_interval=80, dense_gps=False,
                    omitted_l=20.1, del_dwell=False, dwell_l_length=15.0, time_unit='s',
                    export_html=True, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
@@ -693,7 +688,7 @@ def xishu_0507():
                  recalc_cache=False, cut_off=1000.0)
     my_net.init_net()  # net初始化
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=500.0, flag_name='0507_xishu_120dense',
-                   use_sub_net=False, use_heading_inf=True, max_increment_times=1, increment_buffer=10,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=False, window=2, dense_interval=100.0, dense_gps=True,
                    omitted_l=5.1, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
                    beta=15.0, gps_sigma=130.0,
@@ -717,7 +712,7 @@ def sz_rand_route_match():
     my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='cd_route2gps_break',
-                   use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
+                   use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='"%Y-%m-%d %H:%M:%S"', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=True, dwell_l_length=20.0, dwell_n=0,
@@ -769,19 +764,163 @@ def t_simplify():
 
     link.to_file(r'./data/input/net/test/0516BUG/shp/xxx.shp')
 
+def xishu_sample_xian():
+    gps_df = gpd.GeoDataFrame()
+    for file in os.listdir(r'./data/output/sample_gps/'):
+        if 'gps' in file and '0527' in file:
+            gps_df = pd.concat([gps_df, gpd.read_file(rf'./data/output/sample_gps/{file}')])
+    gps_df.reset_index(inplace=True, drop=True)
+    del gps_df['geometry'], gps_df['heading']
+    gps_df = pd.DataFrame(gps_df)
+
+    l = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    n = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n, fmm_cache=True, fmm_cache_fldr=r'./data/input/net/xian/', recalc_cache=False, cache_cn=1,
+                 cache_slice=6, cut_off=2500)
+    my_net.init_net()  # net初始化
+
+    a = time.time()
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=700, flag_name='xishu',
+                   use_sub_net=True, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
+                   is_lower_f=False,
+                   is_rolling_average=False,
+                   export_html=True, export_geo_res=True, use_gps_source=False,
+                   out_fldr=r'./data/output/sample_gps/', dense_gps=True, dense_interval=100.0,
+                   gps_radius=12.0)
+
+    match_res, warn_info, error_info = mpm.execute()
+    print(time.time() - a)
+    print(warn_info)
+    print(match_res)
+    print(error_info)
+    match_res.to_csv(fr'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+
+
+def sz_real_match():
+    # gps_df = pd.read_csv(r'./data/output/gps/real_sz/gps_trip.csv')
+
+    # agent = set(gps_df.sample(n=15)['agent_id'])
+    # agent = {1824, 1058, 1635, 5028, 5573, 2271, 4937, 4243, 1268, 2943, 3160, 3353, 2876, 1917, 4415}
+    # print(agent)
+    # gps_df = gps_df[gps_df['agent_id'].isin(agent)]
+
+
+    gps_df = gpd.read_file(r'./data/output/gps/real_sz/test_gps.shp')
+    gps_df[['lng', 'lat']] = gps_df.apply(lambda item: (item['geometry'].x, item['geometry'].y),
+                                          result_type='expand', axis=1)
+    gps_df = pd.DataFrame(gps_df)
+    gps_df['lng'] = 114.067361
+    gps_df['time'] = [i + 200 for i in range(3)]
+    del gps_df['geometry']
+    print(gps_df)
+
+    l = gpd.read_file(r'./data/output/gps/real_sz/net/base_link.shp')
+    n = gpd.read_file(r'./data/output/gps/real_sz/net/base_node.shp')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n, fmm_cache_fldr=r'./data/output/gps/real_sz/net/', cache_cn=1, cut_off=1200,
+                 cache_slice=6)
+
+    my_net.init_net()  # net初始化
+
+    a = time.time()
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=500.0, flag_name='sz_real',
+                   use_sub_net=True, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=True, dwell_l_length=15.0, dwell_n=2,
+                   is_lower_f=False, top_k=20,
+                   is_rolling_average=False,
+                   export_html=True, export_geo_res=False, use_gps_source=False,
+                   out_fldr=r'./data/output/match_visualization/real_sz', dense_gps=True, dense_interval=200.0,
+                   gps_radius=12.0, multi_core_save=True)
+
+    match_res, warn_info, error_info = mpm.execute()
+    print(time.time() - a)
+    print(warn_info.keys())
+    print(match_res)
+    print(error_info)
+    # match_res.to_csv(fr'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+
+
+
+def carla_0605():
+    gps_df = gpd.read_file(r'./data/input/net/test/carla0605/trajectory/tra.geojson')
+    gps_df = gps_df.to_crs('EPSG:4326')
+    gps_df[['lng', 'lat']] = gps_df.apply(lambda item: (item['geometry'].x, item['geometry'].y),
+                                          result_type='expand', axis=1)
+    gps_df = pd.DataFrame(gps_df)
+    # gps_df = gps_df.loc[1000:1400, :]
+    del gps_df['geometry']
+    print(gps_df)
+
+    l = gpd.read_file(r'./data/input/net/test/carla0605/town07_map/LinkAfterModify.shp')
+    n = gpd.read_file(r'./data/input/net/test/carla0605/town07_map/NodeAfterModify.shp')
+    l = l.to_crs('EPSG:4326')
+    n = n.to_crs('EPSG:4326')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n, fmm_cache=True, fmm_cache_fldr=r'./data/input/net/test/carla0605/town07_map/',
+                 cache_slice=3, recalc_cache=False, is_hierarchical=True)
+
+    my_net.init_net()  # net初始化
+
+    a = time.time()
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=80.0, flag_name='carla_0605',
+                   use_sub_net=False, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=False, dwell_l_length=15.0, dwell_n=2,
+                   is_lower_f=False, top_k=30,
+                   is_rolling_average=False,
+                   export_html=False, export_geo_res=True, use_gps_source=False,
+                   out_fldr=r'./data/output/match_visualization/carla0605', dense_gps=False, dense_interval=10.0,
+                   gps_radius=10.0, multi_core_save=True, instant_output=True)
+
+    match_res, warn_info, error_info = mpm.execute()
+    print(time.time() - a)
+    print(warn_info.keys())
+    print(match_res)
+    print(error_info)
+    # match_res.to_csv(fr'./data/output/match_visualization/xa_sample/match_res.csv', encoding='utf_8_sig', index=False)
+
+
+def zdsy_test():
+    gps_df = gpd.read_file(r'./data/input/net/test/zdsy/gps.csv')
+
+    l = gpd.read_file(r'./data/input/net/test/zdsy/FinalLink_dir.shp')
+    n = gpd.read_file(r'./data/input/net/test/zdsy/FinalNode.shp')
+    my_net = Net(link_gdf=l,
+                 node_gdf=n, grid_len=2000, is_hierarchical=True, fmm_cache=False, recalc_cache=False,
+                 fmm_cache_fldr=r'./data/input/net/test/zdsy/', cache_cn=6, cut_off=1000,
+                 cache_slice=15)
+
+    my_net.init_net()  # net初始化
+
+    a = time.time()
+    mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=80.0, flag_name='zdsy_test',
+                   use_sub_net=False, use_heading_inf=True,
+                   omitted_l=6.0, del_dwell=False, dwell_l_length=15.0, dwell_n=2,
+                   is_lower_f=False, top_k=10,
+                   is_rolling_average=False,
+                   export_html=True, export_geo_res=True, use_gps_source=False,
+                   out_fldr=r'./data/output/match_visualization/zdsy_test/',
+                   gps_radius=10.0, multi_core_save=True, instant_output=True)
+
+    match_res, warn_info, error_info = mpm.execute()
+    print(time.time() - a)
+    print(warn_info.keys())
+    print(match_res)
+    print(error_info)
+
 
 if __name__ == '__main__':
-    # t_lane_match()
-    #
+
     # t_cq_match()
-    # t_sample_match()
+    t_sample_match()
     # t_sample_0424_match()
 
     # check_0325()
     # dense_example()
-    bug_0402()
+    # bug_0402()
     # t_0326_taxi()
-    #
+
     # route2gps()
 
     # agents_150_test()
@@ -796,5 +935,17 @@ if __name__ == '__main__':
     # m_core_execute()
     # t_simplify()
 
+    # xishu_sample_xian()
 
+    # sz_real_match()
+    # print(segmentize(s_loc=(1, 12), e_loc=(0, -90), n=5))
 
+    # carla_0605()
+    # zdsy_test()
+    # bug_0614()
+    # from shapely.geometry import LineString
+    # a = gpd.GeoSeries(LineString([(0,0), (0.5,0.1), (5,5)]))
+    # x = a.simplify(0.5)
+    # print(list(x[0].coords))
+
+# 0.3.1: cos nan fill 1, remove dup
