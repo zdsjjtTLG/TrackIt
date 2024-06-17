@@ -54,7 +54,7 @@ class Net(object):
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
-                 cut_off: float = 1200.0, max_cut_off: float = 5000.0, delete_circle: bool = True):
+                 cut_off: float = 1200.0, delete_circle: bool = True):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -81,7 +81,6 @@ class Net(object):
         :param is_hierarchical: 是否启用空间分层
         :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
         :param cut_off: 路径搜索截断长度, 米, 默认1000m
-        :param max_cut_off: 最大路径搜索截断长度, 如果在cut_off截断半径下, 没有搜索出任何路径的节点会使用这个长度再次进行搜索, 默认5000米
         :param cache_name: 路径预存储的标志名称, 默认cache
 
         """
@@ -99,7 +98,6 @@ class Net(object):
         self.__is_sub_net = is_sub_net
         self.fmm_cache = fmm_cache
         self.cut_off = cut_off
-        self.max_cut_off = max_cut_off
         if cache_cn > os.cpu_count():
             cache_cn = os.cpu_count()
         self.cache_cn = cache_cn
