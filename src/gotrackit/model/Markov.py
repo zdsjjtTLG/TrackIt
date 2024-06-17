@@ -567,8 +567,9 @@ class HiddenMarkov(object):
                    transition_df.loc[final_idx, :]['to_route_dis'])
         transition_df[gps_field.ADJ_DIS] = transition_df[gps_field.FROM_GPS_SEQ].map(gps_adj_dis_map)
 
-        transition_df[markov_field.DIS_GAP] = np.abs(
-            -transition_df[markov_field.ROUTE_LENGTH] + transition_df[gps_field.ADJ_DIS])
+        transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
+        transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
+            -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
 
         s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
                                      markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
