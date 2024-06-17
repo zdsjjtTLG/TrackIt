@@ -1753,7 +1753,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
     如果启用了增密参数，一般来讲，最好要增大gps_buffer和top_k的值
 
 * 可能是源轨迹点较为稀疏(相邻GPS点间距大于1000m), 但是没有启用轨迹点自动增密
-    增密轨迹点: dense_gps指定为True；dense_interval 推荐150 ~ 600，表示相邻GPS点的距离只要超过dense_interval，就会在这两个点之间进行增密
+    增密轨迹点: dense_gps指定为True；dense_interval 推荐100 ~ 500，表示相邻GPS点的距离只要超过dense_interval，就会在这两个点之间进行增密
 
 
 * 可能是cut_off选小了
