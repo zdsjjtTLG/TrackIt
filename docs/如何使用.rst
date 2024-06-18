@@ -1860,6 +1860,10 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
         link = link.to_crs('EPSG:4326')
         node = node.to_crs('EPSG:4326')
 
+        # 如果还报错, 再加下面这个
+        # link.crs.srs = 'EPSG:4326'
+        # node.crs.srs = 'EPSG:4326'
+
         my_net = Net(link_gdf=link, node_gdf=node)
         my_net.init_net()  # net初始化
 
