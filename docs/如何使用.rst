@@ -1243,10 +1243,12 @@ Net构建参数见：`构建Net的相关参数`_
     对值(一个DataFrame)的示例解释，以下图第一行为例，一行代表了一次警告，我们只用关心from_ft列、to_ft列值的第2~3个元素，匹配link(605186, 596721) 到 匹配link(98359, 258807) 之间不连通，表明了可能存在路段缺失
 
 
-.. image:: _static/images/warn_info_a.jpg
-    :align: center
+.. code-block:: python
+    :linenos:
 
-----------------------------------------
+    UserWarning: gps seq: 10 -> 11 状态转移出现问题, from_link:(605186, 596721) -> to_link:(98359, 258807)
+    UserWarning: gps seq: 111 -> 112 状态转移出现问题, from_link:(150627, 38018) -> to_link:(78195, 26627)
+
 
 .. image:: _static/images/warn_info.jpg
     :align: center
