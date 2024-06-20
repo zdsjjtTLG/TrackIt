@@ -28,7 +28,7 @@ class MapMatch(object):
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
-                 dense_gps: bool = True, dense_interval: float = 80.0,
+                 dense_gps: bool = True, dense_interval: float = 100.0,
                  dwell_l_length: float = 10.0, dwell_n: int = 2, del_dwell: bool = True,
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
