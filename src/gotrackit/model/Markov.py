@@ -970,7 +970,7 @@ class HiddenMarkov(object):
         prj_p_layer['__geo'] = prj_p_layer.apply(
             lambda item: LineString((item[gps_field.GEOMETRY_FIELD], item[markov_field.PRJ_GEO])), axis=1)
 
-        # prj_line
+        # prj_line_layer
         prj_l_layer = prj_p_layer[[gps_field.POINT_SEQ_FIELD, '__geo']].copy()
         prj_l_layer.rename(columns={'__geo': gps_field.GEOMETRY_FIELD}, inplace=True)
         prj_l_layer = gpd.GeoDataFrame(prj_l_layer, geometry=gps_field.GEOMETRY_FIELD, crs=prj_p_layer.crs)
