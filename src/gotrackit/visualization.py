@@ -185,8 +185,6 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     :return:
     """
     # 生成KeplerGl对象
-    if gps_field.HEADING_FIELD in mix_gdf.columns:
-        mix_gdf.drop(columns=gps_field.HEADING_FIELD, axis=1, inplace=True)
     mix_gdf.sort_values(by='type', ascending=True, inplace=True)
     data_item = dict()
 
