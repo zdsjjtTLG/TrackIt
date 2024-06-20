@@ -34,8 +34,9 @@ class GpsField(object):
     """gps数据字段"""
     def __init__(self):
         self.POINT_SEQ_FIELD = 'seq'
+        self.LOC_TYPE = 'loc_type'
         self.SUB_SEQ_FIELD = 'sub_seq'
-        self.ORIGIN_POINT_SEQ_FIELD = 'origin_seq'
+        self.ORIGIN_POINT_SEQ_FIELD = '__ori_seq'
         self.TIME_FIELD = 'time'
         self.LNG_FIELD = 'lng'
         self.LAT_FIELD = 'lat'
