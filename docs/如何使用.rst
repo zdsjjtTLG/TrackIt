@@ -1183,14 +1183,12 @@ Net构建参数见：`构建Net的相关参数`_
 
         # 3. 匹配
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-               use_sub_net=True, use_heading_inf=True,
-               omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
-               lower_n=2, is_lower_f=True,
-               is_rolling_average=True, window=3,
-               dense_gps=False,
-               export_html=True, export_geo_res=True, use_gps_source=False,
-               out_fldr=r'./data/output/match_visualization/xa_sample',
-               gps_radius=10.0)
+               use_sub_net=True, use_heading_inf=True, omitted_l=6.0,
+               del_dwell=True, dwell_l_length=50.0, dwell_n=0,
+               export_html=True, export_geo_res=True, use_gps_source=True,
+               export_all_agents=False,
+               out_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
+               gps_radius=15.0)
 
         # 第一个返回结果是匹配结果表
         # 第二个是发生警告的相关信息
@@ -1508,13 +1506,12 @@ Net构建参数见：`构建Net的相关参数`_
 
         # 此时传入的net就带有预计算的结果, 匹配速度会提升
         mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=100, flag_name='xa_sample',
-                   use_sub_net=False, use_heading_inf=True,
-                   omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
-                   lower_n=2, is_lower_f=True,
-                   is_rolling_average=True, window=3,
-                   export_html=False, export_geo_res=False, use_gps_source=False,
-                   out_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
-                   gps_radius=20.0)
+               use_sub_net=True, use_heading_inf=True, omitted_l=6.0,
+               del_dwell=True, dwell_l_length=50.0, dwell_n=0,
+               export_html=True, export_geo_res=True, use_gps_source=True,
+               export_all_agents=False,
+               out_fldr=r'./data/output/match_visualization/xa_sample', dense_gps=False,
+               gps_radius=15.0)
         match_res, may_error_info, error_info = mpm.execute()
         print(match_res)
 
