@@ -1211,7 +1211,7 @@ Net构建参数见：`构建Net的相关参数`_
     "seq","gps点的序列ID","int"
     "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
     "time","gps定位时间","datetime"
-    "loc_type","gps点类型, 三类: s:源GPS点、d: 增密点、c: 后补点","string"
+    "loc_type","gps点类型, 三类: s：源GPS点、d：增密点、c：后补点","string"
     "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
     "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
     "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
@@ -1390,7 +1390,7 @@ Net构建参数见：`构建Net的相关参数`_
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
-* user_filed_list(v0.3.2)
+* user_filed_list(v0.3.2新增)
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
     这些字段必须在gps表中实际存在, 且名不能与以下内置字段相同：agent_id、seq、sub_seq、time、loc_type、link_id、dir、from_node、to_node、lng、lat、prj_lng、prj_lat、dis_to_next、geometry、prj_p
