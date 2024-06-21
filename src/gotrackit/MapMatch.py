@@ -37,7 +37,8 @@ class MapMatch(object):
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
-                 use_para_grid: bool = False, para_grid: ParaGrid = None, user_filed_list: list[str] = None):
+                 use_para_grid: bool = False, para_grid: ParaGrid = None, user_filed_list: list[str] = None,
+                 heading_vec_len: float = 15.0):
         """
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
@@ -71,6 +72,7 @@ class MapMatch(object):
         :param instant_output: 是否每匹配完一条轨迹就存储csv匹配结果
         :param use_para_grid: 是否启用网格参数搜索
         :param para_grid: 网格参数对象
+        :param heading_vec_len: 匹配航向向量的长度(控制geojson中的可视化)
         :param user_filed_list: gps数据中用户想要输出的额外字段
         """
         # 坐标系投影
@@ -134,6 +136,7 @@ class MapMatch(object):
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
         self.user_filed_list = user_filed_list
+        self.heading_vec_len = heading_vec_len
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
         match_res_df = pd.DataFrame()
@@ -213,7 +216,8 @@ class MapMatch(object):
             hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                    not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid)
+                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid,
+                                   heading_vec_len=self.heading_vec_len)
             if not self.use_para_grid:
                 is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
             else:
@@ -287,7 +291,8 @@ class MapMatch(object):
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
                            multi_core_save=False, instant_output=self.instant_output, use_para_grid=self.use_para_grid,
-                           para_grid=self.para_grid, user_filed_list=self.user_filed_list)
+                           para_grid=self.para_grid, user_filed_list=self.user_filed_list,
+                           heading_vec_len=self.heading_vec_len)
             result = pool.apply_async(mmp.execute,
                                       args=())
             result_list.append(result)
