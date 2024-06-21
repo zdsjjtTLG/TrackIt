@@ -60,6 +60,7 @@
 
 <div align="center">
     <img src="docs/_static/images/match_heading.jpg" />
+    <img src="docs/_static/images/0.3.2yg.jpg" />
 </div>
 
 <br>
