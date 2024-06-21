@@ -1211,7 +1211,7 @@ Net构建参数见：`构建Net的相关参数`_
     "seq","gps点的序列ID","int"
     "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
     "time","gps定位时间","datetime"
-    "loc_type","gps点类型, 三类: s：源GPS点、d：增密点、c：后补点","string"
+    "loc_type","gps点类型(v0.3.2新增), 三类: s：源GPS点、d：增密点、c：后补点","string"
     "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
     "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
     "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
@@ -1745,7 +1745,9 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
 {flag_name}-{agent_id}-prj_l.geojson：投影线矢量图层
 
-{flag_name}-{agent_id}-prj_p.geojson：匹配路段投影点矢量图层
+{flag_name}-{agent_id}-prj_p.geojson：路段匹配点矢量图层
+
+{flag_name}-{agent_id}-heading_vec.geojson：路段匹配点航向向量(v0.3.2推出)
 
 可使用GIS软件可视化，如QGIS
 
