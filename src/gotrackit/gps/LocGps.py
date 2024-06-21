@@ -60,7 +60,7 @@ class GpsPointsGdf(object):
         :param user_filed_list
         """
         if user_filed_list:
-            assert set(user_filed_list).issubset(gps_points_df.columns), '指定的用户字段不存在!'
+            assert set(user_filed_list).issubset(gps_points_df.columns), '指定的用户字段不存在, 请检查user_filed_list'
         self.geo_crs = geo_crs
         self.buffer = buffer
         self.__crs = self.geo_crs
