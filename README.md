@@ -54,6 +54,12 @@
 
 - 地图匹配接口：匹配结果字段输出优化，增加loc_type用于标识：源GPS数据点、增密点、后补点
 
+- 地图匹配接口：新增匹配点航向角、航向向量的数据
+
+<div align="center">
+    <img src="docs/_static/images/match_heading.jpg" />
+</div>
+
 <br>
 
 
