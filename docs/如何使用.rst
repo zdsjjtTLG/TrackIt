@@ -1219,8 +1219,9 @@ Net构建参数见：`构建Net的相关参数`_
     "lat","gps点的纬度, EPSG:4326","float"
     "prj_lng","gps点在匹配路段上对应匹配点的经度, EPSG:4326, 后补点的该值为空","float"
     "prj_lat","gps点在匹配路段上对应匹配点的纬度, EPSG:4326, 后补点的该值为空","float"
+    "match_heading","(v0.3.2新增)gps匹配点的航向角(度), EPSG:4326, 后补点的该值为空","float"
     "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
-    "driving_l","(v0.3.2新增)gps匹配点在匹配路段上与路段起点的路径距离, 后补点的该值为空","float"
+    "route_dis","(v0.3.2新增)gps匹配点在匹配路段上与路段起点的路径距离, 后补点的该值为空","float"
     "其他字段用户指定输出的字段", "参照参数user_field_list", "user diy"
 
 
@@ -1394,7 +1395,7 @@ Net构建参数见：`构建Net的相关参数`_
 * user_filed_list(v0.3.2新增)
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
-    这些字段必须在gps表中实际存在, 且名不能与以下内置字段相同：agent_id、seq、sub_seq、time、loc_type、link_id、dir、from_node、to_node、lng、lat、prj_lng、prj_lat、dis_to_next、geometry、prj_p
+    这些字段必须在gps表中实际存在, 且名不能与以下内置字段相同：agent_id、seq、sub_seq、time、loc_type、link_id、dir、from_node、to_node、lng、lat、prj_lng、prj_lat、dis_to_next、route_dis、match_heading、geometry、prj_p
 
 
 * use_para_grid
