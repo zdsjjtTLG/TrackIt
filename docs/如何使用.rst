@@ -1207,19 +1207,21 @@ Net构建参数见：`构建Net的相关参数`_
     :header: "字段名称", "字段含义", "字段类型"
     :widths: 15, 15, 40
 
+    "agent_id","gps点所属agent_id","string"
     "seq","gps点的序列ID","int"
     "sub_seq","gps点的子序列ID, 如果子序列>0, 说明该点是在匹配后补出来的点, 称之为后补点, 不会去计算其在目标路段上的投影点","int"
-    "lng","gps点的经度, EPSG:4326","float"
-    "lat","gps点的纬度, EPSG:4326","float"
-    "geometry","gps点的几何对象","geometry"
-    "prj_lng","gps点在匹配路段上对应匹配点的经度, EPSG:4326, 后补点的该值为空","geometry"
-    "prj_lat","gps点在匹配路段上对应匹配点的纬度, EPSG:4326, 后补点的该值为空","geometry"
-    "prj_geo","gps点在匹配路段上对应匹配点的几何对象, 后补点的该值为空","geometry"
-    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
     "time","gps定位时间","datetime"
+    "loc_type","gps点类型, 三类: s:源GPS点、d: 增密点、c: 后补点","string"
     "link_id","gps匹配路段的link_id，对应路网的link_id字段","int"
     "from_node","gps匹配路段的起始节点(表征行车方向起点)","int"
     "to_node","gps匹配路段的终到节点(表征行车方向终点)","int"
+    "lng","gps点的经度, EPSG:4326","float"
+    "lat","gps点的纬度, EPSG:4326","float"
+    "prj_lng","gps点在匹配路段上对应匹配点的经度, EPSG:4326, 后补点的该值为空","float"
+    "prj_lat","gps点在匹配路段上对应匹配点的纬度, EPSG:4326, 后补点的该值为空","float"
+    "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
+    "其他字段用户指定输出的字段", "参照参数user_field_list", ""
+
 
 关于sub_seq：
 
@@ -1227,6 +1229,11 @@ Net构建参数见：`构建Net的相关参数`_
     :align: center
 
 --------------------------------------------------------------------------------
+
+
+.. note::
+
+   对于dir为0的双向路段，例：link_id=12, from_node=2, to_node=3，匹配结果中匹配到link_id为12时，其(from_node, to_node) 可能为(2, 3) 也可能为 (3, 2), 这个由GPS的实际行车方向决定
 
 
 
@@ -1331,7 +1338,7 @@ Net构建参数见：`构建Net的相关参数`_
     是否对GPS数据进行增密, 默认True
 
 * dense_interval
-    当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认80.0
+    当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1  等分加密, 默认100.0
 
 .. image:: _static/images/gps_process.jpg
     :align: center
@@ -1365,8 +1372,14 @@ Net构建参数见：`构建Net的相关参数`_
 * export_html
     是否输出网页可视化结果html文件, 默认True
 
+* use_gps_source
+    是否在HTML可视化结果中使用GPS源数据进行展示, 默认False
+
 * export_all_agents
     是否将所有agent的可视化存储于一个html文件中
+
+* gps_radius
+    HTML可视化中GPS点的半径大小，单位米，默认8米
 
 * export_geo_res
     是否输出匹配结果的geojson几何可视化文件, 默认False
@@ -1374,15 +1387,13 @@ Net构建参数见：`构建Net的相关参数`_
 * visualization_cache_times
     每匹配完visualization_cache_times辆车再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
 
-* use_gps_source
-    是否在可视化结果中使用GPS源数据进行展示, 默认False
-
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
+* user_filed_list(v0.3.2)
+    GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
-* gps_radius
-    HTML可视化中GPS点的半径大小，单位米，默认8米
+    这些字段必须在gps表中实际存在, 且名不能与以下内置字段相同：agent_id、seq、sub_seq、time、loc_type、link_id、dir、from_node、to_node、lng、lat、prj_lng、prj_lat、dis_to_next、geometry、prj_p
 
 
 * use_para_grid
@@ -1411,7 +1422,7 @@ Net构建参数见：`构建Net的相关参数`_
     路径搜索截断长度, 米, 默认1200.0m
 
 * not_conn_cost
-    不连通路径的开销，默认1200.0m
+    不连通路径的开销，默认1000.0m
 
 * fmm_cache
     是否启用预计算，若启用后，预计算结果会缓存在fmm_cache_fldr下，默认False
@@ -1755,7 +1766,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
 
 * 可能是源数据问题
-    可能是此辆车的本身GPS数据点就不足两个
+    可能是此辆车的GPS数据点本身就不足两个
 
 
 6.9.2. 在html可视化结果中看到匹配路径不连续
