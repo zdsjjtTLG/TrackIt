@@ -957,8 +957,8 @@ class HiddenMarkov(object):
             self.acquire_res()
 
         # gps
-        gps_layer = self.gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
-                                            gps_field.GEOMETRY_FIELD]].copy()
+        gps_layer = self.gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD, gps_field.LOC_TYPE,
+                                            gps_field.GEOMETRY_FIELD] + self.gps_points.user_filed_list].copy()
 
         # prj_point
         prj_p_layer = self.gps_match_res_gdf[
@@ -980,8 +980,7 @@ class HiddenMarkov(object):
         prj_p_layer.drop(columns=['__geo', gps_field.GEOMETRY_FIELD], axis=1, inplace=True)
 
         # match_link
-        match_link_gdf = self.gps_match_res_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
-                                                net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
+        match_link_gdf = self.gps_match_res_gdf[[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                                                 net_field.TO_NODE_FIELD]].copy()
         match_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                                                net_field.TO_NODE_FIELD], keep='first', inplace=True)
