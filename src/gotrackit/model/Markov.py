@@ -710,8 +710,8 @@ class HiddenMarkov(object):
                                           ascending=[True, True], inplace=True)
             gps_link_state_df.reset_index(inplace=True, drop=True)
 
-        gps_link_state_df.loc[gps_link_state_df[gps_field.SUB_SEQ_FIELD] >= 1, gps_field.LOC_TYPE] = 'sup'
-        gps_link_state_df[gps_field.LOC_TYPE] = gps_link_state_df[gps_field.LOC_TYPE].fillna('dense')
+        gps_link_state_df.loc[gps_link_state_df[gps_field.SUB_SEQ_FIELD] >= 1, gps_field.LOC_TYPE] = 'c'
+        gps_link_state_df[gps_field.LOC_TYPE] = gps_link_state_df[gps_field.LOC_TYPE].fillna('d')
 
         gps_match_res_gdf = gpd.GeoDataFrame(gps_link_state_df, geometry=gps_field.GEOMETRY_FIELD,
                                              crs=self.gps_points.crs)
@@ -874,7 +874,7 @@ class HiddenMarkov(object):
                  net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                  gps_field.GEOMETRY_FIELD, gps_field.LOC_TYPE] + self.gps_points.user_filed_list].copy()
             if use_gps_source:
-                plot_gps_gdf = plot_gps_gdf[plot_gps_gdf[gps_field.LOC_TYPE] == 'source']
+                plot_gps_gdf = plot_gps_gdf[plot_gps_gdf[gps_field.LOC_TYPE] == 's']
             # GPS点转化为circle polygon
             if plot_gps_gdf.crs != plain_crs:
                 plot_gps_gdf = plot_gps_gdf.to_crs(plain_crs)

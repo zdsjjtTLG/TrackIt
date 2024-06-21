@@ -104,7 +104,7 @@ class GpsPointsGdf(object):
 
         self.__user_gps_info = gps_points_gdf[
             [gps_field.POINT_SEQ_FIELD] + self.user_filed_list].copy()  # user_diy_info
-        self.__user_gps_info[gps_field.LOC_TYPE] = 'source'
+        self.__user_gps_info[gps_field.LOC_TYPE] = 's'
 
         self.__gps_points_gdf = gps_points_gdf[
             [gps_field.POINT_SEQ_FIELD, agent_field, time_field, geometry_field]].copy()
@@ -247,7 +247,7 @@ class GpsPointsGdf(object):
             pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit='s')
         self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.crs)
         self.__user_gps_info = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD]].copy()
-        self.__user_gps_info[gps_field.LOC_TYPE] = 'source'
+        self.__user_gps_info[gps_field.LOC_TYPE] = 's'
         self.user_filed_list = []
 
     def calc_diff_heading(self):

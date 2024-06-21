@@ -50,7 +50,7 @@ class Net(object):
                  is_check: bool = True, create_single: bool = True, search_method: str = 'dijkstra',
                  ft_link_mapping: dict = None, double_single_mapping: dict = None, link_ft_mapping: dict = None,
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
-                 not_conn_cost: float = 1200.0, cache_path: bool = True, cache_id: bool = True,
+                 not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
