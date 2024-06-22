@@ -1393,8 +1393,7 @@ Net构建参数见：`构建Net的相关参数`_
 * user_filed_list(v0.3.2新增)
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
-    这些字段必须在gps表中实际存在, 且名不能与以下内置字段相同：agent_id、seq、sub_seq、time、loc_type、link_id、dir、from_node、to_node、lng、lat、prj_lng、prj_lat、dis_to_next、route_dis、match_heading、geometry、prj_p
-
+    这些字段必须在gps表中实际存在
 
 * use_para_grid
     是否启用网格参数搜索
