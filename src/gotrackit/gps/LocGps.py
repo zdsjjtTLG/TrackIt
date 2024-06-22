@@ -59,8 +59,6 @@ class GpsPointsGdf(object):
         :param dense_interval: 加密间隔(相邻GPS点的直线距离小于dense_interval即会进行加密)
         :param user_filed_list
         """
-        if user_filed_list:
-            assert set(user_filed_list).issubset(gps_points_df.columns), '指定的用户字段不存在, 请检查user_filed_list'
         self.geo_crs = geo_crs
         self.buffer = buffer
         self.__crs = self.geo_crs
@@ -72,7 +70,7 @@ class GpsPointsGdf(object):
         self.__gps_point_dis_dict = dict()
         gps_points_df.reset_index(inplace=True, drop=True)
         self.agent_id = gps_points_df.at[0, gps_field.AGENT_ID_FIELD]
-        self.check(gps_points_df=gps_points_df)
+        # self.check(gps_points_df=gps_points_df)
         gps_points_df[gps_field.GEOMETRY_FIELD] = \
             gps_points_df[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(lambda p: Point(p), axis=1)
         gps_points_gdf = gpd.GeoDataFrame(gps_points_df, geometry=gps_field.GEOMETRY_FIELD, crs=self.geo_crs)
@@ -94,13 +92,7 @@ class GpsPointsGdf(object):
         self.__source_gps_points_gdf = gps_points_gdf.copy()  # 存储最原始的GPS信息
 
         self.__user_gps_info = pd.DataFrame()
-        user_filed_list = list() if user_filed_list is None else user_filed_list
-        self.user_filed_list = list(
-            set(user_filed_list) - {agent_field, gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
-                                    time_field, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
-                                    net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
-                                    lng_field, lat_field, geometry_field, 'prj_lng', 'prj_lat', markov_field.PRJ_GEO,
-                                    markov_field.DIS_TO_NEXT})
+        self.user_filed_list = list() if user_filed_list is None else user_filed_list
 
         self.__user_gps_info = gps_points_gdf[
             [gps_field.POINT_SEQ_FIELD] + self.user_filed_list].copy()  # user_diy_info
@@ -120,11 +112,31 @@ class GpsPointsGdf(object):
         self.done_diff_heading = False
 
     @staticmethod
-    def check(gps_points_df: pd.DataFrame = None):
-        assert {gps_field.LNG_FIELD, gps_field.LAT_FIELD,
-                gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD}.issubset(
-            set(gps_points_df.columns)), \
-            rf'GPS数据字段有误, 请至少包含如下字段: {gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD}'
+    def check(gps_points_df: pd.DataFrame = None, user_field_list: list[str] = None):
+        user_field_list = list() if user_field_list is None else user_field_list
+        user_field_set = set(user_field_list)
+        all_gps_field_set = set(gps_points_df.columns)
+        assert {agent_field, time_field, lng_field, lat_field}.issubset(set(gps_points_df.columns)), \
+            rf'GPS数据字段有误, 请至少包含如下字段: {agent_field, time_field, lng_field, lat_field}'
+        assert user_field_set.issubset(all_gps_field_set), '用户输出字段在GPS数据表中不存在'
+        sys_field_set = {agent_field, net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD,
+                         gps_field.SUB_SEQ_FIELD,
+                         time_field, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
+                         net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
+                         lng_field, lat_field, geometry_field, 'prj_lng', 'prj_lat', markov_field.PRJ_GEO,
+                         markov_field.DIS_TO_NEXT, net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN,
+                         markov_field.MATCH_HEADING, markov_field.DRIVING_L}
+        to_del_fields = all_gps_field_set - {lng_field, lat_field, agent_field, time_field} - user_field_set
+        if to_del_fields:
+            gps_points_df.drop(columns=list(to_del_fields), inplace=True, axis=1)
+
+        if user_field_set:
+            dup_fields = user_field_set & sys_field_set
+            if dup_fields:
+                rename_dict = {ori: '_' + ori for ori in dup_fields}
+                gps_points_df.rename(columns=rename_dict, inplace=True)
+                user_field_list = list((user_field_set - dup_fields) | set(rename_dict.values()))
+        return user_field_list
 
     def generate_plain_xy(self):
         self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
