@@ -2,6 +2,7 @@
 # @Time    : 2024/3/25 14:13
 # @Author  : TangKai
 # @Team    : ZheChengData
+
 import os
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ class MapMatch(object):
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
-                 use_para_grid: bool = False, para_grid: ParaGrid = None, user_filed_list: list[str] = None,
+                 use_para_grid: bool = False, para_grid: ParaGrid = None, user_field_list: list[str] = None,
                  heading_vec_len: float = 15.0):
         """
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
@@ -73,7 +74,7 @@ class MapMatch(object):
         :param use_para_grid: 是否启用网格参数搜索
         :param para_grid: 网格参数对象
         :param heading_vec_len: 匹配航向向量的长度(控制geojson中的可视化)
-        :param user_filed_list: gps数据中用户想要输出的额外字段
+        :param user_field_list: gps数据中用户想要输出的额外字段
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -135,7 +136,7 @@ class MapMatch(object):
 
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
-        self.user_filed_list = user_filed_list
+        self.user_field_list = user_field_list
         self.heading_vec_len = heading_vec_len
 
     def execute(self) -> tuple[pd.DataFrame, dict, list]:
@@ -147,9 +148,13 @@ class MapMatch(object):
             print('去除agent_id列空值行后, gps数据为空...')
             return match_res_df, self.may_error_list, self.error_list
 
+        # check and format
+        self.user_field_list = GpsPointsGdf.check(gps_points_df=self.gps_df,
+                                                  user_field_list=self.user_field_list)
         # 对每辆车的轨迹进行匹配
         agent_count = 0
         add_single_ft = [True]
+
         for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
             agent_count += 1
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
@@ -159,7 +164,7 @@ class MapMatch(object):
                                        plane_crs=self.plain_crs,
                                        dense_gps=self.dense_gps, dense_interval=self.dense_interval,
                                        dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n,
-                                       user_filed_list=self.user_filed_list)
+                                       user_filed_list=self.user_field_list)
             except Exception as e:
                 print('构建按GPS对象出错...')
                 print(repr(e))
@@ -291,7 +296,7 @@ class MapMatch(object):
                            export_all_agents=self.export_all_agents,
                            visualization_cache_times=self.visualization_cache_times,
                            multi_core_save=False, instant_output=self.instant_output, use_para_grid=self.use_para_grid,
-                           para_grid=self.para_grid, user_filed_list=self.user_filed_list,
+                           para_grid=self.para_grid, user_field_list=self.user_field_list,
                            heading_vec_len=self.heading_vec_len)
             result = pool.apply_async(mmp.execute,
                                       args=())
