@@ -41,7 +41,7 @@ class HiddenMarkov(object):
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
                  dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
-                 use_para_grid: bool = False):
+                 use_para_grid: bool = False, heading_vec_len: float = 15.0):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -79,6 +79,7 @@ class HiddenMarkov(object):
         self.__transition_df = pd.DataFrame()
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
+        self.heading_vec_len = heading_vec_len
 
     def init_warn_info(self):
         self.warn_info = {'from_ft': [], 'to_ft': []}
@@ -669,9 +670,19 @@ class HiddenMarkov(object):
         gps_link_state_df[gps_field.SUB_SEQ_FIELD] = 0
         gps_link_state_df = pd.merge(gps_link_state_df, self.__done_prj_df[[gps_field.POINT_SEQ_FIELD,
                                                                             net_field.SINGLE_LINK_ID_FIELD,
-                                                                            markov_field.PRJ_GEO]],
+                                                                            markov_field.PRJ_GEO, net_field.X_DIFF,
+                                                                            net_field.Y_DIFF, net_field.VEC_LEN,
+                                                                            'route_dis']],
                                      on=[gps_field.POINT_SEQ_FIELD,
                                          net_field.SINGLE_LINK_ID_FIELD], how='left')
+        temp_df = gps_link_state_df[[net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN]].copy()
+        temp_df['vl'], temp_df['dx'], temp_df['dy'] = 1.0, 0.0, 1.0
+        vec_angle(df=temp_df, val_field='vl', va_dx_field='dx', va_dy_field='dy')
+        __idx = temp_df[net_field.X_DIFF] < 0
+        temp_df.loc[__idx, 'theta'] = 360 - temp_df.loc[__idx, :]['theta']
+        gps_link_state_df[markov_field.MATCH_HEADING] = np.around(temp_df['theta'], 2)
+        del temp_df
+
         gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[
             [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1)
         gps_link_state_df.fillna(-99, inplace=True)
@@ -734,7 +745,8 @@ class HiddenMarkov(object):
                                        gps_field.TIME_FIELD, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
                                        net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                                        gps_field.LNG_FIELD, gps_field.LAT_FIELD, 'prj_lng', 'prj_lat',
-                                       markov_field.DIS_TO_NEXT] + self.gps_points.user_filed_list]
+                                       markov_field.DIS_TO_NEXT, markov_field.MATCH_HEADING,
+                                       markov_field.DRIVING_L] + self.gps_points.user_filed_list]
 
     def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
         """
@@ -872,7 +884,8 @@ class HiddenMarkov(object):
             plot_gps_gdf = self.gps_match_res_gdf[
                 [gps_field.POINT_SEQ_FIELD, gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD,
                  net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
-                 gps_field.GEOMETRY_FIELD, gps_field.LOC_TYPE] + self.gps_points.user_filed_list].copy()
+                 gps_field.GEOMETRY_FIELD, gps_field.LOC_TYPE,
+                 markov_field.MATCH_HEADING, markov_field.DRIVING_L] + self.gps_points.user_filed_list].copy()
             if use_gps_source:
                 plot_gps_gdf = plot_gps_gdf[plot_gps_gdf[gps_field.LOC_TYPE] == 's']
             # GPS点转化为circle polygon
@@ -963,7 +976,9 @@ class HiddenMarkov(object):
         # prj_point
         prj_p_layer = self.gps_match_res_gdf[
             [gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD, net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
-             net_field.TO_NODE_FIELD, markov_field.DIS_TO_NEXT, markov_field.PRJ_GEO, gps_field.GEOMETRY_FIELD]].copy()
+             net_field.TO_NODE_FIELD, markov_field.DIS_TO_NEXT, markov_field.PRJ_GEO, gps_field.GEOMETRY_FIELD,
+             markov_field.DRIVING_L, markov_field.MATCH_HEADING,
+             net_field.VEC_LEN, net_field.X_DIFF, net_field.Y_DIFF]].copy()
         prj_p_layer.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
         prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=self.gps_points.geo_crs)
 
@@ -994,8 +1009,25 @@ class HiddenMarkov(object):
         match_link_gdf = gpd.GeoDataFrame(match_link_gdf, geometry=net_field.GEOMETRY_FIELD, crs=self.net.planar_crs)
         match_link_gdf = match_link_gdf.to_crs(self.net.geo_crs)
 
-        for gdf, name in zip([gps_layer, prj_p_layer, prj_l_layer, match_link_gdf],
-                             ['gps', 'prj_p', 'prj_l', 'match_link']):
+        # heading vec layer
+        match_heading_gdf = prj_p_layer.copy()
+        match_heading_gdf = match_heading_gdf.to_crs(self.net.planar_crs)
+        match_heading_gdf[markov_field.PRJ_GEO] = [
+            LineString([(prj_p.x, prj_p.y),
+                        (prj_p.x + self.heading_vec_len * dx / dl, prj_p.y + self.heading_vec_len * dy / dl)])
+            for prj_p, dx, dy, dl in
+            zip(match_heading_gdf[markov_field.PRJ_GEO],
+                match_heading_gdf[net_field.X_DIFF],
+                match_heading_gdf[net_field.Y_DIFF],
+                match_heading_gdf[net_field.VEC_LEN])]
+        match_heading_gdf = match_heading_gdf.to_crs(self.net.geo_crs)
+        match_heading_gdf = match_heading_gdf[
+            [gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD, markov_field.MATCH_HEADING,
+             markov_field.DRIVING_L, markov_field.PRJ_GEO]]
+        # delete useless fields
+        del prj_p_layer[net_field.VEC_LEN], prj_p_layer[net_field.X_DIFF], prj_p_layer[net_field.Y_DIFF]
+        for gdf, name in zip([gps_layer, prj_p_layer, prj_l_layer, match_link_gdf, match_heading_gdf],
+                             ['gps', 'prj_p', 'prj_l', 'match_link', 'heading_vec']):
             gdf.to_file(os.path.join(out_fldr, '-'.join([flag_name, name]) + '.geojson'), driver='GeoJSON')
 
     def formatting_warn_info(self):
