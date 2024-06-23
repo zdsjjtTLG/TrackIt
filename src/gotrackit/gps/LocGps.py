@@ -114,11 +114,9 @@ class GpsPointsGdf(object):
     @staticmethod
     def check(gps_points_df: pd.DataFrame = None, user_field_list: list[str] = None):
         user_field_list = list() if user_field_list is None else user_field_list
-        user_field_set = set(user_field_list)
         all_gps_field_set = set(gps_points_df.columns)
         assert {agent_field, time_field, lng_field, lat_field}.issubset(set(gps_points_df.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {agent_field, time_field, lng_field, lat_field}'
-        assert user_field_set.issubset(all_gps_field_set), '用户输出字段在GPS数据表中不存在'
         sys_field_set = {agent_field, net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD,
                          gps_field.SUB_SEQ_FIELD,
                          time_field, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
@@ -126,11 +124,13 @@ class GpsPointsGdf(object):
                          lng_field, lat_field, geometry_field, 'prj_lng', 'prj_lat', markov_field.PRJ_GEO,
                          markov_field.DIS_TO_NEXT, net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN,
                          markov_field.MATCH_HEADING, markov_field.DRIVING_L}
-        to_del_fields = all_gps_field_set - {lng_field, lat_field, agent_field, time_field} - user_field_set
-        if to_del_fields:
-            gps_points_df.drop(columns=list(to_del_fields), inplace=True, axis=1)
 
-        if user_field_set:
+        if user_field_list:
+            user_field_set = set(user_field_list)
+            to_del_fields = all_gps_field_set - {lng_field, lat_field, agent_field, time_field} - user_field_set
+            if to_del_fields:
+                gps_points_df.drop(columns=list(to_del_fields), inplace=True, axis=1)
+            assert user_field_set.issubset(all_gps_field_set), '用户输出字段在GPS数据表中不存在'
             dup_fields = user_field_set & sys_field_set
             if dup_fields:
                 rename_dict = {ori: '_' + ori for ori in dup_fields}
