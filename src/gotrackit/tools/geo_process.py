@@ -148,9 +148,12 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
         for i, _p in enumerate(coords):
             xd = line.project(Point(_p))
             if xd == distance:
+                coords_len = len(coords)
                 prj_p = Point(coords[i])
-                # prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
-                dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
+                if 0 < i < coords_len - 1:
+                    dx, dy = coords[i + 1][0] - coords[i - 1][0], coords[i + 1][1] - coords[i - 1][1]
+                else:
+                    dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
                 return prj_p, prj_p.distance(p), distance, line.length, \
                     [LineString(coords[:i + 1]), LineString(coords[i:])], dx, dy
             if xd > distance:
