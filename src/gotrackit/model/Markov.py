@@ -719,8 +719,7 @@ class HiddenMarkov(object):
             gps_link_state_df = pd.concat([gps_link_state_df, omitted_gps_state_df])
             gps_link_state_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
                                           ascending=[True, True], inplace=True)
-            gps_link_state_df.reset_index(inplace=True, drop=True)
-
+        gps_link_state_df.reset_index(inplace=True, drop=True)
         gps_link_state_df.loc[gps_link_state_df[gps_field.SUB_SEQ_FIELD] >= 1, gps_field.LOC_TYPE] = 'c'
         gps_link_state_df[gps_field.LOC_TYPE] = gps_link_state_df[gps_field.LOC_TYPE].fillna('d')
 
@@ -1012,6 +1011,7 @@ class HiddenMarkov(object):
         # heading vec layer
         match_heading_gdf = prj_p_layer.copy()
         match_heading_gdf = match_heading_gdf.to_crs(self.net.planar_crs)
+        match_heading_gdf.loc[match_heading_gdf[net_field.VEC_LEN] <= 0, net_field.VEC_LEN] = 1
         match_heading_gdf[markov_field.PRJ_GEO] = [
             LineString([(prj_p.x, prj_p.y),
                         (prj_p.x + self.heading_vec_len * dx / dl, prj_p.y + self.heading_vec_len * dy / dl)])
