@@ -1220,7 +1220,7 @@ Net构建参数见：`构建Net的相关参数`_
     "match_heading","gps匹配点的航向角(从正北方向开始顺时针扫过的角度, 0~360度), EPSG:4326, 后补点的该值为空","float"
     "dis_to_next","gps投影点与后序相邻gps投影点的路径距离(不考虑后补点), 后补点的该值为空","float"
     "route_dis","gps匹配点在匹配路段上与路段起点的路径距离, 后补点的该值为空","float"
-    "其他字段用户指定输出的字段", "参照参数user_field_list", "user diy"
+    "其他用户指定输出的字段", "参照参数user_field_list", "user diy"
 
 
 关于sub_seq：
