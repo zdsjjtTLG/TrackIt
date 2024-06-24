@@ -1366,7 +1366,7 @@ Net构建参数见：`构建Net的相关参数`_
 
 ----------------------------------------
 
-* instant_output
+* instant_output(结果输出设置参数)
     是否每匹配完一条轨迹就存储csv匹配结果, 默认False
 
 * export_html(可视化参数)
@@ -1387,13 +1387,13 @@ Net构建参数见：`构建Net的相关参数`_
 * heading_vec_len(可视化参数)
     geojson几何可视化文件中航向向量的长度，默认15m
 
-* visualization_cache_times(可视化参数)
+* visualization_cache_times(结果输出设置参数)
     每匹配完visualization_cache_times辆车再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
 
-* out_fldr
+* out_fldr(结果输出设置参数)
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
-* user_field_list(可视化参数)
+* user_field_list(结果输出设置参数)
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
     这些字段必须在gps表中实际存在
