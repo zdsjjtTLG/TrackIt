@@ -1390,7 +1390,7 @@ Net构建参数见：`构建Net的相关参数`_
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
-* user_filed_list
+* user_field_list
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
     这些字段必须在gps表中实际存在
