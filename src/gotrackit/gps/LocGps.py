@@ -117,6 +117,7 @@ class GpsPointsGdf(object):
         all_gps_field_set = set(gps_points_df.columns)
         assert {agent_field, time_field, lng_field, lat_field}.issubset(set(gps_points_df.columns)), \
             rf'GPS数据字段有误, 请至少包含如下字段: {agent_field, time_field, lng_field, lat_field}'
+        init_used_set = {agent_field, time_field, lng_field, lat_field}
         sys_field_set = {agent_field, net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD,
                          gps_field.SUB_SEQ_FIELD,
                          time_field, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
@@ -133,9 +134,13 @@ class GpsPointsGdf(object):
             assert user_field_set.issubset(all_gps_field_set), '用户输出字段在GPS数据表中不存在'
             dup_fields = user_field_set & sys_field_set
             if dup_fields:
-                rename_dict = {ori: '_' + ori for ori in dup_fields}
-                gps_points_df.rename(columns=rename_dict, inplace=True)
-                user_field_list = list((user_field_set - dup_fields) | set(rename_dict.values()))
+                ori_fields = [ori for ori in dup_fields]
+                rename_fields = ['_' + ori for ori in dup_fields]
+                gps_points_df[rename_fields] = gps_points_df[ori_fields]
+                can_del_fields = set(ori_fields) - init_used_set
+                if can_del_fields:
+                    gps_points_df.drop(columns=list(can_del_fields), axis=1, inplace=True)
+                user_field_list = list((user_field_set - dup_fields) | set(rename_fields))
         return user_field_list
 
     def generate_plain_xy(self):
