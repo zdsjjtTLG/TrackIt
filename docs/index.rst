@@ -1,9 +1,9 @@
 Welcome to GoTrackIt's documentation!
 =========================================
 
-作者：唐铠
+作者：唐铠，浙诚数据研发副总监
 
-邮箱：794568794@qq.com，tangkai@zhechengdata.com
+邮箱：tangkai@zhechengdata.com、794568794@qq.com
 
 项目源码：`项目GitHub主页 <https://github.com/zdsjjtTLG/TrackIt>`_ --- 当前版本v0.3.3
 
