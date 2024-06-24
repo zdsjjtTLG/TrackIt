@@ -1,12 +1,10 @@
 **Read this in other languages: [Chinese](README.md) or [English](README_EN.md).**
 
+
 <div align="center">
     <img src="docs/_static/images/gotrackit.png" />
 </div>
 
-<div align="center">
-    <img src="docs/_static/images/zhechengdata.png" />
-</div>
 
 <br>
 
