@@ -1369,28 +1369,31 @@ Net构建参数见：`构建Net的相关参数`_
 * instant_output
     是否每匹配完一条轨迹就存储csv匹配结果, 默认False
 
-* export_html
+* export_html(可视化参数)
     是否输出网页可视化结果html文件, 默认True
 
-* use_gps_source
+* use_gps_source(可视化参数)
     是否在HTML可视化结果中使用GPS源数据进行展示, 默认False
 
-* export_all_agents
+* export_all_agents(可视化参数)
     是否将所有agent的可视化存储于一个html文件中
 
-* gps_radius
+* gps_radius(可视化参数)
     HTML可视化中GPS点的半径大小，单位米，默认8米
 
-* export_geo_res
+* export_geo_res(可视化参数)
     是否输出匹配结果的geojson几何可视化文件, 默认False
 
-* visualization_cache_times
+* heading_vec_len(可视化参数)
+    geojson几何可视化文件中航向向量的长度，默认15m
+
+* visualization_cache_times(可视化参数)
     每匹配完visualization_cache_times辆车再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
 
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
 
-* user_field_list
+* user_field_list(可视化参数)
     GPS数据表中可以随匹配结果一同输出的字段列表， 例如:['gps_speed', 'origin_agent']，若启用了滑动窗口平均，该参数自动失效，默认None
 
     这些字段必须在gps表中实际存在
