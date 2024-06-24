@@ -2,6 +2,9 @@
 
 <div align="center">
     <img src="docs/_static/images/gotrackit.png" />
+</div>
+
+<div align="center">
     <img src="docs/_static/images/zhechengdata.png" />
 </div>
 
