@@ -902,7 +902,7 @@ circle_process处理后如图
                                        con_type='gc-84')
         print(trans_line)
 
-        # 如果想直接转换读取进来的GeoDatFrame
+        # 如果想直接转换读取进来的GeoDataFrame
         gdf['geometry'] = gdf['geometry'].apply(lambda x: trans.obj_convert(geo_obj=x, con_type='gc-84'))
 
 
