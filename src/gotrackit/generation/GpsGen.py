@@ -341,7 +341,7 @@ class Car(object):
 class RouteInfoCollector(object):
     """真实路径坐标以及GPS坐标收集器"""
     def __init__(self, convert_prj_sys: bool = True, convert_type: str = 'bd-84',
-                 convert_loc: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None) -> object:
+                 convert_loc: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None) -> None:
         """
 
         :param convert_prj_sys: 是否转换坐标系(GCJ02、百度、84之间的转化)
@@ -373,9 +373,11 @@ class RouteInfoCollector(object):
 
     @staticmethod
     @function_time_cost
-    def format_gdf(convert_prj_sys:bool=False, from_crs: str = None, to_crs: str = None, crs: str = None, convert_loc: bool = False,
+    def format_gdf(convert_prj_sys: bool = False, from_crs: str = None, to_crs: str = None, crs: str = None,
+                   convert_loc: bool = False,
                    convert_type: str = 'bd-84',
-                   info_list: list = None, attr_name_field_list: list[str] = None, time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
+                   info_list: list = None, attr_name_field_list: list[str] = None,
+                   time_format="%Y-%m-%d %H:%M:%S") -> gpd.GeoDataFrame:
 
         format_df = pd.DataFrame(info_list, columns=attr_name_field_list)
 
@@ -455,6 +457,7 @@ class RouteInfoCollector(object):
         else:
             self.save_file(file_type=file_type, df=self.gps_gdf, out_fldr=out_fldr, file_name=file_name)
         return self.gps_gdf
+
     @function_time_cost
     def save_mix_info(self, out_fldr: str = r'./', file_name: str = None, convert_prj_sys: bool = True,
                       from_crs: str = None, to_crs: str = None, crs: str = None,

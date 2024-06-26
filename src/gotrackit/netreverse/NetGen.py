@@ -291,7 +291,7 @@ class NetReverse(Reverse):
                                                    limit_col_name=self.limit_col_name)
         return increment_link, increment_node
 
-    def request_path(self, key_list: list[str] = None, binary_path_fldr: str = None,
+    def request_path(self, key_list: list[str] = None, binary_path_fldr: str = r'./',
                      od_file_path: str = None, od_df: pd.DataFrame = None,
                      region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
@@ -300,13 +300,9 @@ class NetReverse(Reverse):
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
                      is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False) \
             -> tuple[bool, list[str]]:
-        """构造OD -> 请求 -> 二进制存储"""
-        assert binary_path_fldr is not None
-
+        """构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326"""
         assert od_type in ['rand_od', 'region_od', 'diy_od']
         fmod = FormatOD(plain_crs=self.plain_prj)
-        if isinstance(region_gdf, gpd.GeoDataFrame) and not region_gdf.empty:
-            assert region_gdf.crs.srs.upper() == 'EPSG:4326', '面域文件必须是EPSG:4326"'
         if od_type == 'rand_od':
             if region_gdf is None or region_gdf.empty:
                 region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
@@ -422,7 +418,7 @@ class NetReverse(Reverse):
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
-
+        要求输入必须为EPSG:4326
         :param link_gdf:
         :param node_gdf:
         :param book_mark_name:
@@ -430,8 +426,6 @@ class NetReverse(Reverse):
         :param generate_mark
         :return:
         """
-        geo_crs = link_gdf.crs.srs
-        assert geo_crs.upper() == 'EPSG:4326'
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)

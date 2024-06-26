@@ -101,7 +101,7 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     print(r'##########   Merge Road Sections')
     node_geo_map = {node: geo for node, geo in zip(node_gdf[node_id_field], node_gdf[geometry_field])}
     node_gdf.set_index(node_id_field, inplace=True)
-    origin_crs = link_gdf.crs.srs
+    origin_crs = link_gdf.crs
     link_gdf['sorted_ft'] = link_gdf[[from_node_id_field, to_node_id_field]].apply(lambda x: tuple(sorted(x)), axis=1)
 
     origin_sorted_ft_list = link_gdf['sorted_ft'].to_list()

@@ -75,22 +75,17 @@ def optimize(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = Non
 
     # 是否处理重复link
     if is_process_dup_link:
-        origin_crs = new_link.crs.srs
-        if new_link.crs.srs.upper() == plain_prj.upper():
-            pass
-        else:
-            new_link = new_link.to_crs(plain_prj)
-            new_node = new_node.to_crs(plain_prj)
+        origin_crs = new_link.crs
+        new_link = new_link.to_crs(plain_prj)
+        new_node = new_node.to_crs(plain_prj)
         print(r'##########   Remove Overlapping Road Segments')
         final_link, final_node, dup_info_dict = process_dup_link(link_gdf=new_link, node_gdf=new_node,
                                                                  buffer=process_dup_link_buffer,
                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio,
                                                                  modify_minimum_buffer=modify_minimum_buffer)
-        if final_link.crs.srs.upper() == origin_crs.upper():
-            pass
-        else:
-            final_link = final_link.to_crs(origin_crs)
-            final_node = final_node.to_crs(origin_crs)
+
+        final_link = final_link.to_crs(origin_crs)
+        final_node = final_node.to_crs(origin_crs)
         return final_link, final_node, dup_info_dict
     else:
         return new_link, new_node, dict()

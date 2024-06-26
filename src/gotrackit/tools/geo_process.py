@@ -176,7 +176,7 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
     :return:
     """
     assert geometry_field in gdf.columns
-    origin_crs = gdf.crs.srs
+    origin_crs = gdf.crs
     con = LngLatTransfer()
 
     gdf[geometry_field] = gdf.apply(lambda row: con.obj_convert(geo_obj=row[geometry_field], con_type='None'), axis=1)

@@ -65,8 +65,6 @@ class Link(object):
         self.done_link_vec = False
 
     def check(self):
-        assert self.link_gdf.crs.srs.upper() == self.geo_crs, \
-            rf'Link层数据必须为WGS84 - EPSG:4326, 实际输入: {self.link_gdf.crs.srs}'
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
                    net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
@@ -163,7 +161,7 @@ class Link(object):
                          self.__single_link_gdf[net_field.TO_NODE_FIELD],
                          self.__single_link_gdf[weight_field])]
         self.__graph.add_edges_from(edge_list)
-        self.__ud_graph = self.__graph.to_undirected()
+        # self.__ud_graph = self.__graph.to_undirected()
 
     def get_graph(self):
         return self.__graph
@@ -221,11 +219,10 @@ class Link(object):
                      dir_field: dir_val, geometry_field: geo}
         attr_dict.update(kwargs)
         self.link_gdf = pd.concat(
-            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs.srs)])
+            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)])
         self.link_gdf.index = self.link_gdf[link_id_field]
 
     def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
-        assert link_gdf.crs.srs.upper() == self.crs
         assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
         self.link_gdf = pd.concat(
             [self.link_gdf, link_gdf])
@@ -325,28 +322,18 @@ class Link(object):
         return self.__ft_link_mapping
 
     def to_plane_prj(self) -> None:
-        if self.check_same_crs(self.link_gdf,  self.planar_crs):
+        if self.__single_link_gdf is None or self.__single_link_gdf.empty:
             pass
         else:
-            if self.__single_link_gdf is None or self.__single_link_gdf.empty:
-                pass
-            else:
-                self.__single_link_gdf = self.__single_link_gdf.to_crs(self.planar_crs)
-            self.link_gdf = self.link_gdf.to_crs(self.planar_crs)
+            self.__single_link_gdf = self.__single_link_gdf.to_crs(self.planar_crs)
+        self.link_gdf = self.link_gdf.to_crs(self.planar_crs)
 
     def to_geo_prj(self) -> None:
-        if self.check_same_crs(self.link_gdf, self.geo_crs):
+        if self.__single_link_gdf is None or self.__single_link_gdf.empty:
             pass
         else:
-            if self.__single_link_gdf is None or self.__single_link_gdf.empty:
-                pass
-            else:
-                self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
-            self.link_gdf = self.link_gdf.to_crs(self.geo_crs)
-
-    @staticmethod
-    def check_same_crs(gdf: gpd.GeoDataFrame = None, format_crs: str = None) -> bool:
-        return gdf.crs.srs.upper() == format_crs
+            self.__single_link_gdf = self.__single_link_gdf.to_crs(self.geo_crs)
+        self.link_gdf = self.link_gdf.to_crs(self.geo_crs)
 
     @property
     def crs(self):

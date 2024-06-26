@@ -34,7 +34,7 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     :param link_gdf:
     :return:
     """
-    origin_crs = link_gdf.crs.srs
+    origin_crs = link_gdf.crs
 
     # 消除from_node = to_node的记录
     link_gdf.drop(index=link_gdf[link_gdf[from_node_id_field] == link_gdf[to_node_id_field]].index, inplace=True, axis=0)
@@ -89,7 +89,7 @@ def convert_neg_to_pos(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     if link_neg.empty:
         return link_gdf
     else:
-        origin_crs = link_gdf.crs.srs
+        origin_crs = link_gdf.crs
 
         # 从原路网中删除dir为-1的记录
         link_gdf.drop(index=link_gdf[link_gdf[direction_field] == -1].index, axis=0, inplace=True)

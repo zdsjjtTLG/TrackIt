@@ -31,7 +31,7 @@ def get_grid_data(polygon_gdf: gpd.GeoDataFrame = None, meter_step: float = None
     :param generate_index:
     :return: pd.Dataframe
     """
-    crs = polygon_gdf.crs.srs
+    crs = polygon_gdf.crs
     geo_list = polygon_gdf[geometry_field].to_list()
     polygon_obj = unary_union(geo_list)
 

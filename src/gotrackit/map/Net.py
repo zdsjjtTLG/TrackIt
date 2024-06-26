@@ -297,18 +297,12 @@ class Net(object):
         return self.__link.get_link_attr_by_ft(from_node=from_node, to_node=to_node, attr_name=attr_name)
 
     def to_plane_prj(self):
-        if self.__link.crs == self.planar_crs:
-            pass
-        else:
-            self.__link.to_plane_prj()
-            self.__node.to_plane_prj()
+        self.__link.to_plane_prj()
+        self.__node.to_plane_prj()
 
     def to_geo_prj(self):
-        if self.__link.crs == self.geo_crs:
-            pass
-        else:
-            self.__link.to_geo_prj()
-            self.__node.to_geo_prj()
+        self.__link.to_geo_prj()
+        self.__node.to_geo_prj()
 
     @property
     def crs(self):
@@ -550,7 +544,8 @@ class Net(object):
                                                  start_node=row['__increment__'] + max_node + 1), axis=1,
                 result_type='expand')
             new_node_gdf = process_link_gdf[['__divide_p__', 'new_p']].copy()
-            new_node_gdf['p_l'] = new_node_gdf.apply(lambda row: len(row['__divide_p__']), axis=1)
+            # new_node_gdf['p_l'] = new_node_gdf.apply(lambda row: len(row['__divide_p__']), axis=1)
+            new_node_gdf['p_l'] = new_node_gdf['__divide_p__'].apply(lambda x: len(x))
             new_node_gdf.drop(index=new_node_gdf[new_node_gdf['p_l'] == 0].index, axis=0, inplace=True)
             new_node_gdf = pd.DataFrame(new_node_gdf)
             new_node_gdf.drop(columns=['p_l'], axis=1, inplace=True)

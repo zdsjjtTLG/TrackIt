@@ -73,20 +73,12 @@ class GpsArray(object):
         return self.__crs
 
     def to_plane_prj(self) -> None:
-        if self.gps_points_gdf.crs.srs.upper() == self.plane_crs:
-            self.__crs = self.plane_crs
-            pass
-        else:
-            self.gps_points_gdf = self.gps_points_gdf.to_crs(self.plane_crs)
-            self.__crs = self.plane_crs
+        self.gps_points_gdf = self.gps_points_gdf.to_crs(self.plane_crs)
+        self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
-        if self.gps_points_gdf.crs.srs.upper() == self.geo_crs:
-            self.__crs = self.geo_crs
-            pass
-        else:
-            self.gps_points_gdf = self.gps_points_gdf.to_crs(self.geo_crs)
-            self.__crs = self.geo_crs
+        self.gps_points_gdf = self.gps_points_gdf.to_crs(self.geo_crs)
+        self.__crs = self.geo_crs
 
     @property
     def source_gps(self) -> gpd.GeoDataFrame:

@@ -339,8 +339,6 @@ class GpsPointsGdf(object):
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
-        if gps_buffer_gdf.crs.srs.upper() != self.plane_crs:
-            gps_buffer_gdf = gps_buffer_gdf.to_crs(self.plane_crs)
         gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].buffer(self.buffer)
         gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
         origin_seq = set(gps_buffer_gdf[gps_field.POINT_SEQ_FIELD])
@@ -370,18 +368,12 @@ class GpsPointsGdf(object):
         return candidate_link, remain_gps_list
 
     def to_plane_prj(self) -> None:
-        if self.__gps_points_gdf.crs.srs.upper() == self.plane_crs:
-            self.__crs = self.plane_crs
-        else:
-            self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.plane_crs)
-            self.__crs = self.plane_crs
+        self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.plane_crs)
+        self.__crs = self.plane_crs
 
     def to_geo_prj(self) -> None:
-        if self.__gps_points_gdf.crs.srs.upper() == self.geo_crs:
-            self.__crs = self.geo_crs
-        else:
-            self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.geo_crs)
-            self.__crs = self.geo_crs
+        self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.geo_crs)
+        self.__crs = self.geo_crs
 
     def get_point(self, seq: int = 0):
         return self.__gps_points_gdf.at[seq, gps_field.TIME_FIELD], \

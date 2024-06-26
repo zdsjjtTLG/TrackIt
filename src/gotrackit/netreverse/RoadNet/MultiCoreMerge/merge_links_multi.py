@@ -101,7 +101,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
         drop_no_use_nodes(link_gdf=link_gdf, node_gdf=node_gdf)
         return link_gdf, node_gdf
 
-    origin_crs = link_gdf.crs.srs
+    origin_crs = link_gdf.crs
     link_gdf['sorted_ft'] = link_gdf[[from_node_id_field, to_node_id_field]].apply(lambda x: tuple(sorted(x)), axis=1)
     origin_sorted_ft_list = link_gdf['sorted_ft'].to_list()
 
@@ -157,7 +157,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     node_gdf.drop(index=list(set(sum_del_node_list)), axis=0, inplace=True)
     node_gdf.reset_index(inplace=True, drop=False)
     link_gdf.drop(index=target_link_index, inplace=True, axis=0)
-    new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs.srs, geometry='geometry')
+    new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs, geometry='geometry')
     del new_link_df
 
     link_gdf = pd.concat([link_gdf, new_link_gdf])
