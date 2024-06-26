@@ -47,8 +47,8 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
                       restrict_angle: bool = True, min_length: float = 50.0, core_num: int = 3):
     """
 
-    :param link_gdf: 路网线层
-    :param node_gdf: 路网点层
+    :param link_gdf: 路网线层, EPSG:4326
+    :param node_gdf: 路网点层, EPSG:4326
     :param allow_ring: 是否允许合并后出现环
     :param ignore_dir: 是否忽略方向限制
     :param limit_col_name: 限制合并的字段名称
@@ -59,9 +59,10 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     :param restrict_angle: 是否开启转角限制
     :param min_length: 限制路段的最小长度, m
     :param core_num: 启用的核的数目
-    :return:
+    :return:crs - EPSG:4326
     """
     print(rf'multicore merge - {core_num} cores')
+    origin_crs = 'EPSG:4326'
     # step1: 建立图, 不会修改link_gdf
     ud_graph, d_graph = build_graph_from_link(link_df=link_gdf[[from_node_id_field, to_node_id_field, direction_field]],
                                               from_col_name=from_node_id_field, to_col_name=to_node_id_field,
@@ -101,7 +102,6 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
         drop_no_use_nodes(link_gdf=link_gdf, node_gdf=node_gdf)
         return link_gdf, node_gdf
 
-    origin_crs = link_gdf.crs
     link_gdf['sorted_ft'] = link_gdf[[from_node_id_field, to_node_id_field]].apply(lambda x: tuple(sorted(x)), axis=1)
     origin_sorted_ft_list = link_gdf['sorted_ft'].to_list()
 

@@ -308,6 +308,7 @@ def judge_plain_crs(lng: float = None) -> str:
 
 def judge_plain_crs_based_on_node(node_gdf: gpd.GeoDataFrame = None) -> str:
     mean_x = np.array([geo.x for geo in node_gdf['geometry']]).mean()
+    assert -180.0 <= mean_x <= 180.0, 'the value of lng must in [-180, 180]'
     return judge_plain_crs(lng=mean_x)
 
 

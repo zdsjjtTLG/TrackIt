@@ -40,7 +40,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
     :param buffer:
     :param dup_link_buffer_ratio:
     :param modify_minimum_buffer
-    :return:
+    :return: PlainPrj
     """
     plain_crs = link_gdf.crs
 

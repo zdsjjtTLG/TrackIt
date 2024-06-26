@@ -215,8 +215,14 @@ class NetReverse(Reverse):
         return link_gdf, node_gdf, node_group_status_gdf
 
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
-                              out_fldr: str = None) -> \
-            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
+                              out_fldr: str = None) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
+        """
+
+        :param link_gdf: EPSG:4326
+        :param node_gdf: EPSG:4326
+        :param out_fldr:
+        :return: crs - EPSG:4326
+        """
         if self.limit_col_name not in link_gdf.columns:
             self.limit_col_name = None
         link_gdf, node_gdf, dup_info_dict = optimize(link_gdf=link_gdf, node_gdf=node_gdf,
@@ -465,8 +471,8 @@ class NetReverse(Reverse):
                      divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
 
-        :param link_gdf:
-        :param node_gdf:
+        :param link_gdf: EPSG:4326
+        :param node_gdf: EPSG:4326
         :param divide_l:
         :param min_l:
         :return:
@@ -481,14 +487,17 @@ class NetReverse(Reverse):
         # is_init_link: 划分后是否重新初始化路网对象
         # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
         my_net.divide_links(divide_l=divide_l, min_l=min_l, is_init_link=False, method='alpha')
-        return my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link = link.to_crs('EPSG:4326')
+        node = node.to_crs('EPSG:4326')
+        return link, node
 
     @staticmethod
     def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
-        :param link_gdf:
-        :param node_gdf:
+        :param link_gdf: EPSG:4326
+        :param node_gdf: EPSG:4326
         :return:
         """
         my_net = Net(link_gdf=link_gdf,
@@ -533,7 +542,7 @@ class NetReverse(Reverse):
                   conn_buffer: float = 0.5, out_fldr=r'./'):
         """
         路网合并
-        :param net_list:
+        :param net_list: must EPSG:4326
         :param conn_buffer:
         :param out_fldr:
         :return:

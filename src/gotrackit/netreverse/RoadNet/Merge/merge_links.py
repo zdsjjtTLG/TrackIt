@@ -41,8 +41,8 @@ def merge_two_degrees_node(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoD
         -> (gpd.GeoDataFrame, gpd.GeoDataFrame):
     """
     按照限制规则合并2度节点
-    :param link_gdf: 路网线层
-    :param node_gdf: 路网点层
+    :param link_gdf: 路网线层, EPSG:4326
+    :param node_gdf: 路网点层, EPSG:4326
     :param ignore_dir: 是否忽略方向进行路段合并
     :param limit_col_name: 限制字段名称
     :param allow_ring: 是否允许合并后出现环
@@ -52,7 +52,7 @@ def merge_two_degrees_node(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoD
     :param restrict_length: 是否启用路段长度限制
     :param restrict_angle: 是否启用路段转交限制
     :param min_length: 路段最短不能短于多少米
-    :return:
+    :return: crs - EPSG:4326
     """
     # 1.找出可以合并的2度节点组
     for col in [link_id_field, from_node_id_field, to_node_id_field, direction_field]:
@@ -84,10 +84,10 @@ def merge_two_degrees_node(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoD
 # 逻辑子模块, 只记录合并信息, 并不修改传入的数据
 def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDataFrame, gpd.GeoDataFrame, dict):
     """传入可合并的路段组, 直接在线层数据, 点层数据上修改
-    :param link_gdf: gpd.GeoDataFrame, 线层数据
-    :param node_gdf: gpd.GeoDataFrame, 点层数据
+    :param link_gdf: gpd.GeoDataFrame, 线层数据, EPSG:4326
+    :param node_gdf: gpd.GeoDataFrame, 点层数据, EPSG:4326
     :param merge_link_df: pd.oDataFrame, 合并路段信息
-    :return:
+    :return: crs - EPSG:4326
 
     ~~Input~~:
     merge_link_df:
@@ -99,9 +99,9 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
 
     # 直接修改传入的link_gdf
     print(r'##########   Merge Road Sections')
+    origin_crs = 'EPSG:4326'
     node_geo_map = {node: geo for node, geo in zip(node_gdf[node_id_field], node_gdf[geometry_field])}
     node_gdf.set_index(node_id_field, inplace=True)
-    origin_crs = link_gdf.crs
     link_gdf['sorted_ft'] = link_gdf[[from_node_id_field, to_node_id_field]].apply(lambda x: tuple(sorted(x)), axis=1)
 
     origin_sorted_ft_list = link_gdf['sorted_ft'].to_list()
@@ -220,7 +220,8 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
             # 未指定的属性置空
             non_specified_field_list = list(set(link_columns_list) - set(required_field_list))
             first_link_index = list(to_be_merge_link_gdf.index)[0]
-            non_specified_data_dict = {field: to_be_merge_link_gdf.loc[first_link_index, field] for field in non_specified_field_list}
+            non_specified_data_dict = {field: to_be_merge_link_gdf.loc[first_link_index, field] for field in
+                                       non_specified_field_list}
 
             length = get_length_from_linestring(linestring_obj=merge_line, crs=origin_crs)
 
@@ -261,14 +262,14 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     return link_gdf, node_gdf, merge_info_dict
 
 
-def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
+def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326') -> float:
     """
     在epsg:4326下计算LineString的长度, km
     :param linestring_obj: LineString, 多段线对象
     :param crs:
     :return:
     """
-    if crs.upper() == 'EPSG:4326':
+    if crs == 'EPSG:4326':
         coord_list = list(linestring_obj.coords)
         try:
             length_list = [distance(tuple(coord_list[i][::-1]), tuple(coord_list[i + 1][::-1])).m for i in range(0, len(coord_list) - 1)]
