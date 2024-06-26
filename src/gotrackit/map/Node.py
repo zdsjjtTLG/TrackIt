@@ -26,7 +26,7 @@ geometry_field = net_field.GEOMETRY_FIELD
 class Node(object):
     def __init__(self, node_gdf: gpd.GeoDataFrame = None, is_check: bool = True, init_available_node: bool = True):
         self.geo_crs = geo_crs
-        self.planar_crs = node_gdf.crs.srs
+        self.planar_crs = node_gdf.crs
         self.__node_gdf = node_gdf.copy()
         self.max_node_id = 999
         self.__available_node_id = []
@@ -64,7 +64,7 @@ class Node(object):
 
     @property
     def crs(self):
-        return self.__node_gdf.crs.srs
+        return self.__node_gdf.crs
 
     def to_plane_prj(self) -> None:
         self.__node_gdf = self.__node_gdf.to_crs(self.planar_crs)
