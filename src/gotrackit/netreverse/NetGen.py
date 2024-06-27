@@ -565,4 +565,6 @@ class NetReverse(Reverse):
         conn = Conn(net=n, check_buffer=conn_buffer)
         link, node = conn.execute(out_fldr=out_fldr,
                                   file_name='NetMerge', generate_mark=True)
+        save_file(out_fldr=out_fldr, file_name='MergeLink', file_type='shp', data_item=link)
+        save_file(out_fldr=out_fldr, file_name='MergeNode', file_type='shp', data_item=node)
         return link, node
