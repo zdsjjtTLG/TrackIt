@@ -54,7 +54,7 @@ class Net(object):
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
                  fmm_cache_fldr: str = None, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
-                 cut_off: float = 1200.0, delete_circle: bool = True):
+                 cut_off: float = 1200.0, delete_circle: bool = True, plane_crs: str = None):
         """
         创建Net类
         :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
@@ -82,6 +82,7 @@ class Net(object):
         :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
         :param cut_off: 路径搜索截断长度, 米, 默认1000m
         :param cache_name: 路径预存储的标志名称, 默认cache
+        :param plane_crs
 
         """
         self.not_conn_cost = not_conn_cost
@@ -115,9 +116,11 @@ class Net(object):
             self.cache_slice = 2 * self.cache_cn
 
         if node_gdf is None:
-            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, init_available_node=self.cache_id)
+            self.__node = Node(node_gdf=gpd.read_file(node_path), is_check=is_check, init_available_node=self.cache_id,
+                               plane_crs=plane_crs)
         else:
-            self.__node = Node(node_gdf=node_gdf, is_check=is_check, init_available_node=self.cache_id)
+            self.__node = Node(node_gdf=node_gdf, is_check=is_check, init_available_node=self.cache_id,
+                               plane_crs=plane_crs)
 
         if not init_from_existing:
             self.__node.init_node()
