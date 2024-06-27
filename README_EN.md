@@ -38,7 +38,7 @@
 <br>
 
 
-**💬version status：06.27 Updated: v0.3.4**
+**💬version status：06.27 Updated: v0.3.5**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
