@@ -439,9 +439,9 @@ class NetReverse(Reverse):
                                           generate_mark=generate_mark)
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
-        save_file(data_item=link_gdf, file_type=self.net_file_type, file_name='modifiedConn',
+        save_file(data_item=link_gdf, file_type=self.net_file_type, file_name='modifiedConnLink',
                   out_fldr=self.net_out_fldr)
-        save_file(data_item=node_gdf, file_type=self.net_file_type, file_name='modifiedConn',
+        save_file(data_item=node_gdf, file_type=self.net_file_type, file_name='modifiedConnNode',
                   out_fldr=self.net_out_fldr)
         return link_gdf, node_gdf
 
