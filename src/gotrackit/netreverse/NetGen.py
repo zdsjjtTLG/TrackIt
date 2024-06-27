@@ -31,18 +31,18 @@ net_field = NetField()
 gps_field = GpsField()
 
 class Reverse(object):
-    def __init__(self, flag_name: str = '深圳市', plain_prj: str = None, net_out_fldr: str = None,
+    def __init__(self, flag_name: str = '深圳市', plain_crs: str = None, net_out_fldr: str = None,
                  net_file_type: str = 'shp'):
         # overall
         self.flag_name = flag_name
-        self.plain_prj = plain_prj
+        self.plain_crs = plain_crs
         self.net_out_fldr = net_out_fldr
         assert net_file_type in ['shp', 'geojson']
         self.net_file_type = net_file_type
 
 
 class NetReverse(Reverse):
-    def __init__(self, flag_name: str = '深圳市', plain_prj: str = 'EPSG:32650', ignore_head_tail: bool = False,
+    def __init__(self, flag_name: str = '深圳市', plain_crs: str = 'EPSG:32650', ignore_head_tail: bool = False,
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
@@ -59,12 +59,12 @@ class NetReverse(Reverse):
                  multi_core_reverse: bool = False, reverse_core_num: int = 2):
         """
         :param flag_name: 标志字符(项目名称)
-        :param plain_prj: 平面投影坐标系
+        :param plain_crs: 平面投影坐标系
         :param net_out_fldr: 输出路网的存储目录
         :return:
         """
         # overall
-        super().__init__(flag_name, plain_prj, net_out_fldr, net_file_type)
+        super().__init__(flag_name, plain_crs, net_out_fldr, net_file_type)
 
         # split
         self.ignore_head_tail = ignore_head_tail
@@ -192,7 +192,7 @@ class NetReverse(Reverse):
 
     @staticmethod
     def create_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field_list: list[str] = None,
-                              using_from_to: bool = False, fill_dir: int = 0, plain_prj: str = 'EPSG:32650',
+                              using_from_to: bool = False, fill_dir: int = 0, plain_crs: str = 'EPSG:32650',
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
                               out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
@@ -203,7 +203,7 @@ class NetReverse(Reverse):
             generate_node_from_link(link_gdf=link_gdf,
                                     update_link_field_list=update_link_field_list,
                                     using_from_to=using_from_to,
-                                    fill_dir=fill_dir, plain_prj=plain_prj,
+                                    fill_dir=fill_dir, plain_prj=plain_crs,
                                     ignore_merge_rule=ignore_merge_rule,
                                     modify_minimum_buffer=modify_minimum_buffer,
                                     execute_modify=execute_modify,
@@ -229,7 +229,7 @@ class NetReverse(Reverse):
                                                      ignore_dir=self.ignore_dir,
                                                      allow_ring=self.allow_ring,
                                                      limit_col_name=self.limit_col_name,
-                                                     plain_prj=self.plain_prj,
+                                                     plain_prj=self.plain_crs,
                                                      accu_l_threshold=self.accu_l_threshold,
                                                      angle_threshold=self.angle_threshold,
                                                      restrict_length=self.restrict_length,
@@ -287,7 +287,7 @@ class NetReverse(Reverse):
         new_path_gdf_dict = pgd.parse_path_main(out_type='dict', pickle_file_name_list=pickle_file_name_list)
         # 增量修改
         increment_link, increment_node = increment(link_gdf=link_gdf, node_gdf=node_gdf,
-                                                   path_gdf_dict=new_path_gdf_dict, plain_crs=self.plain_prj,
+                                                   path_gdf_dict=new_path_gdf_dict, plain_crs=self.plain_crs,
                                                    out_fldr=increment_out_fldr, save_times=save_times,
                                                    save_new_split_link=save_new_split_link,
                                                    overlap_buffer_size=overlap_buffer_size,
@@ -308,10 +308,10 @@ class NetReverse(Reverse):
             -> tuple[bool, list[str]]:
         """构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326"""
         assert od_type in ['rand_od', 'region_od', 'diy_od']
-        fmod = FormatOD(plain_crs=self.plain_prj)
+        fmod = FormatOD(plain_crs=self.plain_crs)
         if od_type == 'rand_od':
             if region_gdf is None or region_gdf.empty:
-                region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_prj)
+                region_gdf = generate_region(min_lng=min_lng, min_lat=min_lat, w=w, h=h, plain_crs=self.plain_crs)
 
             od_df = fmod.format_region_rnd_od(region_gdf=region_gdf, flag_name=self.flag_name, od_num=od_num,
                                               gap_n=gap_n, length_limit=min_od_length,
@@ -362,7 +362,7 @@ class NetReverse(Reverse):
         :return:
         """
         net_reverse.generate_net(path_gdf=split_path_gdf, out_fldr=self.net_out_fldr,
-                                 plain_prj=self.plain_prj,
+                                 plain_prj=self.plain_crs,
                                  flag_name=self.flag_name,
                                  limit_col_name=self.limit_col_name,
                                  restrict_angle=self.restrict_angle,
@@ -404,7 +404,7 @@ class NetReverse(Reverse):
                 os.makedirs(core_out_fldr)
 
             result = pool.apply_async(net_reverse.generate_net,
-                                      args=(split_path_gdf_dict[i], core_out_fldr, self.save_split_link, self.plain_prj,
+                                      args=(split_path_gdf_dict[i], core_out_fldr, self.save_split_link, self.plain_crs,
                                             self.save_tpr_link, self.save_streets_before_modify_minimum,
                                             self.restrict_angle,
                                             self.limit_col_name, self.restrict_length, self.accu_l_threshold,
@@ -433,7 +433,7 @@ class NetReverse(Reverse):
         :return:
         """
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
-        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
+        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False, plane_crs=self.plain_crs)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         link_gdf, node_gdf = conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name,
                                           generate_mark=generate_mark)
@@ -447,7 +447,7 @@ class NetReverse(Reverse):
 
     def fix_minimum_gap(self, node_gdf: gpd.GeoDataFrame = None, link_gdf: gpd.GeoDataFrame = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.plain_prj, link_gdf=link_gdf, node_gdf=node_gdf,
+        link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.plain_crs, link_gdf=link_gdf, node_gdf=node_gdf,
                                                buffer=self.modify_minimum_buffer,
                                                ignore_merge_rule=True)
         return link_gdf, node_gdf
@@ -467,7 +467,7 @@ class NetReverse(Reverse):
         remapping_id(link_gdf=link_gdf, node_gdf=node_gdf)
 
     @staticmethod
-    def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None,
+    def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None, plain_crs: str = None,
                      divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
 
@@ -475,11 +475,12 @@ class NetReverse(Reverse):
         :param node_gdf: EPSG:4326
         :param divide_l:
         :param min_l:
+        :param plain_crs
         :return:
         """
         link_gdf = merge_double_link(link_gdf=link_gdf)
         my_net = Net(link_gdf=link_gdf,
-                     node_gdf=node_gdf, create_single=False)
+                     node_gdf=node_gdf, create_single=False, plane_crs=plain_crs)
 
         # 执行划分路网
         # divide_l: 所有长度大于divide_l的路段都将按照divide_l进行划分
@@ -493,17 +494,19 @@ class NetReverse(Reverse):
         return link, node
 
     @staticmethod
-    def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None) -> \
+    def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None, plain_crs: str = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
         :param link_gdf: EPSG:4326
         :param node_gdf: EPSG:4326
+        :param plain_crs
         :return:
         """
         my_net = Net(link_gdf=link_gdf,
-                     node_gdf=node_gdf, create_single=False, delete_circle=False)
+                     node_gdf=node_gdf, create_single=False, delete_circle=False, plane_crs=plain_crs)
         my_net.process_circle()
-        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(
+            drop=True)
         link = link.to_crs('EPSG:4326')
         node = node.to_crs('EPSG:4326')
         return link, node
@@ -539,12 +542,13 @@ class NetReverse(Reverse):
 
     @staticmethod
     def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]] = None,
-                  conn_buffer: float = 0.5, out_fldr=r'./'):
+                  conn_buffer: float = 0.5, out_fldr=r'./', plain_crs: str = None):
         """
         路网合并
         :param net_list: must EPSG:4326
         :param conn_buffer:
         :param out_fldr:
+        :param plain_crs:
         :return:
         """
         max_link, max_node = 0, 0
@@ -557,7 +561,7 @@ class NetReverse(Reverse):
             max_link, max_node = link_gdf[net_field.LINK_ID_FIELD].max(), node_gdf[net_field.NODE_ID_FIELD].max()
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
-        n = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False)
+        n = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False, plane_crs=plain_crs)
         conn = Conn(net=n, check_buffer=conn_buffer)
         link, node = conn.execute(out_fldr=out_fldr,
                                   file_name='NetMerge', generate_mark=True)
