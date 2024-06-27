@@ -30,7 +30,7 @@ from_node_id_field = net_field.FROM_NODE_FIELD
 
 
 def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
-                 save_split_link: bool = False, plain_prj: str = 'EPSG:4326', save_tpr_link: bool = False,
+                 save_split_link: bool = False, plain_prj: str = 'EPSG:32650', save_tpr_link: bool = False,
                  save_streets_before_modify_minimum: bool = True, restrict_angle: bool = True,
                  limit_col_name: str = 'road_name',
                  restrict_length: bool = True, accu_l_threshold: float = 150.0, angle_threshold: float = 15,
