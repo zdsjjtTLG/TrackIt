@@ -215,7 +215,7 @@ class NetReverse(Reverse):
         return link_gdf, node_gdf, node_group_status_gdf
 
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
-                              out_fldr: str = None) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
+                              out_fldr: str = r'./') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
         """
 
         :param link_gdf: EPSG:4326
