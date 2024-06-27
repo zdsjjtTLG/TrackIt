@@ -38,31 +38,15 @@
 <br>
 
 
-**💬版本状态：06.24已更新: v0.3.3**
+**💬版本状态：06.27已更新: v0.3.4**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 地图匹配接口：不连通路径惩罚逻辑优化.
+- 全面移除对地理矢量文件的crs检查，用户自己需要确保输入的几何矢量图层的crs为EPSG:4326.
 
-- 地图匹配接口：增加user_field_list参数，允许用户指定GPS表的相关字段连同匹配结果一同输出，避免用户在匹配结束后进行二次关联.
+- 地图匹配接口：冗余计算代码剔除.
 
-- 地图匹配接口：匹配结果字段输出优化，增加loc_type用于标识：源GPS数据点、增密点、后补点.
-
-- 地图匹配接口：匹配结果字段输出优化，增加route_dis字段，用于标识匹配点在匹配路段上和路段起点的路径距离.
-
-- 地图匹配接口：匹配结果 - 新增匹配点航向角、航向向量的数据.
-
-<br>
-
-
-
-<div align="center">
-    <img src="docs/_static/images/match_heading.jpg" />
-    <img src="docs/_static/images/0.3.2yg.jpg" />
-</div>
-
-<br>
-
+- 平面投影坐标系参数：老版本部分接口参数名称为plain_prj，现统一为plain_crs.
 
 
 <div align=center>

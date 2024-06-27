@@ -446,12 +446,12 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     net_out_fldr：最终路网的存储目录，必须指定
 
-    plain_crs：要使用的平面投影坐标系，必须指定，参见: `6度带划分规则`_
+    plain_crs：依据你的研究范围的经纬度(EPSG:4326)选择一个合适的平面投影坐标系，必须指定，参见: `6度带划分规则`_
 
 * 请求参数
     key_list：开发者key值列表，必须指定
 
-    binary_path_fldr：请求路径源文件的存储目录，必须指定
+    binary_path_fldr：请求路径源文件的存储目录(最好建立一个专门的目录)，必须指定
 
     save_log_file：是否保存日志文件，非必须指定，默认False
 
@@ -479,7 +479,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         nv = ng.NetReverse(flag_name='test_rectangle', net_out_fldr=r'./data/output/reverse/test_rectangle/',
-                       plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=40)
+                       plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=40)
 
         nv.generate_net_from_request(key_list=['你的Key'],
                                      log_fldr=r'./', save_log_file=True,
@@ -507,7 +507,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         nv = ng.NetReverse(flag_name='test_diy_region', net_out_fldr=r'./data/output/reverse/test_diy_region/',
-                           plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=20)
+                           plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=20)
         target_region_gdf = gpd.read_file(r'./data/input/region/diy_region.shp')
         print(target_region_gdf)
         nv.generate_net_from_request(key_list=['你的Key'],
@@ -536,7 +536,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         nv = ng.NetReverse(flag_name='test_taz', net_out_fldr=r'./data/output/reverse/test_taz/',
-                           plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=20)
+                           plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=20)
         target_region_gdf = gpd.read_file(r'./data/input/region/simple_taz.shp')
         print(target_region_gdf)
         nv.generate_net_from_request(key_list=['你的Key'],
@@ -558,7 +558,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         nv = ng.NetReverse(flag_name='test_diy_od', net_out_fldr=r'./data/output/reverse/test_diy_od/',
-                           plain_prj='EPSG:32651', save_tpr_link=True, angle_threshold=20)
+                           plain_crs='EPSG:32651', save_tpr_link=True, angle_threshold=20)
         nv.generate_net_from_request(binary_path_fldr=r'./data/output/request/test_diy_od/',
                                      key_list=['你的Key'],
                                      od_file_path=r'./data/output/od/苏州市.csv', od_type='diy_od')
@@ -586,7 +586,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         nv = ng.NetReverse(flag_name='test_pickle', net_out_fldr=r'./data/output/reverse/test_pickle/',
-                           plain_prj='EPSG:32650', save_tpr_link=True, angle_threshold=20)
+                           plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=20)
         nv.generate_net_from_pickle(binary_path_fldr=r'./data/output/request/test_taz/',
                                     pickle_file_name_list=['14_test_taz_gd_path_1'])
 
@@ -596,6 +596,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 如果你已经有了路网线层(从osm或者其他任何途径获取的)，缺少拓扑关联关系以及点层，你可以使用以下方式构建点层以及添加点层、线层的关联关系
 
+该接口为NetReverse类的静态方法
 
 示例代码如下：
 
@@ -604,17 +605,16 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
     if __name__ == '__main__':
         # 对link.shp的要求: 只需要有geometry字段即可, 但是geometry字段的几何对象必须为LineString类型(不允许Z坐标)
-        nv = ng.NetReverse()
         link_gdf = gpd.read_file(r'./data/output/create_node/link.shp')
         print(link_gdf)
         # update_link_field_list是需要更新的路网基本属性字段：link_id，from_node，to_node，length，dir
         # 示例中：link_gdf本身已有dir字段，所以没有指定更新dir
-        new_link_gdf, new_node_gdf, node_group_status_gdf = nv.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
+        new_link_gdf, new_node_gdf, node_group_status_gdf = ng.NetReverse.create_node_from_link(link_gdf=link_gdf, using_from_to=False,
                                                                                      update_link_field_list=['link_id',
                                                                                                              'from_node',
                                                                                                              'to_node',
                                                                                                              'length'],
-                                                                                     plain_prj='EPSG:32651',
+                                                                                     plain_crs='EPSG:32651',
                                                                                      modify_minimum_buffer=0.7,
                                                                                      execute_modify=True,
                                                                                      ignore_merge_rule=True,
@@ -646,8 +646,6 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
         l, n = ng.NetReverse.merge_net(net_list=net_list, conn_buffer=0.2,
                                        out_fldr=r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge')
-        l.to_file(r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge\link.shp', encoding='gbk')
-        n.to_file(r'F:\PyPrj\TrackIt\data\input\net\test\all_sichuan_path\net\merge\node.shp', encoding='gbk')
 
 
 
@@ -724,6 +722,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 你已经有了一套link和node文件, 你希望对link层进行路段重塑，即将长度大于L(m)的路段都进打断，同时点层数据也会随之自动变化
 
+该接口为NetReverse类的静态方法
 
 划分前：
 
@@ -770,6 +769,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 如果你的link表的link_id或者node表的node_id是一个非常大的整数, 使用这样的路网存在风险，你可以使用下面的函数进行ID重映射
 
+该接口为NetReverse类的静态方法
+
 .. code-block:: python
     :linenos:
 
@@ -811,7 +812,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         # multi_core_merge=True表示启用多进程进行拓扑优化
         # merge_core_num表示启用两个核
         nv = ng.NetReverse(net_out_fldr=r'./data/input/net/test/0402BUG/redivide',
-                           plain_prj='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
+                           plain_crs='EPSG:32650', flag_name='new_divide', multi_core_merge=True,
                            merge_core_num=2)
 
         # 路段、节点重新划分、联通性修复，新的网络文件在net_out_fldr下生成
@@ -830,6 +831,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 gotrackit不允许路网出现环路以及(from_node，to_node)相同的link存在(如下图), 在构建Net时会自动识别这些link并且进行删除, 如果你想保留这些link请使用circle_process进行路网处理
+
+该接口为NetReverse类的静态方法
 
 .. image:: _static/images/circle_before.jpg
     :align: center
@@ -1057,7 +1060,7 @@ Net构建参数见：`构建Net的相关参数`_
     GPS数据相关参数，参见：`地图匹配参数解释`_ 中的time_unit、time_format
 
 * plain_crs
-    要使用的平面投影坐标系
+    依据研究范围，选择一个合适的平面投影坐标系
 
     坐标系相关参数查询可以参考：`epsg.io <https://epsg.io/>`_、坐标系的相关知识讲解可以参考：`坐标系简介 <https://mp.weixin.qq.com/s/Ot_Vo4CEtGYRblTMjMQYiw>`_
 
@@ -1284,6 +1287,11 @@ Net构建参数见：`构建Net的相关参数`_
 
 * use_sub_net
     是否在子网络上进行计算, 默认True
+
+* plain_crs
+    要使用的平面投影坐标系，默认None，用户若不指定，程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
+
+    若要手动指定：参见: `6度带划分规则`_
 
 * gps_df
     GPS数据, 必须指定
