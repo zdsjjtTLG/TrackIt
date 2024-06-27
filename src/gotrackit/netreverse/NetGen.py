@@ -31,7 +31,7 @@ net_field = NetField()
 gps_field = GpsField()
 
 class Reverse(object):
-    def __init__(self, flag_name: str = '深圳市', plain_crs: str = None, net_out_fldr: str = None,
+    def __init__(self, flag_name: str = 'NetGen', plain_crs: str = None, net_out_fldr: str = r'./',
                  net_file_type: str = 'shp'):
         # overall
         self.flag_name = flag_name
@@ -42,7 +42,7 @@ class Reverse(object):
 
 
 class NetReverse(Reverse):
-    def __init__(self, flag_name: str = '深圳市', plain_crs: str = 'EPSG:32650', ignore_head_tail: bool = False,
+    def __init__(self, flag_name: str = 'NetGen', plain_crs: str = 'EPSG:32650', ignore_head_tail: bool = False,
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
@@ -53,7 +53,7 @@ class NetReverse(Reverse):
                  multi_core_merge: bool = False, merge_core_num: int = 2,
                  save_preliminary: bool = False, save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,
-                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp',
+                 dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = r'./', net_file_type: str = 'shp',
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
                  multi_core_parse: bool = False, parse_core_num: int = 2,
                  multi_core_reverse: bool = False, reverse_core_num: int = 2):
@@ -119,7 +119,7 @@ class NetReverse(Reverse):
         self.multi_core_reverse = multi_core_reverse
         self.reverse_core_num = reverse_core_num
 
-    def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = None,
+    def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = r'./',
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
                                   region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
