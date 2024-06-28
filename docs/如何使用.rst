@@ -626,7 +626,26 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
 
 若需要获取大范围的路网，我们推荐使用多核并行请求，即在初始化NetReverse类时，指定multi_core_reverse=True，reverse_core_num=x
 
-程序会自动将路网划分为x个子区域，在每个子区域内进行并行计算，计算结束后，在net_out_fldr下会生成x个子文件夹，分别存放最终的子区域路网，如果你想将这些路网进行合并，请使用路网合并接口
+程序会自动将路网划分为x个子区域，在每个子区域内进行并行计算，示例代码如下：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        # 初始化ng.NetReverse类指定multi_core_reverse=True, reverse_core_num=x
+        nv = ng.NetReverse(flag_name='sh',
+                           net_out_fldr=r'./data/output/shanghai/net/',
+                           plain_crs='EPSG:32651', save_tpr_link=True, angle_threshold=30, multi_core_reverse=True,
+                           reverse_core_num=2)
+        # 然后可以使用nv.generate_net_from_pickle或者nv.generate_net_from_request或者nv.redivide_link_node进行路网生产或优化
+
+
+.. image:: _static/images/multi_region.png
+    :align: center
+
+-------------------------------------------------------
+
+计算结束后，在net_out_fldr下会生成x个子文件夹，分别存放最终的子区域路网，如果你想将这些路网进行合并，请使用路网合并接口
 
 
 3.1.8. 合并gotrackit标准路网
