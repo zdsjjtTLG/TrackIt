@@ -141,11 +141,25 @@
 
 **第七组（分区逆向参数）：**
 
-* multi_core_reverse(0.3.0推出)
+* multi_core_reverse
     是否启用多进程对路网进行并行逆向计算，默认False，大范围路网请求时可以指定为True
 
-* reverse_core_num(0.3.0推出)
+* reverse_core_num
     逆向并行计算要启用的核数，默认2
+
+
+关于三个并行参数的区别：
+
+multi_core_parse: 指的是从磁盘读取二进制路径文件并进行解析这一步骤的并行
+
+multi_core_merge: 指的是拓扑优化的并行，这里的并行不会对路网进行分块处理，最终输出的是一个整体的路网
+
+multi_core_reverse：指的是路网生产过程的并行(不包括路径解析这一步)，他会将整体路网分块，分别在不同的块上计算，最终输出的路网个数 = reverse_core_num
+
+大范围区域路网获取：推荐multi_core_reverse指定为True，然后再用合并接口进行路网合并
+
+路径文件数量较多：推荐multi_core_parse=True
+
 
 
 
