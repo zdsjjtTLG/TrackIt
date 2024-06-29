@@ -27,7 +27,7 @@
 
 ~ 💪一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位💪 ~
 
-👻Developed by tk, Email: 794568794@qq.com👻
+👻Developed by Tk, Email: 794568794@qq.com👻
 
 🔑gotrackit迭代更新很快，记得关注版本更新信息哦🔑
 
@@ -47,6 +47,11 @@
 - 地图匹配接口：冗余计算代码剔除.
 
 - 平面投影坐标系参数：老版本部分接口参数名称为plain_prj，现统一为plain_crs.
+
+- 上新了一些GIS小工具
+<div align="center">
+    <img src="docs/_static/images/gis_tools.png" />
+</div>
 
 
 <div align=center>
