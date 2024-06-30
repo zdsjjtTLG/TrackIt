@@ -31,6 +31,15 @@
 
 安装上述依赖推荐使用Anaconda，使用python3.11版本
 
+GDAL若安装失败，推荐直接安装whl文件，下载地址：https://github.com/cgohlke/geospatial-wheels/releases
+
+.. image:: _static/images/gdal_wheel.png
+    :align: center
+
+--------------------------------------------------------------------------------
+
+
+
 使用pip安装 ::
 
     pip install -i https://pypi.org/simple/ gotrackit
