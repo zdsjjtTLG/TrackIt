@@ -2132,7 +2132,7 @@ gotrackit：v0.3.1会对输出HTML的路网字段进行限制，只输出关键�
         link_gdf = gpd.read_file(r'./data/output/request/0304/道路双线20230131_84.shp')
         link_gdf = ng.NetReverse.clean_link_geo(gdf=link_gdf, plain_crs='EPSG:32649', l_threshold=1.0)
 
-8.9. 路网获取报错:ValueError: cannot insert node_id, already exists
+8.9. 路网获取报错/地图匹配报错:ValueError: cannot insert node_id, already exists
 ````````````````````````````````````````````````````````````````````````````````````````````````````````````````
 这个错误是因为geopandas版本为1.0.0引起的，该版本不允许重复列自动规避，gotrackitv0.3.5目前还没有针对1.0.0做更新
 
