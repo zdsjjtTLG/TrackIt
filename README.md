@@ -37,6 +37,13 @@
 </div>
 <br>
 
+geopandas近日升级到1.0.0，部分接口参数变动很大，gotrackit目前还没有针对geopandas v1.0.0做适配，大家请使用geopandas0.14.3，否则会报错！
+
+<div align="center">
+    <img src="docs/_static/images/0630BUG.png" />
+</div>
+
+
 
 **💬版本状态：06.27已更新: v0.3.5**
 
