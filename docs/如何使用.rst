@@ -29,6 +29,8 @@
 
 截至gotrackit v0.3.5版本，暂不支持geopandas最新的v1.0.0版本，请使用geopandas v0.14.3版本
 
+gdal版本过高会导致输出HTML失败
+
 使用pip安装 ::
 
     pip install -i https://pypi.org/simple/ gotrackit
