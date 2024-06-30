@@ -27,6 +27,7 @@
 
 * keplergl(0.3.2)
 
+gotrackit <= v0.3.5的版本 不支持geopandas-v1.0.0版本
 
 使用pip安装 ::
 
