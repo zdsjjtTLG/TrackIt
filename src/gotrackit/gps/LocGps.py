@@ -186,14 +186,16 @@ class GpsPointsGdf(object):
         should_be_dense_gdf = gpd.GeoDataFrame(should_be_dense_gdf, geometry=geometry_field, crs=self.crs)
         should_be_dense_gdf[gps_field.PLAIN_X] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.x)
         should_be_dense_gdf[gps_field.PLAIN_Y] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.y)
+        should_be_dense_gdf = should_be_dense_gdf.astype(self.__gps_points_gdf.dtypes)
         self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
+        should_be_dense_gdf[ori_seq_field] = -1
         self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
         self.__gps_points_gdf.sort_values(by=time_field, ascending=True, inplace=True)
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(self.__gps_points_gdf))]
 
         if not self.__user_gps_info.empty:
-            self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[ori_seq_field].fillna(-1).astype(int)
+            # self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[ori_seq_field].fillna(-1).astype(int)
             ori_now_map = {_ori: _now for _ori, _now in zip(self.__gps_points_gdf[ori_seq_field],
                                                             self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD])}
             self.__user_gps_info[gps_field.POINT_SEQ_FIELD] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD].map(
