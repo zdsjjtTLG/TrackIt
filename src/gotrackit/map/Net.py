@@ -366,6 +366,7 @@ class Net(object):
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.planar_crs)
         single_link_gdf = self.get_link_data()
+        single_link_gdf.reset_index(inplace=True, drop=True)
         if self.is_hierarchical:
             try:
                 pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
@@ -821,8 +822,9 @@ class Net(object):
             self.region_grid = \
                 self.generate_region_grid(min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y,
                                           grid_len=self.grid_len, crs=self.crs)
-            self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]],
-                                           self.__link.link_gdf[[net_field.LINK_ID_FIELD, geometry_field]])
+            link_gdf = self.__link.link_gdf[[link_id_field, geometry_field]]
+            link_gdf.reset_index(inplace=True, drop=True)
+            self.grid_cor_link = gpd.sjoin(self.region_grid[[grid_id_field, geometry_field]], link_gdf)
             self.region_grid = self.region_grid[
                 self.region_grid[grid_id_field].isin(set(self.grid_cor_link[grid_id_field]))]
             # self.region_grid.to_file(r'grid.shp')
