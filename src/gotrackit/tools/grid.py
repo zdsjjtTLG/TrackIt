@@ -25,9 +25,8 @@ def get_grid_data(polygon_gdf: gpd.GeoDataFrame = None, meter_step: float = None
     """
     切分面域，得到面域上结点的经纬度坐标
     :param polygon_gdf: gdf.GeoDataFrame, 面域数据, 必须是经纬度数据
-    :param meter_step: int, 栅格区域大小, m
-    :param is_geo_coord
-    :param crs
+    :param meter_step: float, 栅格区域大小, m
+    :param is_geo_coord:
     :param generate_index:
     :return: pd.Dataframe
     """
