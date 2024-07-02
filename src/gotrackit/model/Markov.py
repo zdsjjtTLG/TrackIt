@@ -298,7 +298,7 @@ class HiddenMarkov(object):
         preliminary_candidate_link['route_dis'] = preliminary_candidate_link['single_link_geo'].project(
             preliminary_candidate_link[gps_field.GEOMETRY_FIELD])
         preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
-            preliminary_candidate_link['route_dis'])
+            preliminary_candidate_link['route_dis'].values)
         if 1 in cache_prj_inf.keys():
             cache_prj_gdf_a = cache_prj_inf[1]
             preliminary_candidate_link = pd.merge(preliminary_candidate_link, cache_prj_gdf_a, how='left',
@@ -486,6 +486,8 @@ class HiddenMarkov(object):
 
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
         transition_df.reset_index(inplace=True, drop=True)
+        col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
+        transition_df[col] = transition_df[col].astype(int)
         # print(rf'{len(transition_df)}次状态转移...')
         if len(transition_df) >= 30000:
             now_target_node = set(seq_k_candidate_info[net_field.TO_NODE_FIELD])
@@ -716,6 +718,8 @@ class HiddenMarkov(object):
         gps_link_state_df = pd.merge(gps_link_state_df, gps_user_info, on=gps_field.POINT_SEQ_FIELD, how='left')
 
         if not omitted_gps_state_df.empty:
+            omitted_gps_state_df[gps_field.TIME_FIELD] = omitted_gps_state_df[gps_field.TIME_FIELD].astype(
+                gps_link_state_df[gps_field.TIME_FIELD].dtype)
             gps_link_state_df = pd.concat([gps_link_state_df, omitted_gps_state_df])
             gps_link_state_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
                                           ascending=[True, True], inplace=True)
