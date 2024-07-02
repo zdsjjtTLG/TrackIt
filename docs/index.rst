@@ -1,7 +1,7 @@
 Welcome to GoTrackIt's documentation!
 =========================================
 
-作者：tk
+作者：唐铠
 
 邮箱：tangkai@zhechengdata.com、794568794@qq.com
 
