@@ -240,7 +240,7 @@ class MergeShort(object):
         link1_node_df['geometry'] = link1_node_df['geometry'].apply(lambda geo: geo.buffer(0.1))
         link1_node_df = link1_node_df.to_crs('EPSG:4326')
 
-        # 肯定只有一个交点
+        # 肯定只有一个交点，有风险, geopandas 1.0.0不允许重复列
         join_df = gpd.sjoin(link1_node_df, link2_node_df)
         join_df.reset_index(inplace=True, drop=True)
         if join_df.at[0, 'id1'] == 1 and join_df.at[0, 'id2'] == 1:
