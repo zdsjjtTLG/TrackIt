@@ -254,6 +254,10 @@ GDAL若安装失败，推荐直接安装whl文件，下载地址：https://githu
 
 路网由线层文件和点层文件组成，两个文件存在关联关系。`西安样例路网 <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/net/xian>`_
 
+.. note::
+
+    路网点层数据和线层数据的坐标系必须为：EPSG:4326
+
 
 (1) 路网-点层
 '''''''''''''
