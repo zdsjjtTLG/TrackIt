@@ -43,7 +43,8 @@ class Conn(object):
 
         link_gdf = self.net.get_bilateral_link_data()
         node_gdf = self.net.get_node_data()
-
+        link_gdf.reset_index(inplace=True, drop=True)
+        node_gdf.reset_index(inplace=True, drop=True)
         # node -> buffer
         join_df = self.get_doubt_item(node_gdf=node_gdf, link_gdf=link_gdf, buffer=self.buffer)
         self.not_conn_df = join_df
@@ -57,9 +58,11 @@ class Conn(object):
             node_gdf.set_geometry(geometry_field, inplace=True, crs=self.net.planar_crs)
             node_gdf = node_gdf.to_crs(self.net.geo_crs)
             agg_df = join_df.groupby(node_id_field).agg({link_id_field: list}).reset_index(drop=False)
+            node_gdf.set_index(node_id_field, inplace=True)
             conn_dict = {str(node) + '-' + ','.join(list(map(str, link_list))): (
                 node_gdf.at[node, geometry_field].x, node_gdf.at[node, geometry_field].y)
                 for link_list, node in zip(agg_df[link_id_field], agg_df[node_id_field])}
+            node_gdf.reset_index(drop=True, inplace=True)
             generate_book_mark(input_fldr=out_fldr, prj_name=file_name, _mode='replace', name_loc_dict=conn_dict)
 
     @staticmethod
@@ -105,7 +108,9 @@ class Conn(object):
                     temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
                         self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
-                    join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data(),
+                    join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf,
+                                                   link_gdf=self.net.get_bilateral_link_data().reset_index(
+                                                       inplace=False, drop=True),
                                                    buffer=self.buffer)
 
                     self.done_split_link[target_link] += 1
@@ -134,7 +139,9 @@ class Conn(object):
                 temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
                     self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
-                join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf, link_gdf=self.net.get_bilateral_link_data())
+                join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf,
+                                               link_gdf=self.net.get_bilateral_link_data().reset_index(drop=True,
+                                                                                                       inplace=False))
 
                 self.done_split_link[target_link] += 1
                 if join_gdf.empty:
@@ -212,6 +219,8 @@ class Conn(object):
 
         link_gdf, node_gdf = self.net.get_bilateral_link_data(), self.net.get_node_data()
 
+        link_gdf.reset_index(inplace=True, drop=True)
+        node_gdf.reset_index(inplace=True, drop=True)
         link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.net.planar_crs, node_gdf=node_gdf,
                                                link_gdf=link_gdf, buffer=0.3, ignore_merge_rule=True)
 
