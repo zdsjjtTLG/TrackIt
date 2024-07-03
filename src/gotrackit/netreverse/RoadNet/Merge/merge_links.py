@@ -115,6 +115,12 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     # 不允许组内合并后首尾节点一致
     merge_link_df = same_ht_limit(origin_link_sorted_ft_list=origin_sorted_ft_list, merge_link_df=merge_link_df)
 
+    # link表原有的属性
+    link_columns_list = list(link_gdf.columns)
+
+    # 未指定的属性置空
+    non_specified_field_list = list(set(link_columns_list) - set(required_field_list))
+
     sum_del_node_list = []
     sum_merge_link_list = []
     sum_link_data_list = []
@@ -214,11 +220,6 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
             # 新增一条合并后的link
             new_link_id = link_gdf.at[list(merge_link_index)[0], link_id_field]
 
-            # link表原有的属性
-            link_columns_list = list(link_gdf.columns)
-
-            # 未指定的属性置空
-            non_specified_field_list = list(set(link_columns_list) - set(required_field_list))
             first_link_index = list(to_be_merge_link_gdf.index)[0]
             non_specified_data_dict = {field: to_be_merge_link_gdf.loc[first_link_index, field] for field in
                                        non_specified_field_list}
@@ -252,6 +253,7 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
             new_link_dict[key].append(data_dict[key])
     new_link_df = pd.DataFrame(new_link_dict)
     new_link_gdf = gpd.GeoDataFrame(new_link_df, geometry=geometry_field, crs=origin_crs)
+    new_link_gdf = new_link_gdf.astype(link_gdf.dtypes)
     link_gdf = pd.concat([link_gdf, new_link_gdf])
     link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
