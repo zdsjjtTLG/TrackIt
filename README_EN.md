@@ -38,11 +38,11 @@
 <br>
 
 
-**💬version status：06.27 Updated: v0.3.5**
+**💬version status：07.03 Updated: v0.3.6**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- BUG fix
+- adapt to geopandas v1.0.0
 
 
 <div align=center>
