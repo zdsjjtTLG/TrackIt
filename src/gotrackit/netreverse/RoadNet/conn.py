@@ -62,7 +62,7 @@ class Conn(object):
             conn_dict = {str(node) + '-' + ','.join(list(map(str, link_list))): (
                 node_gdf.at[node, geometry_field].x, node_gdf.at[node, geometry_field].y)
                 for link_list, node in zip(agg_df[link_id_field], agg_df[node_id_field])}
-            node_gdf.reset_index(drop=True, inplace=True)
+            node_gdf.reset_index(drop=False, inplace=True)
             generate_book_mark(input_fldr=out_fldr, prj_name=file_name, _mode='replace', name_loc_dict=conn_dict)
 
     @staticmethod
