@@ -45,15 +45,12 @@ geopandas近日升级到1.0.0，部分接口参数变动很大，gotrackit目前
 
 
 
-**💬版本状态：06.27已更新: v0.3.5**
+**💬版本状态：07.03已更新: v0.3.6**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 全面移除对地理矢量文件的crs检查，用户自己需要确保输入的几何矢量图层的crs为EPSG:4326.
+- 针对geopandas v1.0.0新版本做了兼容.
 
-- 地图匹配接口：冗余计算代码剔除.
-
-- 平面投影坐标系参数：老版本部分接口参数名称为plain_prj，现统一为plain_crs.
 
 - 上新了一些GIS小工具
 <div align="center">
