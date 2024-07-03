@@ -517,7 +517,9 @@ class NetReverse(Reverse):
         :param link_gdf: gpd.GeoDataFrame, 要求至少有geometry字段
         """
         link_gdf = link_gdf.to_crs('EPSG:4326')
-
+        link_gdf.dropna(axis=1, how='all', inplace=True)
+        if link_gdf.empty:
+            return None
         if net_field.DIRECTION_FIELD not in link_gdf.columns:
             print(rf'link层数据缺少dir字段, 自动填充为0')
             link_gdf[net_field.DIRECTION_FIELD] = 0
