@@ -304,7 +304,7 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
                                        keep='first')
         alter_link_gdf.drop(index=alter_link_gdf[alter_link_gdf[net_field.FROM_NODE_FIELD] ==
                                                  alter_link_gdf[net_field.TO_NODE_FIELD]].index, inplace=True, axis=0)
-        link_gdf = link_gdf.drop(index=link_gdf[alter_index].index, axis=0)
+        link_gdf = link_gdf.drop(index=link_gdf[alter_index].index, axis=0, inplace=False)
 
         # 修改起终点坐标
         # 可能一条link退化为点
