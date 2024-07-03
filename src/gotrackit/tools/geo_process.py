@@ -189,13 +189,14 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
 
     is_multi_index = gdf['is_multi'] == 1
     multi_gdf = gdf[is_multi_index].copy()
-    gdf.drop(index=gdf[is_multi_index].index, axis=0, inplace=True)
 
-    multi_gdf = multi_gdf.explode(column=[geometry_field], ignore_index=True)
-    multi_gdf.dropna(subset=[geometry_field], axis=0, inplace=True)
-
-    gdf = pd.concat([gdf, multi_gdf])
-    gdf.reset_index(inplace=True, drop=True)
+    if not multi_gdf.empty:
+        gdf.drop(index=gdf[is_multi_index].index, axis=0, inplace=True)
+        multi_gdf = multi_gdf.explode(column=[geometry_field], ignore_index=True)
+        multi_gdf.dropna(subset=[geometry_field], axis=0, inplace=True)
+        multi_gdf = multi_gdf.astype(gdf.dtypes)
+        gdf = pd.concat([gdf, multi_gdf])
+        gdf.reset_index(inplace=True, drop=True)
 
     gdf.drop(columns=['is_multi'], axis=1, inplace=True)
     gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
