@@ -159,7 +159,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     link_gdf.drop(index=target_link_index, inplace=True, axis=0)
     new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs, geometry='geometry')
     del new_link_df
-
+    new_link_gdf = new_link_gdf.astype(link_gdf.dtypes)
     link_gdf = pd.concat([link_gdf, new_link_gdf])
     link_gdf.reset_index(inplace=True, drop=True)
     link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
@@ -327,6 +327,12 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
     sum_del_node_list = []
     sum_link_data_list = []
 
+    # link表原有的属性
+    link_columns_list = list(link_gdf.columns)
+
+    # 未指定的属性置空
+    non_specified_field_list = list(set(link_columns_list) - set(required_field_list))
+
     for row in tqdm(merge_link_df.itertuples(), total=len(merge_link_df), desc=rf'Merge Road Sections', ncols=100):
         link_seq_list = getattr(row, 'link_seq')
         head_tail_root_ring = getattr(row, 'head_tail_root_ring')
@@ -423,11 +429,6 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None, origin_crs: st
             # 新增一条合并后的link
             new_link_id = link_gdf.at[list(merge_link_index)[0], link_id_field]
 
-            # link表原有的属性
-            link_columns_list = list(link_gdf.columns)
-
-            # 未指定的属性置空
-            non_specified_field_list = list(set(link_columns_list) - set(required_field_list))
             first_link_index = list(to_be_merge_link_gdf.index)[0]
             non_specified_data_dict = {field: to_be_merge_link_gdf.loc[first_link_index, field] for field in
                                        non_specified_field_list}
