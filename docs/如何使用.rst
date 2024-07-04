@@ -559,7 +559,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                                      log_fldr=r'./', save_log_file=True,
                                      binary_path_fldr=r'./data/output/request/test_diy_region/',
                                      region_gdf=target_region_gdf, od_type='rand_od', gap_n=1000,
-                                     min_od_length=1200, od_num=20)
+                                     min_od_length=1200, od_num=200)
 
 
 3.1.3. 基于区域-区域OD请求路径, 获取路网
