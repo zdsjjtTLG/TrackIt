@@ -526,6 +526,7 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         nv = ng.NetReverse(flag_name='test_rectangle', net_out_fldr=r'./data/output/reverse/test_rectangle/',
                        plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=40)
 
+        # 参数od_num：依据自己需求确定，od_num越大，请求的路径越多，路网覆盖率越高
         nv.generate_net_from_request(key_list=['你的Key'],
                                      log_fldr=r'./', save_log_file=True,
                                      binary_path_fldr=r'./data/output/request/test_rectangle/',
@@ -555,6 +556,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                            plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=20)
         target_region_gdf = gpd.read_file(r'./data/input/region/diy_region.shp')
         print(target_region_gdf)
+
+        # 参数od_num：依据自己需求确定，od_num越大，请求的路径越多，路网覆盖率越高
         nv.generate_net_from_request(key_list=['你的Key'],
                                      log_fldr=r'./', save_log_file=True,
                                      binary_path_fldr=r'./data/output/request/test_diy_region/',
@@ -584,6 +587,8 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
                            plain_crs='EPSG:32650', save_tpr_link=True, angle_threshold=20)
         target_region_gdf = gpd.read_file(r'./data/input/region/simple_taz.shp')
         print(target_region_gdf)
+
+        # 参数od_num在区域-区域OD下不生效，OD数 = N * N - N, N为区域数量
         nv.generate_net_from_request(key_list=['你的Key'],
                                      log_fldr=r'./', save_log_file=True,
                                      binary_path_fldr=r'./data/output/request/test_taz/',
