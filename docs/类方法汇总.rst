@@ -250,7 +250,7 @@
     用于构造od的方法，rand_od、region_od、diy_od
 
 * od_num
-    需要请求的od数，默认300，只有od_type为rand_od时起效
+    请求的od数，od数越多，请求的路径就越多，路网覆盖率就越完整，默认100，只有od_type为rand_od时起效
 
 * gap_n
     网格个数，默认1000，只有od_type为rand_od时起效
