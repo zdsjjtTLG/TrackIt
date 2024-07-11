@@ -27,7 +27,7 @@
 
 ~ 💪一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位💪 ~
 
-👻Developed by Tk, Email: 794568794@qq.com👻
+👻Developed by TangKai, Email: 794568794@qq.com👻
 
 🔑gotrackit迭代更新很快，记得关注版本更新信息哦🔑
 
