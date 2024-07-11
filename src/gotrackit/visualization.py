@@ -217,7 +217,15 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
 
     data_item[kepler_config.MIX_NAME] = mix_gdf
 
-    user_map = KeplerGl(height=600, data=data_item)  # data以图层名为键，对应的矢量数据为值
+    try:
+        user_map = KeplerGl(height=600, data=data_item)  # data以图层名为键，对应的矢量数据为值
+    except:
+        user_map = KeplerGl(height=600)  # data以图层名为键，对应的矢量数据为值
+        if kepler_config.ERROR_XFER in data_item.keys():
+            user_map.add_data(data_item[kepler_config.ERROR_XFER], name=kepler_config.ERROR_XFER)
+        user_map.add_data(data_item[kepler_config.BASE_NODE_NAME], name=kepler_config.BASE_NODE_NAME)
+        user_map.add_data(data_item[kepler_config.BASE_LINK_NAME], name=kepler_config.BASE_LINK_NAME)
+        user_map.add_data(data_item[kepler_config.MIX_NAME], name=kepler_config.MIX_NAME)
     user_map.config = user_config
     user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
 
