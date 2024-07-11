@@ -37,11 +37,11 @@
 </div>
 <br>
 
-**💬版本状态: 07.03已更新: v0.3.6**
+**💬版本状态: 07.11已更新: v0.3.7**
 
 更新命令：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
-- 针对geopandas v1.0.0新版本做了兼容.
+- 针对部分VsCode用户可视化输出失败的BUG，进行了修复.
 
 
 - 上新了一些GIS小工具
