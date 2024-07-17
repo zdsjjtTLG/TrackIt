@@ -187,18 +187,12 @@ https://github.com/zdsjjtTLG/TrackIt
 [BUG提交页面](https://github.com/zdsjjtTLG/TrackIt/issues)
 
 
-## 2. 地图匹配问题
+## 2. 地图匹配定义
 
-![car_gps.png](docs/_static/images/car_gps.png)
+![car_gps.png](docs/_static/images/MapMatch.PNG)
 
-![where_car.png](docs/_static/images/whereIsCar.png)
 
-__如何依据GPS数据推算车辆的实际路径？__
+## 3. 地图匹配应用场景
 
-![main.png](docs/_static/images/single_p.png)
+![car_gps.png](docs/_static/images/application.PNG)
 
-![main.png](docs/_static/images/transition.png)
-
-![main.png](docs/_static/images/viterbi.png)
-
-![main.png](docs/_static/images/trace.png)
