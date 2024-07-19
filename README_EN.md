@@ -44,6 +44,14 @@ update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 - fix bug for html export
 
+<div align=center>
+~ Functional Architecture of GoTrackIt ~
+</div>
+
+<div align="center">
+    <img src="docs/_static/images/FunctionGraphEn.png" />
+</div>
+
 
 <div align=center>
 ~ Sparse trajectory matching and path completion ~
