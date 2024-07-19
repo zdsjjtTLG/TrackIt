@@ -286,7 +286,7 @@
     路网线层gdf数据，必须数据
 
 * update_link_field_list
-    需要更新的字段列表, 生产拓扑关联后需要更新的线层基本字段，从(link_id, from_node, to_node, dir, length)中选取，
+    需要更新的字段列表, 生产拓扑关联后需要更新的线层基本字段，从(link_id, from_node, to_node, dir, length)中选取
 
 * using_from_to
     是否使用输入线层中的from_node字段和to_node字段，默认False
