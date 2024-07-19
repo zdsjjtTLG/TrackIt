@@ -1,6 +1,8 @@
 Welcome to GoTrackIt's documentation!
 =========================================
 
+Read UserManual in ：`English <https://gotrackitdocs.readthedocs.io/en/latest/>`_
+
 作者：唐铠
 
 邮箱：tangkai@zhechengdata.com、794568794@qq.com
