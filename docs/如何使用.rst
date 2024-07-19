@@ -32,7 +32,7 @@
 
 .. note::
 
-   截至gotrackit v0.3.5版本，暂不支持geopandas最新的v1.0.0版本，请使用geopandas v0.14.3版本
+   截至gotrackit-v0.3.5版本，暂不支持geopandas最新的v1.0.0版本，请升级至最新版本gotrackit 或者 使用geopandas-v0.14.3
 
 
 安装上述依赖推荐使用Anaconda，使用python3.11版本
