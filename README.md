@@ -44,7 +44,11 @@
 - 针对部分VsCode用户可视化输出失败的BUG，进行了修复.
 
 
-功能架构图：
+
+<div align=center>
+~ gotrackit功能概览 ~
+</div>
+
 <div align="center">
     <img src="docs/_static/images/FunctionGraph.png" />
 </div>
