@@ -27,7 +27,7 @@
 
 💪One package helps you do it: road network acquisition, road network optimization, macro and micro map matching💪
 
-👻Developed by tk, Email: 794568794@qq.com👻
+👻Developed by TangKai, Email: 794568794@qq.com👻
 
 🔑gotrackit iterates and updates quickly, remember to pay attention to version update information🔑
 
@@ -89,19 +89,32 @@ Sparse trajectory gps point example：
 
 <br>
 
-<div align=center>
-~ WeChat user communication group. If you encounter a bug that cannot be solved, please join the group to communicate. Don’t forget to give the project a star. Your support is the driving force for my iteration. ~
-</div>
-
 <br>
-
-<div align="center">
-    <img src="docs/_static/images/wxq.jpg" />
-</div>
 
 
 ## 1. Introduction
-This map matching package implements probabilistic modeling of continuous GPS points based on Hidden Markov Model (HMM). This package can be used to easily perform map matching on GPS data.
+This map matching package implements probabilistic modeling of continuous GPS points based on Hidden Markov Model (HMM). This package can be used to easily perform map matching on GPS data. The main features of this open source package are：
+
+**😻Comprehensive data preprocessing tools**
+- Provide road network processing optimization tools；
+- Provide GPS sample data production module to solve the problem of no GPS data;
+- Provides GPS data cleaning interface, including itinerary segmentation, sliding window noise reduction, data frequency reduction, stop point identification, and point density enhancement.
+
+
+**☑️Complete documentation**
+- Chinese and English documents with detailed operation instructions;
+- The explanation of the algorithm principle does not involve complex formula derivation, and uses animation to analyze the algorithm principle, which is concise and clear.
+
+
+**🚀Matching algorithm optimization**
+- Support FastMapMatching based on path pre-calculation, support multi-core parallel matching, and support grid parameter search;
+- The preliminary path based on HMM matching is optimized, and the disconnected locations will be automatically searched and completed. For the locations that are disconnected in the actual road network, warning messages will be output to facilitate users to trace back the problems.
+
+
+**🌈Matching results support animation visualization**
+- The matching results are output in three forms: GPS point matching result table (csv), matching result vectorized layer, and vector layer matching animation (HTML file). HTML animation allows users to intuitively experience the matching results and improves the efficiency of troubleshooting.
+
+
 
 
 ### 1.1. How to install gotrackit
