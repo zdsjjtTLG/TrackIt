@@ -44,9 +44,9 @@
 - 针对部分VsCode用户可视化输出失败的BUG，进行了修复.
 
 
-- 上新了一些GIS小工具
+功能架构图：
 <div align="center">
-    <img src="docs/_static/images/gis_tools.png" />
+    <img src="docs/_static/images/FunctionGraph.png" />
 </div>
 
 
