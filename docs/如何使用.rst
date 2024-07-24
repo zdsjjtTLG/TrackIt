@@ -1825,6 +1825,7 @@ beta、gps_sigma、omitted_l、use_heading_inf
     import geopandas as gpd
     from gotrackit.map.Net import Net
     from gotrackit.MapMatch import MapMatch
+    from gotrackit.model.Para import ParaGrid
 
 
     if __name__ == '__main__':
