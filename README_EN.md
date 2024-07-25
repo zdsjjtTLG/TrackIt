@@ -57,6 +57,7 @@ update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ~ Sparse trajectory matching and path completion ~
 </div>
 
+
 <br>
 
 Sparse trajectory gps point example：
