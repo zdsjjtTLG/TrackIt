@@ -68,8 +68,11 @@
 
 .. image:: _static/images/wxq.jpg
     :align: center
+-------------------------------------
 
-
+.. image:: _static/images/wxq-2.jpg
+    :align: center
+-------------------------------------
 
 2. 地图匹配问题
 --------------------

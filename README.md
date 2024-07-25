@@ -109,6 +109,11 @@
     <img src="docs/_static/images/wxq.jpg" />
 </div>
 
+<div align="center">
+    <img src="docs/_static/images/wxq-2.jpg" />
+</div>
+
+wxq-2.jpg
 
 ## 1. 简介
 本地图匹配包基于隐马尔可夫模型(HMM)实现了连续GPS点位的概率建模，利用这个包可以轻松对GPS数据进行地图匹配，本开源包的特点如下:
