@@ -1434,10 +1434,10 @@ Net构建参数见：`构建Net的相关参数`_
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 * instant_output
-    是否每匹配完一条轨迹就存储csv匹配结果, 默认False
+    是否每匹配完一条轨迹就存储csv匹配结果, 默认False。如果待匹配的agent数量较多，该参数指定为True可能会导致匹配结果淤积在内存中，有内存溢出的风险，指定为False后，每匹配完一个agent就对匹配结果表进行存储，避免淤积在内存中
 
 * visualization_cache_times
-    每匹配完visualization_cache_times辆车再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
+    每匹配完visualization_cache_times个agent再进行结果(html、geojson可视化结果)的统一存储(可并发存储), 默认50
 
 * out_fldr
     保存匹配结果的文件(html文件、geojson文件、csv文件)目录, 默认当前目录
