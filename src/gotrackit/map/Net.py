@@ -74,7 +74,7 @@ class Net(object):
         :param not_conn_cost: 不连通路径的阻抗(m), 默认999.0米
         :param is_sub_net: 是否是子网络, 默认False
         :param fmm_cache: 是否启用路径预存储, 默认False
-        :param cache_cn: 使用几个核能进行路径预计算, 默认2
+        :param cache_cn: 使用几个核进行路径预计算, 默认2
         :param fmm_cache_fldr: 存储路径预处理结果的文件目录, 默认./
         :param recalc_cache: 是否重新计算FMM路径缓存, 默认True
         :param grid_len: 栅格边长, m
