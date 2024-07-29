@@ -7,7 +7,6 @@
 路网点层信息存储与相关方法
 """
 
-import warnings
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
