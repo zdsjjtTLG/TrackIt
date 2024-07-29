@@ -1785,7 +1785,7 @@ Net构建参数见：`构建Net的相关参数`_
 
         # 适当简化线型，simplify(x)中的x单位为m，该接口会使用道格拉斯-普克算法对线型进行简化，该值如选取的过大会导致所有link都退化为直线
         link = link.to_crs('你选定的平面投影坐标系')
-        link['geometry'] = link['geometry'].simplify(1.0)
+        link['geometry'] = link['geometry'].simplify(1.0)  # 切记不可在地理(经纬度)坐标系下按照1.0个单位进行simplify，1个经纬度单位的实际距离为110km左右
         link = link.to_crs('EPSG:4326')
         my_net = Net(link_gdf=link,
                      node_gdf=node)
