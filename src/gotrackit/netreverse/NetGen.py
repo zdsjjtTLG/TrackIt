@@ -126,7 +126,8 @@ class NetReverse(Reverse):
                                   log_fldr: str = None, save_log_file: bool = False,
                                   min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                                  wait_until_recovery: bool = False) -> None:
+                                  wait_until_recovery: bool = False,
+                                  is_rnd_strategy: bool = False, strategy: str = '32') -> None:
         """构造OD -> 请求 -> 二进制存储 -> 路网生产"""
         self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
                           od_file_path=od_file_path,
@@ -137,7 +138,8 @@ class NetReverse(Reverse):
                           log_fldr=log_fldr, save_log_file=save_log_file,
                           min_lng=min_lng, min_lat=min_lat,
                           w=w, h=h, od_num=od_num, gap_n=gap_n,
-                          min_od_length=min_od_length, wait_until_recovery=wait_until_recovery)
+                          min_od_length=min_od_length, wait_until_recovery=wait_until_recovery,
+                          is_rnd_strategy=is_rnd_strategy, strategy=strategy)
         pickle_file_name_list = os.listdir(binary_path_fldr)
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
@@ -304,7 +306,7 @@ class NetReverse(Reverse):
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                     is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False) \
+                     is_rnd_strategy: bool = False, strategy: str = '32', wait_until_recovery: bool = False) \
             -> tuple[bool, list[str]]:
         """构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326"""
         assert od_type in ['rand_od', 'region_od', 'diy_od']
