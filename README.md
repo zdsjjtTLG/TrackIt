@@ -105,9 +105,6 @@
 
 <br>
 
-<div align="center">
-    <img src="docs/_static/images/wxq.jpg" />
-</div>
 
 <div align="center">
     <img src="docs/_static/images/wxq-2.jpg" />
