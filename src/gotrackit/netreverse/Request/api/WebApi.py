@@ -36,9 +36,9 @@ class GdRoutePlan(object):
         para_dict = {'key': key}
         if is_rnd_strategy:
             strategy = strategy_list[np.random.randint(0, len(strategy_list))]
-        para_name = ['od_id', 'origin', 'destination', 'origin_id', 'destination_id', 'origin_type', 'avoidpolygons',
+        para_name = ['origin', 'destination', 'origin_id', 'destination_id', 'origin_type', 'avoidpolygons',
                      'waypoints_loc', 'strategy']
-        para_val = [od_id, origin, destination, origin_id, destination_id, origin_type, avoidpolygons, waypoints_loc,
+        para_val = [origin, destination, origin_id, destination_id, origin_type, avoidpolygons, waypoints_loc,
                     strategy]
         for name, val in zip(para_name, para_val):
             if para_val is not None:
