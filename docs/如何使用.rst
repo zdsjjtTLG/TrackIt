@@ -436,6 +436,7 @@ GPS数据字段要求如下：
 
 GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字段为gotrackit的内置计算字段
 
+
 样例数据如下：
 
 .. csv-table:: GPS样例数据
