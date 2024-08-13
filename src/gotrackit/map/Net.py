@@ -350,7 +350,7 @@ class Net(object):
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
                                  cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
-                                 fmm_cache: bool = False):
+                                 fmm_cache: bool = False, must_contain_link: list[int] = None):
         """
 
         :param gps_array_buffer:
@@ -359,6 +359,7 @@ class Net(object):
         :param cache_id:
         :param not_conn_cost:
         :param fmm_cache:
+        :param must_contain_link:
         :return:
         """
         if gps_array_buffer is None:
@@ -374,6 +375,14 @@ class Net(object):
             except Exception as e:
                 print(repr(e), '空间分层关联失效')
         sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
+
+        if must_contain_link is not None and must_contain_link:
+            _gap = set(must_contain_link) - set(sub_single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])
+            if _gap:
+                sub_single_link_gdf = pd.concat(
+                    [sub_single_link_gdf,
+                     single_link_gdf[single_link_gdf[net_field.SINGLE_LINK_ID_FIELD].isin(_gap)]])
+
         if sub_single_link_gdf.empty:
             print(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
             return None
@@ -534,7 +543,7 @@ class Net(object):
         if process_link_gdf.empty:
             return None
         else:
-            process_link_gdf[['__divide_l__', '__divide_p__', '__l__']] = process_link_gdf.apply(
+            process_link_gdf[['__divide_l__', '__divide_p__', '__l__', '__seq__']] = process_link_gdf.apply(
                 lambda row: divide_line_by_l(line_geo=row[geometry_field], divide_l=divide_l, l_min=min_l), axis=1,
                 result_type='expand')
             process_link_gdf.reset_index(inplace=True, drop=True)
@@ -559,7 +568,7 @@ class Net(object):
 
             process_link_gdf.drop(columns=['__divide_p__', 'new_p'], axis=1, inplace=True)
             process_link_gdf = pd.DataFrame(process_link_gdf)
-            new_link_gdf = process_link_gdf.explode(column=['__divide_l__', '__new_ft__'], ignore_index=True)
+            new_link_gdf = process_link_gdf.explode(column=['__divide_l__', '__new_ft__', '__seq__'], ignore_index=True)
             del process_link_gdf
             new_link_gdf[[from_node_field, to_node_field]] = new_link_gdf.apply(lambda row: row['__new_ft__'], axis=1,
                                                                                 result_type='expand')
