@@ -228,7 +228,7 @@ def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
 
 
 def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> \
-        tuple[list[LineString], list[Point], int]:
+        tuple[list[LineString], list[Point], int, list[int]]:
     """
 
     :param line_geo:
@@ -262,7 +262,7 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
         divide_line_list.append(split_line_list[0])
         divide_point_list.append(p)
 
-    return divide_line_list, divide_point_list, len(divide_line_list)
+    return divide_line_list, divide_point_list, len(divide_line_list), [i for i in range(len(divide_line_list))]
 
 
 def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None) -> float:
