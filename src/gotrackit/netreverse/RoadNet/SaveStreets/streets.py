@@ -199,7 +199,8 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
 
     non_required_col_list = list(set(col_list) - set(link_required_field_list + [net_field.GEOMETRY_FIELD]))
 
-    link_gdf.drop(index=link_gdf[link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]].index,
+    link_gdf.drop(index=link_gdf[(link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]) &
+                                 (link_gdf[net_field.LENGTH_FIELD] <= 1e-7)].index,
                   inplace=True, axis=0)
     link_gdf.reset_index(inplace=True, drop=True)
     return link_gdf[link_required_field_list + non_required_col_list + [net_field.GEOMETRY_FIELD]]
