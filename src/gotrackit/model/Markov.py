@@ -41,7 +41,8 @@ class HiddenMarkov(object):
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
                  dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
-                 use_para_grid: bool = False, heading_vec_len: float = 15.0):
+                 use_para_grid: bool = False, heading_vec_len: float = 15.0, flag_name: str = None,
+                 out_fldr: str = None):
         self.gps_points = gps_points
         self.net = net
         # (gps_seq, single_link_id): (prj_p, prj_dis, route_dis)
@@ -81,6 +82,9 @@ class HiddenMarkov(object):
         self.para_grid = para_grid
         self.heading_vec_len = heading_vec_len
 
+        self.out_fldr = out_fldr
+        self.flag_name = flag_name
+
     def init_warn_info(self):
         self.warn_info = {'from_ft': [], 'to_ft': []}
         self.is_warn = False
@@ -113,6 +117,58 @@ class HiddenMarkov(object):
             print(rf'回溯模型出错:{repr(e)}')
             return False, pd.DataFrame()
 
+        try:
+            match_res = self.acquire_res()
+        except Exception as e:
+            print(rf'获取匹配结果出错:{repr(e)}')
+            return False, pd.DataFrame()
+        self.formatting_warn_info()
+        return True, match_res
+
+    def hmm_rt_execute(self, add_single_ft: list[bool] = None, last_em_para: dict = None,
+                       last_seq_list: list[int] = None, his_ft_idx_map: pd.DataFrame = None) -> \
+            tuple[bool, pd.DataFrame]:
+        try:
+            is_success = self.__generate_st(add_single_ft=add_single_ft)
+        except Exception as e:
+            is_success = False
+            print(rf'构造矩阵结构出错:{repr(e)}')
+        if not is_success:
+            return False, pd.DataFrame()
+        cor_his = True
+        if last_em_para:
+            now_ft_idx_map = self.get_ft_idx_map
+            start_seq = self.gps_points.first_seq()
+            now_ft_idx_val = now_ft_idx_map[now_ft_idx_map[gps_field.POINT_SEQ_FIELD] == start_seq].values
+            # print(last_seq_list[0], start_seq)
+            if np.sum(his_ft_idx_map[his_ft_idx_map[gps_field.POINT_SEQ_FIELD] == last_seq_list[0]].values[:, 1:] -
+                      now_ft_idx_val[:, 1:]) != 0:
+                cor_his = False
+
+        try:
+            self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
+        except Exception as e:
+            print(rf'计算转移矩阵出错:{repr(e)}')
+            return False, pd.DataFrame()
+
+        try:
+            self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
+                                 gps_sigma=self.gps_sigma)
+        except Exception as e:
+            print(rf'计算发射矩阵出错:{repr(e)}')
+            return False, pd.DataFrame()
+
+        try:
+            if last_em_para and cor_his:
+                initial_ep = last_em_para[last_seq_list[0]]
+            else:
+                initial_ep = None
+            self.solve(initial_ep=initial_ep)
+        except Exception as e:
+            print(rf'回溯模型出错:{repr(e)}')
+            return False, pd.DataFrame()
+        over_num = len(last_em_para)
+        # self.index_state_list = self.index_state_list[over_num:]
         try:
             match_res = self.acquire_res()
         except Exception as e:
@@ -269,7 +325,8 @@ class HiddenMarkov(object):
         preliminary_candidate_link.reset_index(inplace=True, drop=True)
         preliminary_candidate_link['quick_stl'] = preliminary_candidate_link[gps_field.GEOMETRY_FIELD].shortest_line(
             preliminary_candidate_link['single_link_geo']).length
-        preliminary_candidate_link.sort_values(by=[gps_field.POINT_SEQ_FIELD, 'quick_stl'], ascending=[True, True],
+        preliminary_candidate_link.sort_values(by=[gps_field.POINT_SEQ_FIELD, 'quick_stl',
+                                                   net_field.SINGLE_LINK_ID_FIELD], ascending=[True, True, True],
                                                inplace=True)
         preliminary_candidate_link = preliminary_candidate_link.groupby(gps_field.POINT_SEQ_FIELD).head(
             top_k).reset_index(drop=True)
@@ -353,16 +410,18 @@ class HiddenMarkov(object):
         if self.net.is_sub_net:
             pass
 
-    def solve(self, use_lop_p: bool = True):
+    def solve(self, use_lop_p: bool = True, initial_ep: dict[int, np.ndarray] = None):
         """
         :param use_lop_p: 是否使用对数概率, 避免浮点数精度下溢
+        :param initial_ep:
         :return:
         """
 
         # 使用viterbi模型求解
         self.__solver = Viterbi(observation_list=self.gps_points.used_observation_seq_list,
                                 o_mat_dict=self.__emission_mat_dict,
-                                t_mat_dict=self.__ft_transition_dict, use_log_p=use_lop_p)
+                                t_mat_dict=self.__ft_transition_dict, use_log_p=use_lop_p,
+                                initial_ep=initial_ep)
         self.__solver.init_model()
         self.index_state_list = self.__solver.iter_model()
 
@@ -528,15 +587,18 @@ class HiddenMarkov(object):
             _done_stp_cost_df['2nd_node'] = -1
             _done_stp_cost_df['-2nd_node'] = -1
             normal_path_idx = _done_stp_cost_df[cost_field] > 0
-            try:
-                _done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
-                    path_field].apply(
-                    lambda x: x[1])
-                _done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
-                    path_field].apply(
-                    lambda x: x[-2])
-            except:
+            if _done_stp_cost_df[normal_path_idx].empty:
                 pass
+            else:
+                try:
+                    _done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                        path_field].apply(
+                        lambda x: x[1])
+                    _done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                        path_field].apply(
+                        lambda x: x[-2])
+                except:
+                    pass
         transition_df = pd.merge(transition_df, _done_stp_cost_df, left_on=['from_link_f', 'to_link_f'],
                                  right_on=[o_node_field, d_node_field], how='left')
         del _done_stp_cost_df
@@ -715,6 +777,7 @@ class HiddenMarkov(object):
         del gps_link_state_df['next_single'], gps_link_state_df['next_seq'], gps_link_state_df[gps_field.NEXT_LINK_FIELD]
 
         gps_user_info = self.gps_points.user_info
+        del gps_user_info[gps_field.AGENT_ID_FIELD]
         gps_link_state_df = pd.merge(gps_link_state_df, gps_user_info, on=gps_field.POINT_SEQ_FIELD, how='left')
 
         if not omitted_gps_state_df.empty:
@@ -1041,6 +1104,17 @@ class HiddenMarkov(object):
         self.format_warn_info = pd.DataFrame(self.warn_info)
         del self.warn_info
 
+    def extract_st(self, seq_list: list[int] = None):
+        return {seq_list[i]: self.__ft_transition_dict[seq_list[i]] for i in
+                range(len(seq_list) - 1)}
+
+    def extract_emission(self, seq_list: list[int] = None):
+        return {seq_list[i]: self.__solver.zeta_array_dict[seq_list[i]] for i in
+                range(len(seq_list))}
+
+    @property
+    def get_ft_idx_map(self):
+        return self.__ft_idx_map.copy()
 
 if __name__ == '__main__':
     pass
