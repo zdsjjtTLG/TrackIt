@@ -7,6 +7,7 @@ import os
 import numpy as np
 import pandas as pd
 import multiprocessing
+import geopandas as gpd
 from .map.Net import Net
 from .model.Para import ParaGrid
 from .tools.group import cut_group
@@ -23,14 +24,14 @@ node_id_field = net_field.NODE_ID_FIELD
 
 
 class MapMatch(object):
-    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True, gps_df: pd.DataFrame = None,
+    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
                  dense_gps: bool = True, dense_interval: float = 100.0,
-                 dwell_l_length: float = 10.0, dwell_n: int = 2, del_dwell: bool = True,
+                 dwell_l_length: float = 5.0, dwell_n: int = 2, del_dwell: bool = True,
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
@@ -44,7 +45,6 @@ class MapMatch(object):
         :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
         :param net: gotrackit路网对象, 必须指定
         :param use_sub_net: 是否在子网络上进行计算, 默认True
-        :param gps_df: GPS数据, 必须指定
         :param time_format: GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
         :param time_unit: GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
         :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认100.0
@@ -81,7 +81,6 @@ class MapMatch(object):
         self.geo_crs = net.geo_crs
 
         # gps参数
-        self.gps_df = gps_df
         self.time_format = time_format  # 时间列格式
         self.time_unit = time_unit  # 时间列单位
         self.is_lower_f = is_lower_f  # 是否降频率
@@ -115,9 +114,6 @@ class MapMatch(object):
         self.export_geo_res = export_geo_res
         self.out_fldr = r'./' if out_fldr is None else out_fldr
 
-        self.may_error_list = dict()
-        self.error_list = list()
-
         self.my_net = net
         self.not_conn_cost = self.my_net.not_conn_cost
         self.use_gps_source = use_gps_source
@@ -136,69 +132,62 @@ class MapMatch(object):
 
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
-        self.user_field_list = user_field_list
         self.heading_vec_len = heading_vec_len
 
-    def execute(self) -> tuple[pd.DataFrame, dict, list]:
-        match_res_df = pd.DataFrame()
-        hmm_res_list = []  # save hmm_res
-        self.gps_df.dropna(subset=[agent_id_field], inplace=True)
-        agent_num = len(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
-        if agent_num == 0:
-            print('去除agent_id列空值行后, gps数据为空...')
-            return match_res_df, self.may_error_list, self.error_list
+        self.user_field_list = user_field_list
+        self.his_hmm_dict = dict()
 
+    def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None) -> tuple[pd.DataFrame, dict, list]:
+        """
+        :param gps_df:
+        :return:
+        """
         # check and format
-        self.user_field_list = GpsPointsGdf.check(gps_points_df=self.gps_df,
-                                                  user_field_list=self.user_field_list)
+        user_field_list = GpsPointsGdf.check(gps_points_df=gps_df, user_field_list=self.user_field_list)
+
+        match_res_df = pd.DataFrame()
+        may_error_list = dict()
+        error_list = list()
+        hmm_res_list = []  # save hmm_res
+        gps_df.dropna(subset=[agent_id_field], inplace=True)
+        agent_num = len(gps_df[gps_field.AGENT_ID_FIELD].unique())
+        if agent_num == 0:
+            print('after removing the rows with empty values in the agent_id column, the gps data is empty...')
+            return match_res_df, may_error_list, error_list
+
         # 对每辆车的轨迹进行匹配
         agent_count = 0
         add_single_ft = [True]
 
-        for agent_id, _gps_df in self.gps_df.groupby(gps_field.AGENT_ID_FIELD):
+        for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
             agent_count += 1
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
             try:
                 gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
                                        buffer=self.gps_buffer, time_unit=self.time_unit,
-                                       plane_crs=self.plain_crs,
-                                       dense_gps=self.dense_gps, dense_interval=self.dense_interval,
-                                       dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n,
-                                       user_filed_list=self.user_field_list)
+                                       plane_crs=self.plain_crs, user_filed_list=user_field_list)
             except Exception as e:
-                print('构建按GPS对象出错...')
-                print(repr(e))
-                self.error_list.append(agent_id)
+                print(f'error constructing GPS object: {repr(e)}')
+                error_list.append(agent_id)
                 continue
 
             del _gps_df
 
             # gps-process
             try:
-                if self.del_dwell:
-                    print(rf'gps-preprocessing: del dwell')
-                    gps_obj.del_dwell_points()
-
-                # 降频处理
-                if self.is_lower_f:
-                    print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
-                    gps_obj.lower_frequency(n=self.lower_n)
-
-                if self.is_rolling_average:
-                    print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
-                    gps_obj.rolling_average(window=self.rolling_window)
-
-                if self.dense_gps:
-                    print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
-                    gps_obj.dense()
+                self.gps_reprocess(gps_obj=gps_obj,
+                                   is_lower_f=self.is_lower_f, lower_n=self.lower_n,
+                                   is_rolling_average=self.is_rolling_average, rolling_window=self.rolling_window,
+                                   dense_gps=self.dense_gps, dense_interval=self.dense_interval,
+                                   del_dwell=self.del_dwell, dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
             except Exception as e:
-                print(rf'gps数据预处理出错:{repr(e)}')
-                self.error_list.append(agent_id)
+                print(rf'GPS data preprocessing error: {repr(e)}')
+                error_list.append(agent_id)
                 continue
 
             if len(gps_obj.gps_gdf) <= 1:
-                print(r'经过数据预处理后GPS观测点数据不足2个')
-                self.error_list.append(agent_id)
+                print(r'after data preprocessing, there are less than 2 GPS observation points.')
+                error_list.append(agent_id)
                 continue
 
             # 依据当前的GPS数据(源数据)做一个子网络
@@ -211,7 +200,7 @@ class MapMatch(object):
                     cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
                     not_conn_cost=self.my_net.not_conn_cost)
                 if used_net is None:
-                    self.error_list.append(agent_id)
+                    error_list.append(agent_id)
                     continue
             else:
                 used_net = self.my_net
@@ -231,11 +220,11 @@ class MapMatch(object):
                 self.para_grid.init_para_grid()
 
             if not is_success:
-                self.error_list.append(agent_id)
+                error_list.append(agent_id)
                 continue
 
             if hmm_obj.is_warn:
-                self.may_error_list[agent_id] = hmm_obj.format_warn_info
+                may_error_list[agent_id] = hmm_obj.format_warn_info
 
             if self.instant_output:
                 _match_res_df.to_csv(os.path.join(self.out_fldr, rf'{agent_id}_match_res.csv'),
@@ -256,10 +245,12 @@ class MapMatch(object):
                     del hmm_res_list
                     hmm_res_list = []
 
-        return match_res_df, self.may_error_list, self.error_list
+        return match_res_df, may_error_list, error_list
 
-    def multi_core_execute(self, core_num: int = 2) -> tuple[pd.DataFrame, dict, list]:
-        agent_id_list = list(self.gps_df[gps_field.AGENT_ID_FIELD].unique())
+    def multi_core_execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None, core_num: int = 2) -> \
+            tuple[pd.DataFrame, dict, list]:
+        assert gps_field.AGENT_ID_FIELD in set(gps_df.columns), 'gps data is missing agent_id field'
+        agent_id_list = list(gps_df[gps_field.AGENT_ID_FIELD].unique())
         core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
         agent_group = cut_group(agent_id_list, n=core_num)
         n = len(agent_group)
@@ -274,8 +265,8 @@ class MapMatch(object):
                 os.makedirs(core_out_fldr)
 
             agent_id_list = agent_group[i]
-            gps_df = self.gps_df[self.gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
-            mmp = MapMatch(gps_df=gps_df, net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
+            _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
+            mmp = MapMatch(net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
                            time_unit=self.time_unit, gps_buffer=self.gps_buffer,
                            gps_route_buffer_gap=self.gps_route_buffer_gap,
                            beta=self.beta,
@@ -299,7 +290,7 @@ class MapMatch(object):
                            para_grid=self.para_grid, user_field_list=self.user_field_list,
                            heading_vec_len=self.heading_vec_len)
             result = pool.apply_async(mmp.execute,
-                                      args=())
+                                      args=(_gps_df, ))
             result_list.append(result)
         pool.close()
         pool.join()
@@ -312,3 +303,167 @@ class MapMatch(object):
             error.extend(_error)
         match_res.reset_index(inplace=True, drop=True)
         return match_res, may_error, error
+
+    def rt_execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None,
+                   gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
+                   dis_gap_threshold: float = 600.0,
+                   overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
+        """
+
+        :param gps_df:
+        :param gps_already_plain: gps数据的lng, lat列是否已经是平面投影坐标系
+        :param time_gap_threshold: 时间间隔阈值
+        :param dis_gap_threshold: 距离阈值
+        :param overlapping_window: 重叠窗口长度
+        :return:
+        """
+        # check and format
+        self.is_rolling_average = False
+        # self.del_dwell = False
+        self.use_sub_net = False
+        user_field_list = GpsPointsGdf.check(gps_points_df=gps_df, user_field_list=self.user_field_list)
+        may_error_list = dict()
+        error_list = list()
+        match_res_df = pd.DataFrame()
+        hmm_res_list = []  # save hmm_res
+        gps_df.dropna(subset=[agent_id_field], inplace=True)
+        agent_num = len(gps_df[gps_field.AGENT_ID_FIELD].unique())
+        if agent_num == 0:
+            print('after removing the rows with empty values in the agent_id column, the gps data is empty...')
+            return match_res_df, may_error_list, error_list
+
+        # 对每辆车的轨迹进行匹配
+        agent_count = 0
+        add_single_ft = [True]
+
+        for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
+            cor_with_his = False
+            agent_count += 1
+            if agent_id in self.his_hmm_dict.keys():
+                self.gps_buffer = self.his_hmm_dict[agent_id].gps_points.buffer
+            print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
+            try:
+                gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
+                                       buffer=self.gps_buffer, time_unit=self.time_unit,
+                                       plane_crs=self.plain_crs,
+                                       user_filed_list=user_field_list, already_plain=gps_already_plain)
+            except Exception as e:
+                print(f'error constructing GPS object: {repr(e)}')
+                error_list.append(agent_id)
+                continue
+
+            del _gps_df
+
+            # judge if the same chain with his agent
+            last_seq_list = list()
+            if agent_id in self.his_hmm_dict.keys():
+                cor_with_his, last_seq_list = gps_obj.merge_gps(
+                    gps_obj=self.his_hmm_dict[agent_id].gps_points,
+                    depth=overlapping_window,
+                    dis_gap_threshold=dis_gap_threshold,
+                    time_gap_threshold=time_gap_threshold)
+            # gps-process
+            try:
+                self.gps_reprocess(gps_obj=gps_obj,
+                                   is_lower_f=self.is_lower_f, lower_n=self.lower_n,
+                                   is_rolling_average=self.is_rolling_average, rolling_window=self.rolling_window,
+                                   dense_gps=self.dense_gps, dense_interval=self.dense_interval,
+                                   del_dwell=self.del_dwell, dwell_l_length=self.dwell_l_length, dwell_n=self.dwell_n)
+            except Exception as e:
+                print(rf'GPS data preprocessing error: {repr(e)}')
+                error_list.append(agent_id)
+                continue
+
+            if len(gps_obj.gps_gdf) <= 1:
+                print(r'after data preprocessing, there are less than 2 GPS observation points.')
+                error_list.append(agent_id)
+                continue
+
+            # 依据当前的GPS数据(源数据)做一个子网络
+            if self.use_sub_net:
+                print(rf'using sub net')
+                used_net = self.my_net.create_computational_net(
+                    gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
+                                                                  dup_threshold=self.dup_threshold),
+                    fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
+                    cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
+                    not_conn_cost=self.my_net.not_conn_cost)
+                if used_net is None:
+                    error_list.append(agent_id)
+                    continue
+            else:
+                used_net = self.my_net
+                print(rf'using whole net')
+
+            hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta,
+                                   gps_sigma=self.gps_sigma,
+                                   not_conn_cost=self.not_conn_cost,
+                                   use_heading_inf=self.use_heading_inf,
+                                   heading_para_array=self.heading_para_array,
+                                   dis_para=self.dis_para,
+                                   top_k=self.top_k, omitted_l=self.omitted_l,
+                                   para_grid=self.para_grid,
+                                   heading_vec_len=self.heading_vec_len, flag_name=self.flag_name,
+                                   out_fldr=self.out_fldr)
+            his_emission = dict()
+            his_ft_idx_map = pd.DataFrame()
+            if cor_with_his:
+                his_emission = self.his_hmm_dict[agent_id].extract_emission(seq_list=last_seq_list)
+                his_ft_idx_map = self.his_hmm_dict[agent_id].get_ft_idx_map
+
+            is_success, _match_res_df = \
+                hmm_obj.hmm_rt_execute(add_single_ft=add_single_ft, last_em_para=his_emission,
+                                       last_seq_list=last_seq_list, his_ft_idx_map=his_ft_idx_map)
+
+            if not is_success:
+                error_list.append(agent_id)
+                continue
+
+            self.his_hmm_dict[agent_id] = hmm_obj
+
+            if hmm_obj.is_warn:
+                may_error_list[agent_id] = hmm_obj.format_warn_info
+
+            if self.instant_output:
+                _match_res_df.to_csv(os.path.join(self.out_fldr, rf'{agent_id}_match_res.csv'),
+                                     encoding='utf_8_sig', index=False)
+            else:
+                match_res_df = pd.concat([match_res_df, _match_res_df])
+
+            # if export files
+            if self.export_html or self.export_geo_res:
+                hmm_res_list.append(hmm_obj)
+                if len(hmm_res_list) >= self.visualization_cache_times or agent_count == agent_num:
+                    export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
+                                         export_geo=self.export_geo_res, export_html=self.export_html,
+                                         gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
+                                         out_fldr=self.out_fldr, flag_name=self.flag_name,
+                                         multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
+                                         dup_threshold=self.dup_threshold)
+                    del hmm_res_list
+                    hmm_res_list = []
+
+        return match_res_df, may_error_list, error_list
+
+    def gps_reprocess(self, gps_obj: GpsPointsGdf = None,
+                      del_dwell: bool = True, dwell_l_length: float = 5.0, dwell_n: int = 2,
+                      is_lower_f: bool = False, lower_n: int = 2,
+                      is_rolling_average: bool = False, rolling_window: int = 2,
+                      dense_gps: bool = True, dense_interval: float = 120.0) -> None:
+        # gps-process
+        if del_dwell:
+            print(rf'gps-preprocessing: del dwell')
+            gps_obj.del_dwell_points(dwell_l_length=dwell_l_length, dwell_n=dwell_n)
+
+        # 降频处理
+        if is_lower_f:
+            print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
+            gps_obj.lower_frequency(lower_n=lower_n)
+
+        if is_rolling_average:
+            print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
+            gps_obj.rolling_average(rolling_window=rolling_window)
+
+        if dense_gps:
+            print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
+            gps_obj.dense(dense_interval=dense_interval)
