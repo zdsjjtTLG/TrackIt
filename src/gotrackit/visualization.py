@@ -230,8 +230,55 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
 
 
+def generate_point_html(point_df: pd.DataFrame = None, out_fldr: str = None, file_name: str = None,
+                        zoom: int = 15) -> None:
+    """
+
+    :param point_df
+    :param out_fldr:
+    :param file_name:
+    :param zoom:
+    :return:
+    """
+    if point_df is None or point_df.empty:
+        return None
+    # 生成KeplerGl对象
+    point_df.sort_values(by='type', ascending=False, inplace=True)
+    cen_x, cen_y = point_df[gps_field.LNG_FIELD].mean(), point_df[gps_field.LAT_FIELD].mean(),
+    s_time, e_time = point_df[gps_field.TIME_FIELD].min().timestamp(), point_df[gps_field.TIME_FIELD].max().timestamp()
+    point_df[gps_field.TIME_FIELD] = point_df[gps_field.TIME_FIELD].astype(str)
+
+    user_config = kepler_config.get_base_config()
+    user_config["config"]["visState"]["filters"][0]["dataId"] = kepler_config.TRAJECTORY_NAME
+    user_config["config"]["visState"]["filters"][0]["value"] = [s_time, e_time]
+    user_config["config"]["mapState"]["latitude"] = cen_y
+    user_config["config"]["mapState"]["longitude"] = cen_x
+    user_config["config"]["mapState"]["zoom"] = int(zoom)
+    user_config["config"]["mapStyle"]["visibleLayerGroups"]["road"] = True
+
+    point_item = generate_point_layer(color=[65, 72, 88], layer_id=kepler_config.TRAJECTORY_NAME)
+    user_config["config"]["visState"]["layers"][0] = point_item
+
+    try:
+        user_map = KeplerGl(height=600, data={kepler_config.TRAJECTORY_NAME: point_df})  # data以图层名为键，对应的矢量数据为值
+    except:
+        user_map = KeplerGl(height=600)  # data以图层名为键，对应的矢量数据为值
+        user_map.add_data(point_df, name=kepler_config.TRAJECTORY_NAME)
+
+    user_map.config = user_config
+    user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
+
+
 def generate_polygon_layer(color: list = None, layer_id: str = None) -> dict:
     polygon_item = kepler_config.get_polygon_config()
+    polygon_item['id'] = layer_id
+    polygon_item['config']['dataId'] = layer_id
+    polygon_item['config']['label'] = layer_id
+    polygon_item['config']['color'] = color
+    return polygon_item
+
+def generate_point_layer(color: list = None, layer_id: str = None) -> dict:
+    polygon_item = kepler_config.get_point_config()
     polygon_item['id'] = layer_id
     polygon_item['config']['dataId'] = layer_id
     polygon_item['config']['label'] = layer_id
