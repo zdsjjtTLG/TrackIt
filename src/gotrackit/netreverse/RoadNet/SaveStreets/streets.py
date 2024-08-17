@@ -152,12 +152,15 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     :return:
     """
     avoid_duplicate_cols(df=link_gdf, update_col_name_list=update_link_field_list)
+    link_gdf.reset_index(inplace=True, drop=True)
     col_list = list(link_gdf.columns)
 
     # from_node和to_node一定要更新
     link_gdf['___idx'] = [i for i in range(0, len(link_gdf))]
-    link_gdf['__TopologyFromCoord__'] = link_gdf.apply(lambda x: Point(x[net_field.GEOMETRY_FIELD].coords[0]), axis=1)
-    link_gdf['__TopologyToCoord___'] = link_gdf.apply(lambda x: Point(x[net_field.GEOMETRY_FIELD].coords[-1]), axis=1)
+    # link_gdf['__TopologyFromCoord__'] = link_gdf.apply(lambda x: Point(x[net_field.GEOMETRY_FIELD].coords[0]), axis=1)
+    # link_gdf['__TopologyToCoord___'] = link_gdf.apply(lambda x: Point(x[net_field.GEOMETRY_FIELD].coords[-1]), axis=1)
+    link_gdf['__TopologyFromCoord__'] = link_gdf[net_field.GEOMETRY_FIELD].apply(lambda l: Point(l.coords[0]))
+    link_gdf['__TopologyToCoord___'] = link_gdf[net_field.GEOMETRY_FIELD].apply(lambda l: Point(l.coords[-1]))
 
     from_to_point_gdf = gpd.GeoDataFrame(link_gdf[['___idx', '__TopologyFromCoord__', '__TopologyToCoord___']].copy(),
                                          geometry='__TopologyFromCoord__', crs=origin_crs)
@@ -165,14 +168,18 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     join_data = gpd.sjoin(from_to_point_gdf, node_gdf, how='left', predicate='intersects')
     join_data.drop_duplicates(subset=['___idx'], keep='first', inplace=True)
     join_data.reset_index(inplace=True, drop=True)
-    link_gdf[net_field.FROM_NODE_FIELD] = join_data[net_field.NODE_ID_FIELD]
+    link_gdf[net_field.FROM_NODE_FIELD] = join_data[net_field.NODE_ID_FIELD].values
 
     from_to_point_gdf.set_geometry('__TopologyToCoord___', inplace=True)
     from_to_point_gdf.crs = origin_crs
     join_data = gpd.sjoin(from_to_point_gdf, node_gdf, how='left', predicate='intersects')
     join_data.drop_duplicates(subset=['___idx'], keep='first', inplace=True)
     join_data.reset_index(inplace=True, drop=True)
-    link_gdf[net_field.TO_NODE_FIELD] = join_data[net_field.NODE_ID_FIELD]
+    link_gdf[net_field.TO_NODE_FIELD] = join_data[net_field.NODE_ID_FIELD].values
+
+    link_gdf.dropna(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], axis=0, how='any', inplace=True)
+    link_gdf[net_field.FROM_NODE_FIELD] = link_gdf[net_field.FROM_NODE_FIELD].astype(int)
+    link_gdf[net_field.TO_NODE_FIELD] = link_gdf[net_field.TO_NODE_FIELD].astype(int)
     del join_data
 
     link_gdf.drop(['__TopologyFromCoord__', '__TopologyToCoord___', '___idx'], inplace=True, axis=1)
