@@ -523,17 +523,21 @@ class NetReverse(Reverse):
         if link_gdf.empty:
             return None
         if net_field.DIRECTION_FIELD not in link_gdf.columns:
-            print(rf'link层数据缺少dir字段, 自动填充为0')
+            print(rf'the link layer data lacks the dir field and is automatically filled with 0')
             link_gdf[net_field.DIRECTION_FIELD] = 0
-        link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
+        try:
+            link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
+        except Exception as e:
+            print(rf'{repr(e)}: the dir field has an empty value.')
         try:
             del link_gdf[net_field.FROM_NODE_FIELD]
             del link_gdf[net_field.TO_NODE_FIELD]
             del link_gdf[net_field.LINK_ID_FIELD]
             del link_gdf[net_field.LENGTH_FIELD]
         except Exception as e:
-            print(repr(e))
-        assert set(link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), 'dir字段中有异常值, 只允许0,1出现'
+            pass
+        assert set(link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), \
+            'there are abnormal values in the dir field. Only 0 and 1 are allowed.'
 
         # 创建single_link
         single_link_gdf = create_single_link(link_gdf=link_gdf)
