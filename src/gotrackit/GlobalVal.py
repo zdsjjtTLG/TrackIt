@@ -76,6 +76,10 @@ class GpsField(object):
         self.PRE_PLAIN_X = 'pre_prj_x'
         self.PRE_PLAIN_Y = 'pre_prj_y'
 
+        self.SPEED_FIELD = 'speed'
+        self.X_SPEED_FIELD = 'x_speed'
+        self.Y_SPEED_FIELD = 'y_speed'
+
 
 class RouteField(object):
     """"""
@@ -111,6 +115,7 @@ class MarkovField(object):
 
 class OdField(object):
     """路网字段"""
+
     def __init__(self):
         self.OD_ID_FIELD = 'od_id'
         self.WAYPOINTS_FIELD = 'way_points'
@@ -426,17 +431,113 @@ class KeplerConfig(object):
             }
         }
 
+        self.__POINT_CONFIG = {
+            "id": 'layer_id',
+            "type": "point",
+            "config": {
+                "dataId": 'layer_id',
+                "label": 'trajectory',
+                "color": [65, 72, 88],
+                "highlightColor": [
+                    252,
+                    242,
+                    26,
+                    255
+                ],
+                "columns": {
+                    "lat": "lat",
+                    "lng": "lng",
+                    "altitude": None
+                },
+                "isVisible": True,
+                "visConfig": {
+                    "radius": 3.0,
+                    "fixedRadius": False,
+                    "opacity": 0.9,
+                    "outline": False,
+                    "thickness": 2,
+                    "strokeColor": None,
+                    "colorRange": {
+                        "name": "type",
+                        "type": "sequential",
+                        "category": "Uber",
+                        "colors": [
+                            "#C1FC02",
+                            "#1B5CA1",
+                        ]
+                    },
+                    "strokeColorRange": {
+                        "name": "Global Warming",
+                        "type": "sequential",
+                        "category": "Uber",
+                        "colors": [
+                            "#5A1846",
+                            "#900C3F",
+                            "#C70039",
+                            "#E3611C",
+                            "#F1920E",
+                            "#FFC300"
+                        ]
+                    },
+                    "radiusRange": [
+                        0,
+                        50
+                    ],
+                    "filled": True
+                },
+                "hidden": False,
+                "textLabel": [
+                    {
+                        "field": None,
+                        "color": [
+                            255,
+                            255,
+                            255
+                        ],
+                        "size": 18,
+                        "offset": [
+                            0,
+                            0
+                        ],
+                        "anchor": "start",
+                        "alignment": "center"
+                    }
+                ]
+            },
+            "visualChannels": {
+                "colorField": {
+                    "name": "type",
+                    "type": "string"
+                },
+                "colorScale": "ordinal",
+                "strokeColorField": None,
+                "strokeColorScale": "quantile",
+                "sizeField": None,
+                "sizeScale": "linear",
+                "heightField": None,
+                "heightScale": "linear",
+                "radiusField": None,
+                "radiusScale": "linear"
+            }
+        }
+
         self.BASE_LINK_NAME = 'base_link'
         self.BASE_NODE_NAME = 'base_node'
         self.ERROR_XFER = 'error_xfer'
         self.MIX_NAME = 'mix'
         self.GPS_NAME = 'gps'
         self.MATCH_LINK_NAME = 'match_link'
+        self.TRAJECTORY_NAME = 'trajectory'
+
     def get_base_config(self):
         return copy.deepcopy(self.__BASE_CONFIG)
 
     def get_polygon_config(self):
         return copy.deepcopy(self.__POLYGON_CONFIG)
+
+    def get_point_config(self):
+        return copy.deepcopy(self.__POINT_CONFIG)
+
 
 class PrjConst(object):
     def __init__(self):
