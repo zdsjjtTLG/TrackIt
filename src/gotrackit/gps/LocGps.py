@@ -12,6 +12,7 @@ from ..map.Net import Net
 from datetime import timedelta
 from ..tools.geo_process import prj_inf
 from ..tools.geo_process import segmentize
+from ..tools.kf import OffLineTrajectoryKF
 from shapely.geometry import Point, Polygon, LineString
 from ..GlobalVal import GpsField, NetField, PrjConst, MarkovField
 
@@ -65,7 +66,7 @@ class GpsPointsGdf(object):
         self.__gps_point_dis_dict = dict()
         gps_points_df.reset_index(inplace=True, drop=True)
         self.agent_id = gps_points_df.at[0, gps_field.AGENT_ID_FIELD]
-        # self.check(gps_points_df=gps_points_df)
+        self.already_plain = already_plain
         gps_points_df[gps_field.GEOMETRY_FIELD] = \
             gps_points_df[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(lambda p: Point(p), axis=1)
         if not already_plain:
@@ -202,7 +203,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
         should_be_dense_gdf[ori_seq_field] = -1
         self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
-        self.__gps_points_gdf.sort_values(by=time_field, ascending=True, inplace=True)
+        self.__gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
 
         self.add_seq_field(gps_points_gdf=self.__gps_points_gdf, multi_agents=self.multi_agents)
@@ -251,6 +252,19 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
         del self.__gps_points_gdf['label']
         return self
+
+    def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1):
+
+        """
+        use kalman filter to smooth the trajectory, fields: agent_id, time, lng, lat
+        :param p_noise_std: standard deviation of process noise
+        :param o_noise_std: standard deviation of observation noise
+        :return:
+        """
+        tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf)
+        self.__gps_points_gdf = tks.execute(p_noise_std=p_noise_std, o_noise_std=o_noise_std)
+        self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
+            lambda x: Point(x), axis=1)
 
     def rolling_average(self, multi_agents: bool = False, rolling_window: int = 2):
         """
@@ -563,30 +577,6 @@ class GpsPointsGdf(object):
             gps_points_gdf[gps_field.POINT_SEQ_FIELD] = \
                 gps_points_gdf.groupby(agent_field)[gps_field.TIME_FIELD].rank(method='min').astype(int) - 1
 
-    def kalman_filter_a(self):
-        """
-        use kalman filter to smooth the trajectory
-        required trajectory data includes time & coordinate information
-        fields: agent_id, time, lng, lat
-        """
-        pass
-
-    def kalman_filter_b(self):
-        """
-        use kalman filter to smooth the trajectory,
-        required trajectory data includes time, coordinate & speed information
-        fields: agent_id, time, lng, lat, speed
-        """
-        return self
-
-    def kalman_filter_c(self):
-        """
-        use kalman filter to smooth the trajectory,
-        required trajectory data includes time, coordinate, speed and heading information
-        fields: agent_id, time, lng, lat, speed, heading
-        """
-        return self
-
     def simplify_trajectory(self, l_threshold: float = 5.0):
         """
         simplify trajectories using Douglas Pecker's algorithm
@@ -603,14 +593,9 @@ class GpsPointsGdf(object):
         # origin point prj to simplify
         prj_p_array = p_simplify_line.project(self.__gps_points_gdf[geometry_field])
         self.__gps_points_gdf[geometry_field] = p_simplify_line.interpolate(prj_p_array)
-        # line_gdf = pd.DataFrame(line_gdf)
-        # line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda l: list(l.coords))
-        # line_gdf = line_gdf.explode(column=[geometry_field], ignore_index=True)
-        # line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda loc: Point(loc))
-        # p_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=self.__gps_points_gdf.crs)
         return self
 
-    def trajectory_data(self, export_crs: str = 'EPSG:4326') -> gpd.GeoDataFrame or pd.DataFrame:
+    def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
         """get the """
         export_trajectory = self.__gps_points_gdf.copy()
         try:
@@ -620,22 +605,9 @@ class GpsPointsGdf(object):
         export_trajectory = export_trajectory.to_crs(export_crs)
         export_trajectory = pd.merge(export_trajectory, self.__user_gps_info,
                                      on=[agent_field, gps_field.POINT_SEQ_FIELD], how='left')
+        export_trajectory[lng_field] = export_trajectory[geometry_field].apply(lambda g: g.x)
+        export_trajectory[lat_field] = export_trajectory[geometry_field].apply(lambda g: g.y)
+        if _type == 'df':
+            del export_trajectory[geometry_field]
+            return export_trajectory
         return export_trajectory
-
-
-class TrajectoryPoints(GpsPointsGdf):
-    def __init__(self, gps_points_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plane_crs: str = 'EPSG:32649', already_plain: bool = False):
-        """
-        a class for trajectory process
-        :param gps_points_df: pd.DataFrame()
-        :param time_format: string
-        :param time_unit: string
-        :param plane_crs: string
-        :param already_plain: bool
-        """
-        user_filed_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
-                                                             gps_field.POINT_SEQ_FIELD})
-        GpsPointsGdf.__init__(self, gps_points_df=gps_points_df, time_format=time_format, time_unit=time_unit,
-                              plane_crs=plane_crs, already_plain=already_plain, multi_agents=True,
-                              user_filed_list=user_filed_list)
