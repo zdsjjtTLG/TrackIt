@@ -13,6 +13,7 @@ from datetime import timedelta
 from ..tools.geo_process import prj_inf
 from ..tools.geo_process import segmentize
 from ..tools.kf import OffLineTrajectoryKF
+from ..tools.time_build import build_time_col
 from shapely.geometry import Point, Polygon, LineString
 from ..GlobalVal import GpsField, NetField, PrjConst, MarkovField
 
@@ -74,15 +75,16 @@ class GpsPointsGdf(object):
         else:
             gps_points_gdf = gpd.GeoDataFrame(gps_points_df, geometry=gps_field.GEOMETRY_FIELD, crs=self.plane_crs)
         del gps_points_df
-        try:
-            gps_points_gdf[gps_field.TIME_FIELD] = \
-                pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
-        except ValueError:
-            print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
-            if gps_points_gdf[time_field].dtype == object:
-                gps_points_gdf[time_field] = gps_points_gdf[time_field].astype(float)
-            gps_points_gdf[gps_field.TIME_FIELD] = \
-                pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
+        # try:
+        #     gps_points_gdf[gps_field.TIME_FIELD] = \
+        #         pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
+        # except ValueError:
+        #     print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
+        #     if gps_points_gdf[time_field].dtype == object:
+        #         gps_points_gdf[time_field] = gps_points_gdf[time_field].astype(float)
+        #     gps_points_gdf[gps_field.TIME_FIELD] = \
+        #         pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
+        build_time_col(df=gps_points_gdf, time_unit=time_unit, time_format=time_format, time_field=gps_field.TIME_FIELD)
 
         gps_points_gdf.sort_values(by=[agent_field, gps_field.TIME_FIELD], ascending=[True, True], inplace=True)
 
