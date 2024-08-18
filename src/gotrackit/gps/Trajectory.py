@@ -48,8 +48,10 @@ class TrajectoryPoints(GpsPointsGdf):
         del tj_gdf
         tj_df['type'] = 'process'
         origin_tj_df['type'] = 'source'
-        try:
-            generate_point_html(point_df=pd.concat([tj_df, origin_tj_df]).reset_index(drop=True, inplace=False),
-                                out_fldr=out_fldr, file_name=file_name)
-        except Exception as e:
-            print(repr(e))
+        tj_df[time_field] = tj_df[time_field].astype(origin_tj_df[time_field].dtype)
+        df = pd.concat([tj_df, origin_tj_df]).reset_index(drop=True, inplace=False)
+        for agent_id, _df in df.groupby(agent_field):
+            try:
+                generate_point_html(point_df=_df, out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
+            except Exception as e:
+                print(repr(e))

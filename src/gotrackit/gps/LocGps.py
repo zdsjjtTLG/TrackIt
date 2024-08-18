@@ -162,7 +162,7 @@ class GpsPointsGdf(object):
         :return:
         """
         if len(self.__gps_points_gdf) <= 1:
-            return None
+            return self
         # 时间差和距离差
         self.calc_adj_dis_gap()
         self.calc_adj_time_gap()
@@ -172,7 +172,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
                                    inplace=True)
         if should_be_dense_gdf.empty:
-            return None
+            return self
 
         should_be_dense_gdf[n_seg_field] = (0.001 + should_be_dense_gdf[dis_gap_field] / dense_interval).astype(
             int) + 1
@@ -242,14 +242,19 @@ class GpsPointsGdf(object):
         self.gps_adj_dis_map = {seq: adj_dis for seq, adj_dis in zip(res[gps_field.POINT_SEQ_FIELD],
                                                                      res[gps_field.ADJ_DIS])}
 
-    def lower_frequency(self, lower_n: int = 2):
+    def lower_frequency(self, lower_n: int = 2, multi_agents: bool = True):
         """
         GPS数据降频
         :param lower_n: 降频倍数
+        :param multi_agents:
         :return:
         """
-        self.__gps_points_gdf['label'] = pd.Series([i for i in range(len(self.__gps_points_gdf))]) % lower_n
-        self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
+        if not multi_agents:
+            self.__gps_points_gdf['label'] = self.__gps_points_gdf.groupby(agent_field).cumcount() % lower_n
+            self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
+        else:
+            self.__gps_points_gdf['label'] = pd.Series([i for i in range(len(self.__gps_points_gdf))]) % lower_n
+            self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
         del self.__gps_points_gdf['label']
         return self
 
@@ -259,14 +264,16 @@ class GpsPointsGdf(object):
         use kalman filter to smooth the trajectory, fields: agent_id, time, lng, lat
         :param p_noise_std: standard deviation of process noise
         :param o_noise_std: standard deviation of observation noise
+        the smaller o_noise_std is, the closer the smoothing result is to the observed trajectory
         :return:
         """
         tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf)
         self.__gps_points_gdf = tks.execute(p_noise_std=p_noise_std, o_noise_std=o_noise_std)
         self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
             lambda x: Point(x), axis=1)
+        return self
 
-    def rolling_average(self, multi_agents: bool = False, rolling_window: int = 2):
+    def rolling_average(self, multi_agents: bool = True, rolling_window: int = 2):
         """
         滑动窗口降噪, 执行该操作后, 不支持匹配结果表中输出用于自定义字段, support multi agents
         :param multi_agents:
@@ -605,6 +612,7 @@ class GpsPointsGdf(object):
         export_trajectory = export_trajectory.to_crs(export_crs)
         export_trajectory = pd.merge(export_trajectory, self.__user_gps_info,
                                      on=[agent_field, gps_field.POINT_SEQ_FIELD], how='left')
+        export_trajectory[gps_field.LOC_TYPE] = export_trajectory[gps_field.LOC_TYPE].fillna('d')
         export_trajectory[lng_field] = export_trajectory[geometry_field].apply(lambda g: g.x)
         export_trajectory[lat_field] = export_trajectory[geometry_field].apply(lambda g: g.y)
         if _type == 'df':
