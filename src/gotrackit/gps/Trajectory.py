@@ -16,6 +16,7 @@ time_field = gps_field.TIME_FIELD
 agent_field = gps_field.AGENT_ID_FIELD
 geometry_field = gps_field.GEOMETRY_FIELD
 
+
 class TrajectoryPoints(GpsPointsGdf):
     def __init__(self, gps_points_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plane_crs: str = 'EPSG:32649', already_plain: bool = False):
@@ -52,6 +53,6 @@ class TrajectoryPoints(GpsPointsGdf):
         df = pd.concat([tj_df, origin_tj_df]).reset_index(drop=True, inplace=False)
         for agent_id, _df in df.groupby(agent_field):
             try:
-                generate_point_html(point_df=_df, out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
+                generate_point_html(point_df=pd.DataFrame(_df), out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
             except Exception as e:
                 print(repr(e))
