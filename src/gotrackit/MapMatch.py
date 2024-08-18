@@ -458,11 +458,11 @@ class MapMatch(object):
         # 降频处理
         if is_lower_f:
             print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
-            gps_obj.lower_frequency(lower_n=lower_n)
+            gps_obj.lower_frequency(lower_n=lower_n, multi_agents=False)
 
         if is_rolling_average:
             print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
-            gps_obj.rolling_average(rolling_window=rolling_window)
+            gps_obj.rolling_average(rolling_window=rolling_window, multi_agents=False)
 
         if dense_gps:
             print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
