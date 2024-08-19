@@ -81,7 +81,7 @@ class TrajectoryKalmanFilter(object):
                                            [0, 0, 1, 0],
                                            [0, 0, 0, 1]])
 
-        # tate estimation based on the current state prediction and observation results
+        # state estimation based on the current state prediction and observation results
         now_state, now_covariance = kf.filter_update(previous_state, previous_covariance, now_state)
         return now_state, now_covariance
 
