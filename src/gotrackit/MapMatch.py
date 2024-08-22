@@ -38,7 +38,7 @@ class MapMatch(object):
                  export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 50, multi_core_save: bool = False, instant_output: bool = False,
+                 visualization_cache_times: int = 30, multi_core_save: bool = False, instant_output: bool = False,
                  use_para_grid: bool = False, para_grid: ParaGrid = None, user_field_list: list[str] = None,
                  heading_vec_len: float = 15.0):
         """
@@ -244,7 +244,13 @@ class MapMatch(object):
                                          dup_threshold=self.dup_threshold)
                     del hmm_res_list
                     hmm_res_list = []
-
+        if hmm_res_list:
+            export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
+                                 export_geo=self.export_geo_res, export_html=self.export_html,
+                                 gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
+                                 out_fldr=self.out_fldr, flag_name=self.flag_name,
+                                 multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
+                                 dup_threshold=self.dup_threshold)
         return match_res_df, may_error_list, error_list
 
     def multi_core_execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None, core_num: int = 2) -> \

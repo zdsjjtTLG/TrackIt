@@ -94,33 +94,33 @@ class HiddenMarkov(object):
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
             is_success = False
-            print(rf'构造矩阵结构出错:{repr(e)}')
+            print(rf'error in constructing matrix structure:{repr(e)}')
         if not is_success:
             return False, pd.DataFrame()
 
         try:
             self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
         except Exception as e:
-            print(rf'计算转移矩阵出错:{repr(e)}')
+            print(rf'error calculating transfer matrix:{repr(e)}')
             return False, pd.DataFrame()
 
         try:
             self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
                                  gps_sigma=self.gps_sigma)
         except Exception as e:
-            print(rf'计算发射矩阵出错:{repr(e)}')
+            print(rf'error calculating emission matrix:{repr(e)}')
             return False, pd.DataFrame()
 
         try:
             self.solve()
         except Exception as e:
-            print(rf'回溯模型出错:{repr(e)}')
+            print(rf'backtracking model error:{repr(e)}')
             return False, pd.DataFrame()
 
         try:
             match_res = self.acquire_res()
         except Exception as e:
-            print(rf'获取匹配结果出错:{repr(e)}')
+            print(rf'error in getting matching results:{repr(e)}')
             return False, pd.DataFrame()
         self.formatting_warn_info()
         return True, match_res
@@ -132,7 +132,7 @@ class HiddenMarkov(object):
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
             is_success = False
-            print(rf'构造矩阵结构出错:{repr(e)}')
+            print(rf'error in constructing matrix structure:{repr(e)}')
         if not is_success:
             return False, pd.DataFrame()
         cor_his = True
@@ -148,14 +148,14 @@ class HiddenMarkov(object):
         try:
             self.calc_transition_mat(beta=self.beta, dis_para=self.dis_para)
         except Exception as e:
-            print(rf'计算转移矩阵出错:{repr(e)}')
+            print(rf'error calculating transfer matrix:{repr(e)}')
             return False, pd.DataFrame()
 
         try:
             self.__calc_emission(use_heading_inf=self.use_heading_inf, omitted_l=self.omitted_l,
                                  gps_sigma=self.gps_sigma)
         except Exception as e:
-            print(rf'计算发射矩阵出错:{repr(e)}')
+            print(rf'error calculating emission matrix:{repr(e)}')
             return False, pd.DataFrame()
 
         try:
@@ -165,14 +165,12 @@ class HiddenMarkov(object):
                 initial_ep = None
             self.solve(initial_ep=initial_ep)
         except Exception as e:
-            print(rf'回溯模型出错:{repr(e)}')
+            print(rf'backtracking model error:{repr(e)}')
             return False, pd.DataFrame()
-        over_num = len(last_em_para)
-        # self.index_state_list = self.index_state_list[over_num:]
         try:
             match_res = self.acquire_res()
         except Exception as e:
-            print(rf'获取匹配结果出错:{repr(e)}')
+            print(rf'error in getting matching results:{repr(e)}')
             return False, pd.DataFrame()
         self.formatting_warn_info()
         return True, match_res
@@ -183,7 +181,7 @@ class HiddenMarkov(object):
             is_success = self.__generate_st(add_single_ft=add_single_ft)
         except Exception as e:
             is_success = False
-            print(rf'构造矩阵结构出错:{repr(e)}')
+            print(rf'error in constructing matrix structure:{repr(e)}')
 
         if not is_success:
             return False, pd.DataFrame()
@@ -200,7 +198,7 @@ class HiddenMarkov(object):
                     self.calc_transition_mat(beta=beta, dis_para=self.dis_para)
                     transit_res[k1]['res'] = self.__ft_transition_dict
                 except Exception as e:
-                    print(rf'计算转移矩阵出错:{repr(e)}')
+                    print(rf'error calculating transfer matrix:{repr(e)}')
                     return False, pd.DataFrame()
             else:
                 self.__ft_transition_dict = transit_res[k1]['res']
@@ -216,7 +214,7 @@ class HiddenMarkov(object):
                                              gps_sigma=gps_sigma)
                         emission_res[k2]['res'] = self.__emission_mat_dict
                     except Exception as e:
-                        print(rf'计算发射矩阵出错:{repr(e)}')
+                        print(rf'error calculating emission matrix:{repr(e)}')
                         return False, pd.DataFrame()
                 else:
                     self.__emission_mat_dict = emission_res[k2]['res']
@@ -224,13 +222,13 @@ class HiddenMarkov(object):
                 try:
                     self.solve()
                 except Exception as e:
-                    print(rf'回溯模型出错:{repr(e)}')
+                    print(rf'backtracking model error:{repr(e)}')
                     return False, pd.DataFrame()
 
                 try:
                     match_res = self.acquire_res()
                 except Exception as e:
-                    print(rf'获取匹配结果出错:{repr(e)}')
+                    print(rf'error in getting matching results:{repr(e)}')
                     return False, pd.DataFrame()
 
                 self.formatting_warn_info()
@@ -295,18 +293,20 @@ class HiddenMarkov(object):
                                                                            is_hierarchical=self.net.is_hierarchical)
 
         if gps_candidate_link.empty:
-            print(r'GPS数据样本点无法关联到任何路段, 请检查路网完整性或者增加gps_buffer参数')
+            print(r'GPS data sample points cannot be associated with any road section.')
             return list()
 
         if _gap:
-            warnings.warn(rf'seq为: {_gap}的GPS点没有关联到任何候选路段..., 不会用于路径匹配计算...')
+            warnings.warn(rf'''the GPS point with seq: {_gap} is not associated with any candidate road segment 
+                            and will not be used for path matching calculation...''')
             # 删除关联不到任何路段的gps点
             self.gps_points.delete_target_gps(target_seq_list=list(_gap))
 
         # 一定要排序
         seq_list = sorted(list(gps_candidate_link[gps_field.POINT_SEQ_FIELD].unique()))
         if len(seq_list) <= 1:
-            print(r'经过路段关联, 删除掉无法关联到路段的GPS点后, GPS数据样本点不足2个, 请检查路网完整性或者增加gps_buffer参数')
+            print(r'''after deleting the GPS points that cannot be associated with the road section
+                  there are less than 2 GPS data sample points''')
             return list()
         self.gps_candidate_link = gps_candidate_link
         return seq_list
@@ -934,7 +934,7 @@ class HiddenMarkov(object):
                         single_link_gdf = single_link_gdf[
                             single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)].copy()
                     except Exception as e:
-                        print(repr(e), '空间分层关联失效')
+                        print(repr(e), 'spatial layered association failure')
                 single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
                 used_node = set(single_link_gdf[net_field.FROM_NODE_FIELD]) | set(single_link_gdf[net_field.TO_NODE_FIELD])
                 node_gdf = node_gdf[node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].copy()
