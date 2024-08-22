@@ -6,12 +6,12 @@
 """viterbi算法求解动态规划"""
 
 import numpy as np
-from ..WrapsFunc import function_time_cost
 
 
 class Viterbi(object):
     def __init__(self, observation_list: list[int], t_mat_dict: dict[int, np.ndarray] = None,
-                 o_mat_dict: dict[int, np.ndarray] = None, use_log_p: bool = True):
+                 o_mat_dict: dict[int, np.ndarray] = None, use_log_p: bool = True,
+                 initial_ep: dict[int, np.ndarray] = None):
         """
         :param t_mat_dict: 存储每个观测点到下一观测点(相邻观测点)之间的状态转移概率矩阵
         :param o_mat_dict: 存储每个观测点的观测概率矩阵
@@ -43,19 +43,22 @@ class Viterbi(object):
             assert self.o_seq_list[0] in self.BMat.keys()
             self.BMat = {k: self.BMat[self.o_seq_list[0]] for k in self.o_seq_list}
         assert len(self.BMat) == self.T
+        self.initial_ep = initial_ep
 
     def init_model(self) -> None:
         """初始化模型"""
-        # 初始化, 获取初始观测态的可选状态数量
-        init_n = self.AMat[self.o_seq_list[0]].shape[0]
-
-        # 初始观测概率矩阵
-        init_b = self.BMat[self.o_seq_list[0]]
-
-        if self.use_log_p:
-            self.zeta_array_dict[self.o_seq_list[0]] = np.log((1 / init_n) * init_b.astype(float))
+        if self.initial_ep is None:
+            # 初始化, 获取初始观测态的可选状态数量
+            init_n = self.AMat[self.o_seq_list[0]].shape[0]
+            # 初始观测概率矩阵
+            init_b = self.BMat[self.o_seq_list[0]]
+            self.initial_ep = (1 / init_n) * init_b.astype(float)
+            if self.use_log_p:
+                self.zeta_array_dict[self.o_seq_list[0]] = np.log(self.initial_ep)
+            else:
+                self.zeta_array_dict[self.o_seq_list[0]] = self.initial_ep
         else:
-            self.zeta_array_dict[self.o_seq_list[0]] = (1 / init_n) * init_b
+            self.zeta_array_dict[self.o_seq_list[0]] = self.initial_ep
 
         # print(rf'初始化后:{self.zeta_array_dict[0]}')
 
