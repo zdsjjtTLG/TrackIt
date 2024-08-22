@@ -10,6 +10,7 @@ import geopandas as gpd
 from ...map.Net import Net
 from ..GlobalVal import NetField
 from ..book_mark import generate_book_mark
+from .Tools.process import merge_double_link
 from .SaveStreets.streets import modify_minimum
 
 net_field = NetField()
@@ -215,7 +216,7 @@ class Conn(object):
         self.net.drop_dup_ft_road()
 
         # merger_double_link
-        self.net.merger_double_link()
+        # self.net.merger_double_link()
 
         link_gdf, node_gdf = self.net.get_bilateral_link_data(), self.net.get_node_data()
 
@@ -223,7 +224,7 @@ class Conn(object):
         node_gdf.reset_index(inplace=True, drop=True)
         link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.net.planar_crs, node_gdf=node_gdf,
                                                link_gdf=link_gdf, buffer=0.3, ignore_merge_rule=True)
-
+        link_gdf = merge_double_link(link_gdf=link_gdf)
         link_gdf = link_gdf.to_crs(self.net.geo_crs)
         node_gdf = node_gdf.to_crs(self.net.geo_crs)
 
