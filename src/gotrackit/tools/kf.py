@@ -151,6 +151,7 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
 
         self.kf_group: dict[object, KalmanFilter] = dict()
         self.his_o: dict[object, [np.ndarray, np.ndarray]] = dict()
+        self.his_t: dict = dict()
         self.x_field, self.y_field = x_field, y_field
         self.time_format, self.time_unit = time_format, time_unit
         if trajectory_df is not None:
@@ -175,6 +176,7 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
                                   o_noise_std=o_noise_std, p_noise_std=p_noise_std)
                 self.kf_group[agent_id] = kf
                 self.his_o[agent_id] = [kf.initial_state_mean, kf.initial_state_covariance]
+                self.his_t[agent_id] = t.iloc[0]
                 smoothed_states = np.zeros((len(observations), 4))
 
                 # save initial state
@@ -184,14 +186,15 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
 
             for i in range(start_index, len(observations)):
                 now_state, now_covariance = self.his_o[agent_id]
-
-                dt = (t.iloc[i] - t.iloc[i - 1]).total_seconds()  # calculate time interval
+                now_t = t.iloc[i]
+                dt = (now_t - self.his_t[agent_id]).total_seconds()  # calculate time interval
 
                 now_state, now_covariance = self.single_step_process(kf=kf, dt=dt, previous_state=now_state,
                                                                      previous_covariance=now_covariance,
                                                                      now_state=observations[i])
                 smoothed_states[i, :] = now_state
                 self.his_o[agent_id] = [now_state, now_covariance]
+                self.his_t[agent_id] = now_t
 
             tj_df[self.x_field] = smoothed_states[:, 0]
             tj_df[self.y_field] = smoothed_states[:, 1]
