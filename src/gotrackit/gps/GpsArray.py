@@ -62,7 +62,7 @@ class GpsArray(object):
 
     def check(self):
         _gap = {agent_field, lng_field, lat_field, time_field} - set(self.gps_gdf.columns)
-        assert _gap == set(), rf'GPS数据缺少{_gap}字段'
+        assert _gap == set(), rf'GPS data is missing the {_gap} field'
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:

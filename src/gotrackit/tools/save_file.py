@@ -21,9 +21,9 @@ def save_file(data_item: pd.DataFrame or gpd.GeoDataFrame = None, out_fldr: str 
             if isinstance(data_item, gpd.GeoDataFrame):
                 data_item.to_file(os.path.join(out_fldr, file_name + '.geojson'), encoding=encoding)
             else:
-                raise ValueError('gpd.GeoDataFrame才能存储为geojson')
+                raise ValueError('gpd.GeoDataFrame can be stored as geojson file')
         else:
             if isinstance(data_item, gpd.GeoDataFrame):
                 data_item.to_file(os.path.join(out_fldr, file_name + '.shp'), encoding=encoding)
             else:
-                raise ValueError('gpd.GeoDataFrame才能存储为shp')
+                raise ValueError('gpd.GeoDataFrame can be stored as shp file')

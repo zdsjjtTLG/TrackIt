@@ -32,7 +32,7 @@ def n_equal_points(n, from_loc: tuple = None, to_loc: tuple = None) -> list[tupl
     try:
         equal_points = segmentize(s_loc=from_loc, e_loc=to_loc, n=n)
     except AttributeError:
-        raise AttributeError(r'请升级geopandas到最新版本0.14.1')
+        raise AttributeError(r'please upgrade geopandas to the latest version: 0.14.1')
     return equal_points
 
 
@@ -342,7 +342,8 @@ def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDat
     """传入面域, 对路网进行切块(依据region_gdf), 行不变, 加上新的一列region_id"""
     n = len(region_gdf)
     if cpu_restrict:
-        assert n <= os.cpu_count(), f'区域数目:{n}, 大于当前CPU核数{os.cpu_count()}'
+        assert n <= os.cpu_count(), \
+            f'number of regions:{n}, is greater than the current number of CPU cores:{os.cpu_count()}'
     region_gdf['region_id'] = [i for i in range(1, len(region_gdf) + 1)]
     if 'region_id' in split_path_gdf.columns:
         del split_path_gdf['region_id']

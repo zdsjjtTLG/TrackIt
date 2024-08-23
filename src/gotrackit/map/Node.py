@@ -41,11 +41,12 @@ class Node(object):
 
     def check(self):
         gap_set = {node_id_field, geometry_field} - set(self.__node_gdf.columns)
-        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
+        assert len(gap_set) == 0, rf'the node layer is missing the following fields: {gap_set}'
         assert len(self.__node_gdf[node_id_field]) == len(self.__node_gdf[node_id_field].unique()), \
-            rf'字段{node_id_field}不唯一...'
+            rf'{node_id_field} field value is not unique'
         for col in [node_id_field]:
-            assert len(self.__node_gdf[self.__node_gdf[col].isna()]) == 0, rf'点层Node字段{col}有空值...'
+            assert len(self.__node_gdf[self.__node_gdf[col].isna()]) == 0, \
+                rf'the {col} field of the node layer has an empty value...'
             self.__node_gdf[col] = self.__node_gdf[col].astype(int)
 
     def init_node(self):

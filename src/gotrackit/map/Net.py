@@ -195,7 +195,7 @@ class Net(object):
             try:
                 self.cal_sjoin_cache()
             except Exception as e:
-                print(fr'空间分层计算失败: {repr(e)}')
+                print(fr'spatial layered association failure: {repr(e)}')
         if self.fmm_cache:
             if self.is_sub_net:
                 self.set_path_cache(stp_cost_cache_df)
@@ -373,7 +373,7 @@ class Net(object):
                 pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
                 single_link_gdf = single_link_gdf[single_link_gdf[link_id_field].isin(pre_filter_link)]
             except Exception as e:
-                print(repr(e), '空间分层关联失效')
+                print(repr(e), 'spatial layered association failure')
         sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
 
         if must_contain_link is not None and must_contain_link:
@@ -384,7 +384,7 @@ class Net(object):
                      single_link_gdf[single_link_gdf[net_field.SINGLE_LINK_ID_FIELD].isin(_gap)]])
 
         if sub_single_link_gdf.empty:
-            print(rf'GPS数据在指定的buffer范围内关联不到任何路网数据...')
+            print(rf'the GPS data cannot be associated with any road network data within the specified buffer range...')
             return None
         sub_single_link_gdf.drop(columns=['index_right'], axis=1, inplace=True)
         sub_single_link_gdf.drop_duplicates(subset=[net_field.SINGLE_LINK_ID_FIELD], inplace=True)

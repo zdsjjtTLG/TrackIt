@@ -81,7 +81,7 @@ class Route(object):
             ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
             return ft_seq
         else:
-            print(rf'{self.od_route}->{self.d_node}无路径, 启用随机路径...')
+            print(rf'{self.od_route}->{self.d_node}: no path, enable random path...')
             return self.random_route
 
 
@@ -262,7 +262,7 @@ class Car(object):
 
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
                 used_speed = speed + np.random.normal(loc=0, scale=speed * 0.2)
-                print(used_speed)
+                # print(used_speed)
                 step_l = used_speed * self.time_step
 
                 logging.info(

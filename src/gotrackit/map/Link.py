@@ -68,21 +68,22 @@ class Link(object):
         gap_set = {net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                    net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD, self.weight_field,
                    net_field.GEOMETRY_FIELD} - set(self.link_gdf.columns)
-        assert len(gap_set) == 0, rf'线层Link缺少以下字段:{gap_set}'
+        assert len(gap_set) == 0, rf'the Link layer lacks the following fields: {gap_set}'
         assert len(self.link_gdf[net_field.LINK_ID_FIELD]) == len(self.link_gdf[net_field.LINK_ID_FIELD].unique()), \
-            rf'字段{net_field.LINK_ID_FIELD}不唯一...'
+            rf'{net_field.LINK_ID_FIELD} field value is not unique'
         assert set(self.link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), \
-            rf'{net_field.DIRECTION_FIELD}字段值只能为0或者1'
+            rf'{net_field.DIRECTION_FIELD} field value can only be 0 or 1'
         for col in [net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                     net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
-            assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, rf'线层Link字段{col}有空值...'
+            assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, \
+                rf'the {col} field of the link layer has an empty value'
             self.link_gdf[col] = self.link_gdf[col].astype(int)
 
         # 环路检测
         if self.delete_circle:
             circle_idx = self.link_gdf[from_node_field] == self.link_gdf[to_node_field]
             if not self.link_gdf[circle_idx].empty:
-                print(rf'检测到线层数据有环路, 自动删除...')
+                print(rf'a loop was detected in the line layer data, and it was automatically deleted...')
                 self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True, axis=0)
 
     def init_link(self):

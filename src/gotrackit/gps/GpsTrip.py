@@ -161,7 +161,7 @@ class GpsPreProcess(object):
         :return:
         """
         assert {agent_field, lng_field, lat_field}.issubset(set(gps_df.columns)), \
-            rf'请确保GPS数据中有以下字段: {agent_field, lng_field, lat_field}'
+            rf'please make sure the following fields are present in the GPS data: {agent_field, lng_field, lat_field}'
         gps_df['seq'] = [i for i in range(len(gps_df))]
         gps_df[geometry_field] = gps_df[[lng_field, lat_field]].apply(lambda row: list(row), axis=1)
         od_df, od_line = GpsTrip.sampling_waypoints_od(gps_df=gps_df, way_points_num=way_points_num,
