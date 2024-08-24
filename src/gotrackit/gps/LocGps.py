@@ -75,15 +75,6 @@ class GpsPointsGdf(object):
         else:
             gps_points_gdf = gpd.GeoDataFrame(gps_points_df, geometry=gps_field.GEOMETRY_FIELD, crs=self.plane_crs)
         del gps_points_df
-        # try:
-        #     gps_points_gdf[gps_field.TIME_FIELD] = \
-        #         pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
-        # except ValueError:
-        #     print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
-        #     if gps_points_gdf[time_field].dtype == object:
-        #         gps_points_gdf[time_field] = gps_points_gdf[time_field].astype(float)
-        #     gps_points_gdf[gps_field.TIME_FIELD] = \
-        #         pd.to_datetime(gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
         build_time_col(df=gps_points_gdf, time_unit=time_unit, time_format=time_format, time_field=gps_field.TIME_FIELD)
 
         gps_points_gdf.sort_values(by=[agent_field, gps_field.TIME_FIELD], ascending=[True, True], inplace=True)
@@ -246,12 +237,12 @@ class GpsPointsGdf(object):
 
     def lower_frequency(self, lower_n: int = 2, multi_agents: bool = True):
         """
-        GPS数据降频
+        data downscaling, reduce the amount of data
         :param lower_n: 降频倍数
         :param multi_agents:
         :return:
         """
-        if not multi_agents:
+        if multi_agents:
             self.__gps_points_gdf['label'] = self.__gps_points_gdf.groupby(agent_field).cumcount() % lower_n
             self.__gps_points_gdf = self.__gps_points_gdf[self.__gps_points_gdf['label'].eq(0)].copy()
         else:
@@ -261,7 +252,6 @@ class GpsPointsGdf(object):
         return self
 
     def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1):
-
         """
         use kalman filter to smooth the trajectory, fields: agent_id, time, lng, lat
         :param p_noise_std: standard deviation of process noise
@@ -278,7 +268,8 @@ class GpsPointsGdf(object):
 
     def rolling_average(self, multi_agents: bool = True, rolling_window: int = 2):
         """
-        滑动窗口降噪, 执行该操作后, 不支持匹配结果表中输出用于自定义字段, support multi agents
+        sliding window noise reduction.
+        after performing this operation, the output of the matching result table for custom fields is not supported.
         :param multi_agents:
         :param rolling_window:
         :return:
@@ -591,18 +582,36 @@ class GpsPointsGdf(object):
         """
         simplify trajectories using Douglas Pecker's algorithm
         """
-        line_gdf = self.__gps_points_gdf.groupby(agent_field)[[geometry_field]].agg(
+        agent_count = self.__gps_points_gdf.groupby(agent_field)[[time_field]].count().rename(columns={time_field: 'c'})
+        one_agent = list(agent_count[agent_count['c'] <= 1].index)
+
+        process_trajectory = self.__gps_points_gdf[~self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
+        process_trajectory.reset_index(inplace=True, drop=True)
+
+        no_process_gps = self.__gps_points_gdf[self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
+
+        origin_crs = self.__gps_points_gdf.crs
+        del self.__gps_points_gdf
+
+        line_gdf = process_trajectory.groupby(agent_field)[[geometry_field]].agg(
             {geometry_field: list}).reset_index(drop=False)
         line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda p: LineString(p))
-        line_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=self.__gps_points_gdf.crs)
+        line_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=origin_crs)
         line_gdf[geometry_field] = line_gdf[geometry_field].simplify(l_threshold)
-        p_simplify_line = pd.merge(self.__gps_points_gdf[[gps_field.AGENT_ID_FIELD]],
+
+        p_simplify_line = pd.merge(process_trajectory[[gps_field.AGENT_ID_FIELD]],
                                    line_gdf, on=gps_field.AGENT_ID_FIELD, how='left')
         p_simplify_line = gpd.GeoSeries(p_simplify_line[geometry_field])
 
         # origin point prj to simplify
-        prj_p_array = p_simplify_line.project(self.__gps_points_gdf[geometry_field])
-        self.__gps_points_gdf[geometry_field] = p_simplify_line.interpolate(prj_p_array)
+        prj_p_array = p_simplify_line.project(process_trajectory[geometry_field])
+
+        process_trajectory[geometry_field] = p_simplify_line.interpolate(prj_p_array)
+
+        if not no_process_gps.empty:
+            self.__gps_points_gdf = pd.concat([process_trajectory, no_process_gps])
+        self.__gps_points_gdf = process_trajectory
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         return self
 
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
