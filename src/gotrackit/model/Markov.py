@@ -67,7 +67,7 @@ class HiddenMarkov(object):
         self.not_conn_cost = not_conn_cost
         self.use_heading_inf = use_heading_inf
         if heading_para_array is None:
-            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.1, 0.0001, 0.0001, 0.00001, 0.000001, 0.000001])
+            self.heading_para_array = np.array([1.0, 1.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.6, 0.5])
         else:
             self.heading_para_array = heading_para_array
         self.angle_slice = 180 / len(self.heading_para_array)
@@ -162,6 +162,7 @@ class HiddenMarkov(object):
             if last_em_para and cor_his:
                 initial_ep = last_em_para[last_seq_list[0]]
             else:
+                print('independent matching')
                 initial_ep = None
             self.solve(initial_ep=initial_ep)
         except Exception as e:
@@ -1115,6 +1116,16 @@ class HiddenMarkov(object):
     @property
     def get_ft_idx_map(self):
         return self.__ft_idx_map.copy()
+
+    @function_time_cost
+    def del_ft_trans(self):
+        del self.__transition_df
+        self.__transition_df = pd.DataFrame()
+        del self.__s2s_route_l
+        self.__s2s_route_l = dict()
+        del self.__adj_seq_path_dict
+        self.__adj_seq_path_dict = dict()
+
 
 if __name__ == '__main__':
     pass
