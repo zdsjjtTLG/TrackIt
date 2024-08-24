@@ -615,7 +615,7 @@ class GpsPointsGdf(object):
         return self
 
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
-        """get the """
+        """get the trajectory data"""
         export_trajectory = self.__gps_points_gdf.copy()
         try:
             del export_trajectory[gps_field.PLAIN_X], export_trajectory[gps_field.PLAIN_Y]
