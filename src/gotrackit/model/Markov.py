@@ -1117,7 +1117,6 @@ class HiddenMarkov(object):
     def get_ft_idx_map(self):
         return self.__ft_idx_map.copy()
 
-    @function_time_cost
     def del_ft_trans(self):
         del self.__transition_df
         self.__transition_df = pd.DataFrame()
