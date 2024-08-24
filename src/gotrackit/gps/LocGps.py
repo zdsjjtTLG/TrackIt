@@ -269,7 +269,8 @@ class GpsPointsGdf(object):
         the smaller o_noise_std is, the closer the smoothing result is to the observed trajectory
         :return:
         """
-        tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf)
+        tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf,
+                                  x_field=gps_field.PLAIN_X, y_field=gps_field.PLAIN_Y)
         self.__gps_points_gdf = tks.execute(p_noise_std=p_noise_std, o_noise_std=o_noise_std)
         self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
             lambda x: Point(x), axis=1)
