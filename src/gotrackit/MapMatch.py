@@ -135,7 +135,6 @@ class MapMatch(object):
         self.heading_vec_len = heading_vec_len
 
         self.user_field_list = user_field_list
-        self.his_hmm_dict = dict()
 
     def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None) -> tuple[pd.DataFrame, dict, list]:
         """
@@ -222,6 +221,7 @@ class MapMatch(object):
             if not is_success:
                 error_list.append(agent_id)
                 continue
+            hmm_obj.del_ft_trans()
 
             if hmm_obj.is_warn:
                 may_error_list[agent_id] = hmm_obj.format_warn_info
@@ -310,10 +310,67 @@ class MapMatch(object):
         match_res.reset_index(inplace=True, drop=True)
         return match_res, may_error, error
 
-    def rt_execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None,
-                   gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
-                   dis_gap_threshold: float = 600.0,
-                   overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
+    def gps_reprocess(self, gps_obj: GpsPointsGdf = None,
+                      del_dwell: bool = True, dwell_l_length: float = 5.0, dwell_n: int = 2,
+                      is_lower_f: bool = False, lower_n: int = 2,
+                      is_rolling_average: bool = False, rolling_window: int = 2,
+                      dense_gps: bool = True, dense_interval: float = 120.0) -> None:
+        # gps-process
+        if del_dwell:
+            print(rf'gps-preprocessing: del dwell')
+            gps_obj.del_dwell_points(dwell_l_length=dwell_l_length, dwell_n=dwell_n)
+
+        # 降频处理
+        if is_lower_f:
+            print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
+            gps_obj.lower_frequency(lower_n=lower_n, multi_agents=False)
+
+        if is_rolling_average:
+            print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
+            gps_obj.rolling_average(rolling_window=rolling_window, multi_agents=False)
+
+        if dense_gps:
+            print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
+            gps_obj.dense(dense_interval=dense_interval)
+
+
+class OnLineMapMatch(MapMatch):
+    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True,
+                 time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
+                 gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
+                 beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
+                 is_lower_f: bool = False, lower_n: int = 2,
+                 use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
+                 dense_gps: bool = True, dense_interval: float = 100.0,
+                 dwell_l_length: float = 5.0, dwell_n: int = 2, del_dwell: bool = True,
+                 dup_threshold: float = 10.0,
+                 is_rolling_average: bool = False, window: int = 2,
+                 export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
+                 export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
+                 link_width: float = 1.5, node_radius: float = 1.5,
+                 match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
+                 visualization_cache_times: int = 30, multi_core_save: bool = False, instant_output: bool = False,
+                 user_field_list: list[str] = None, heading_vec_len: float = 15.0):
+        MapMatch.__init__(self, flag_name=flag_name, net=net, use_sub_net=use_sub_net, time_format=time_format,
+                          time_unit=time_unit, gps_buffer=gps_buffer, gps_route_buffer_gap=gps_route_buffer_gap,
+                          beta=beta, gps_sigma=gps_sigma, dis_para=dis_para, is_lower_f=is_lower_f,
+                          lower_n=lower_n, use_heading_inf=use_heading_inf, heading_para_array=heading_para_array,
+                          dense_gps=dense_gps, dense_interval=dense_interval,
+                          dwell_l_length=dwell_l_length, dwell_n=dwell_n, del_dwell=del_dwell,
+                          dup_threshold=dup_threshold, is_rolling_average=is_rolling_average, window=window,
+                          export_html=export_html, use_gps_source=use_gps_source, out_fldr=out_fldr,
+                          export_geo_res=export_geo_res, top_k=top_k, omitted_l=omitted_l, gps_radius=gps_radius,
+                          link_width=link_width, node_radius=node_radius, match_link_width=match_link_width,
+                          export_all_agents=export_all_agents, visualization_cache_times=visualization_cache_times,
+                          multi_core_save=multi_core_save, instant_output=instant_output,
+                          user_field_list=user_field_list, heading_vec_len=heading_vec_len)
+        self.his_hmm_dict = dict()
+        self.his_gps = dict()
+
+    def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None,
+                gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
+                dis_gap_threshold: float = 600.0,
+                overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
         """
 
         :param gps_df:
@@ -347,6 +404,15 @@ class MapMatch(object):
             agent_count += 1
             if agent_id in self.his_hmm_dict.keys():
                 self.gps_buffer = self.his_hmm_dict[agent_id].gps_points.buffer
+            else:
+                if len(_gps_df) <= 1 and agent_id not in self.his_gps.keys():
+                    self.his_gps[agent_id] = _gps_df.copy()
+                    continue
+                else:
+                    _gps_df = pd.concat([self.his_gps[agent_id], _gps_df])
+                    _gps_df.reset_index(inplace=True, drop=True)
+                    del self.his_gps[agent_id]
+
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
             try:
                 gps_obj = GpsPointsGdf(gps_points_df=_gps_df, time_format=self.time_format,
@@ -357,9 +423,7 @@ class MapMatch(object):
                 print(f'error constructing GPS object: {repr(e)}')
                 error_list.append(agent_id)
                 continue
-
             del _gps_df
-
             # judge if the same chain with his agent
             last_seq_list = list()
             if agent_id in self.his_hmm_dict.keys():
@@ -368,6 +432,7 @@ class MapMatch(object):
                     depth=overlapping_window,
                     dis_gap_threshold=dis_gap_threshold,
                     time_gap_threshold=time_gap_threshold)
+
             # gps-process
             try:
                 self.gps_reprocess(gps_obj=gps_obj,
@@ -420,10 +485,10 @@ class MapMatch(object):
             is_success, _match_res_df = \
                 hmm_obj.hmm_rt_execute(add_single_ft=add_single_ft, last_em_para=his_emission,
                                        last_seq_list=last_seq_list, his_ft_idx_map=his_ft_idx_map)
-
             if not is_success:
                 error_list.append(agent_id)
                 continue
+            hmm_obj.del_ft_trans()
 
             self.his_hmm_dict[agent_id] = hmm_obj
 
@@ -450,26 +515,3 @@ class MapMatch(object):
                     hmm_res_list = []
 
         return match_res_df, may_error_list, error_list
-
-    def gps_reprocess(self, gps_obj: GpsPointsGdf = None,
-                      del_dwell: bool = True, dwell_l_length: float = 5.0, dwell_n: int = 2,
-                      is_lower_f: bool = False, lower_n: int = 2,
-                      is_rolling_average: bool = False, rolling_window: int = 2,
-                      dense_gps: bool = True, dense_interval: float = 120.0) -> None:
-        # gps-process
-        if del_dwell:
-            print(rf'gps-preprocessing: del dwell')
-            gps_obj.del_dwell_points(dwell_l_length=dwell_l_length, dwell_n=dwell_n)
-
-        # 降频处理
-        if is_lower_f:
-            print(rf'gps-preprocessing: lower frequency, size: {self.lower_n}')
-            gps_obj.lower_frequency(lower_n=lower_n, multi_agents=False)
-
-        if is_rolling_average:
-            print(rf'gps-preprocessing: rolling average, window size: {self.rolling_window}')
-            gps_obj.rolling_average(rolling_window=rolling_window, multi_agents=False)
-
-        if dense_gps:
-            print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
-            gps_obj.dense(dense_interval=dense_interval)
