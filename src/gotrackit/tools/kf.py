@@ -159,6 +159,11 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
 
     def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> \
             pd.DataFrame or gpd.GeoDataFrame:
+        """
+        :param p_noise_std: the smaller p_noise_std is, the closer the smoothed result is to the predicted trajectory.
+        :param o_noise_std: the smaller o_noise_std is, the closer the smoothed result is to the observed trajectory.
+        :return:
+        """
         res_df = pd.DataFrame()
 
         for agent_id, tj_df in self.trajectory_df.groupby(agent_field):
@@ -198,6 +203,8 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
 
             tj_df[self.x_field] = smoothed_states[:, 0]
             tj_df[self.y_field] = smoothed_states[:, 1]
+            tj_df[x_speed_field] = smoothed_states[:, 2]
+            tj_df[y_speed_field] = smoothed_states[:, 3]
             res_df = pd.concat([res_df, tj_df])
         res_df.reset_index(inplace=True, drop=True)
         return res_df
