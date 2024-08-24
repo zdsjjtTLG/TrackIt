@@ -88,9 +88,11 @@ class TrajectoryKalmanFilter(object):
 
 class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 
-    def __init__(self, trajectory_df: pd.DataFrame or gpd.GeoDataFrame = None):
+    def __init__(self, trajectory_df: pd.DataFrame or gpd.GeoDataFrame = None,
+                 x_field: str = 'lng', y_field: str = 'lat'):
 
         TrajectoryKalmanFilter.__init__(self, trajectory_df)
+        self.x_field, self.y_field = x_field, y_field
 
     def execute(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> \
             pd.DataFrame or gpd.GeoDataFrame:
@@ -114,7 +116,7 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
         if len(tj_df) <= 1:
             return tj_df
         timestamps = tj_df[time_field]
-        observations = tj_df[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].values
+        observations = tj_df[[self.x_field, self.y_field]].values
         smoothed_states = np.zeros((len(observations), 4))
 
         # init a new kalman filter
@@ -138,8 +140,8 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
             # save
             smoothed_states[i, :] = now_state
 
-        tj_df[gps_field.PLAIN_X] = smoothed_states[:, 0]
-        tj_df[gps_field.PLAIN_Y] = smoothed_states[:, 1]
+        tj_df[self.x_field] = smoothed_states[:, 0]
+        tj_df[self.y_field] = smoothed_states[:, 1]
         return tj_df
 
 
