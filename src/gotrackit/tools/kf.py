@@ -160,8 +160,8 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
     def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> \
             pd.DataFrame or gpd.GeoDataFrame:
         """
-        :param p_noise_std: the smaller p_noise_std is, the closer the smoothed result is to the predicted trajectory.
-        :param o_noise_std: the smaller o_noise_std is, the closer the smoothed result is to the observed trajectory.
+        :param p_noise_std: the smaller p_noise_std is, the closer the trajectory is to the estimated trajectory.
+        :param o_noise_std: the smaller o_noise_std is, the closer the trajectory is to the observed trajectory.
         :return:
         """
         res_df = pd.DataFrame()
