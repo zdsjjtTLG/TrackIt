@@ -795,15 +795,15 @@ class HiddenMarkov(object):
                                              crs=self.gps_points.crs)
         del gps_link_state_df
         gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
-        gps_match_res_gdf[gps_field.LNG_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].apply(lambda p: p.x)
-        gps_match_res_gdf[gps_field.LAT_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].apply(lambda p: p.y)
+        gps_match_res_gdf[gps_field.LNG_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].x
+        gps_match_res_gdf[gps_field.LAT_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].y
         prj_gdf = gps_match_res_gdf[[markov_field.PRJ_GEO]].copy()
         del gps_match_res_gdf[markov_field.PRJ_GEO]
         prj_gdf.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
         prj_gdf = gpd.GeoDataFrame(prj_gdf, geometry=markov_field.PRJ_GEO, crs=self.gps_points.plane_crs)
         prj_gdf = prj_gdf.to_crs(self.gps_points.geo_crs)
-        prj_gdf['prj_lng'] = prj_gdf[markov_field.PRJ_GEO].apply(lambda p: p.x)
-        prj_gdf['prj_lat'] = prj_gdf[markov_field.PRJ_GEO].apply(lambda p: p.y)
+        prj_gdf['prj_lng'] = prj_gdf[markov_field.PRJ_GEO].x
+        prj_gdf['prj_lat'] = prj_gdf[markov_field.PRJ_GEO].y
         gps_match_res_gdf = pd.merge(gps_match_res_gdf, prj_gdf, how='left', left_index=True, right_index=True)
         gps_match_res_gdf[gps_field.AGENT_ID_FIELD] = self.gps_points.agent_id
         del prj_gdf
