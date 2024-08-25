@@ -28,11 +28,12 @@ class TrajectoryPoints(GpsPointsGdf):
         :param plane_crs: string
         :param already_plain: bool
         """
-        user_filed_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
+        user_field_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
                                                              gps_field.POINT_SEQ_FIELD})
+        user_field_list = self.check(gps_points_df=gps_points_df, user_field_list=user_field_list)
         GpsPointsGdf.__init__(self, gps_points_df=gps_points_df, time_format=time_format, time_unit=time_unit,
                               plane_crs=plane_crs, already_plain=already_plain, multi_agents=True,
-                              user_filed_list=user_filed_list)
+                              user_filed_list=user_field_list)
 
     def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory'):
         if self.already_plain:
@@ -45,7 +46,11 @@ class TrajectoryPoints(GpsPointsGdf):
             origin_tj_df = self.source_gps[[agent_field, lng_field, lat_field, time_field]].copy()
 
         tj_gdf = self.trajectory_data(export_crs=prj_const.PRJ_CRS, _type='df')
-        tj_df = tj_gdf[[agent_field, lng_field, lat_field, time_field]].copy()
+        if {gps_field.X_SPEED_FIELD, gps_field.Y_SPEED_FIELD}.issubset(set(tj_gdf.columns)):
+            tj_df = tj_gdf[[agent_field, lng_field, lat_field,
+                            gps_field.X_SPEED_FIELD, gps_field.Y_SPEED_FIELD, time_field]].copy()
+        else:
+            tj_df = tj_gdf[[agent_field, lng_field, lat_field, time_field]].copy()
         del tj_gdf
         tj_df['type'] = 'process'
         origin_tj_df['type'] = 'source'

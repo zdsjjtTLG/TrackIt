@@ -33,18 +33,14 @@ def region_rnd_od(polygon_obj=None, flag_name=None,
     :param length_limit, OD之间直线距离的最小值(m)
     :return:
     """
-    o_p_list, d_p_list = [], []
     print(rf'{flag_name} 生成OD......')
 
-    for i in range(0, od_num):
-        # print(i)
-        (o_loc, d_loc) = generate_rnd_od(p_geo=polygon_obj, length_limit=length_limit, gap_n=gap_n)
-        o_p_list.append(Point(o_loc))
-        d_p_list.append(Point(d_loc))
-    od_df = pd.DataFrame({'o': o_p_list, 'd': d_p_list})
-
+    od_loc = [generate_rnd_od(p_geo=polygon_obj, length_limit=length_limit, gap_n=gap_n) for i in range(0, od_num)]
+    od_df = gpd.GeoDataFrame(od_loc, columns=['o', 'd'], geometry='o', crs='EPSG:4326')
     od_df[o_x_field] = od_df['o'].apply(lambda g: g.x)
     od_df[o_y_field] = od_df['o'].apply(lambda g: g.y)
+
+    od_df.set_geometry('d', crs='EPSG:4326', inplace=True)
     od_df[d_x_field] = od_df['d'].apply(lambda g: g.x)
     od_df[d_y_field] = od_df['d'].apply(lambda g: g.y)
     od_df[od_id_field] = range(1, len(od_df) + 1)
@@ -52,7 +48,7 @@ def region_rnd_od(polygon_obj=None, flag_name=None,
     return od_df
 
 
-def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[tuple[float, float], tuple[float, float]]:
+def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[Point, Point]:
     """
 
     :param p_geo:
@@ -69,7 +65,7 @@ def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[tuple[f
 
         if distance((o_y, o_x), (d_y, d_x)).m >= length_limit or _count > max_times:
             break
-    return (o_x, o_y), (d_x, d_y)
+    return Point(o_x, o_y), Point(d_x, d_y)
 
 
 def rnd_point_in_polygon(p_geo=None, gap_n=1000) -> tuple[float, float]:

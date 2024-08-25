@@ -4,6 +4,7 @@
 # @Team    : ZheChengData
 
 import os
+import math
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -201,7 +202,10 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
     gdf.drop(columns=['is_multi'], axis=1, inplace=True)
     gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
     gdf = gdf.to_crs(plain_crs)
-    gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(l_threshold)
+    try:
+        gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(l_threshold)
+    except Exception as e:
+        print(repr(e))
     gdf = gdf.to_crs(origin_crs)
     return gdf
 
@@ -386,21 +390,208 @@ def rn_partition_alpha(split_path_gdf: gpd.GeoDataFrame = None, partition_num: i
     return split_path_gdf
 
 
-if __name__ == '__main__':
-    pass
-    # import geopandas as gpd
-    # import matplotlib.pyplot as plt
-    #
-    # l = LineString([(0,0), (12, 90)])
-    # p = gpd.GeoDataFrame({'geometry': [Point(item) for item in l.coords]}, geometry='geometry')
-    # p.plot()
-    # plt.show()
-    #
-    # l_1 = segmentize(line=l, n=12)
-    # print(len(list(l_1.coords)))
-    # p1 = gpd.GeoDataFrame({'geometry': [Point(item) for item in l_1.coords]}, geometry='geometry')
-    # p1.plot()
-    # plt.show()
+class StraightLineToArc(object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def arc_curve_line(straight_line_obj: LineString = None, r: float = 1.0, sample_num: int = 30) \
+            -> LineString:
+
+        """generate arc curve line objects based on a straight line objects
+        :param straight_line_obj: LineString
+        :param r: float, must be greater than 0.72, controls the degree of curvature,
+        The larger the value, the smaller the curvature.
+        :param sample_num: the number of sampling points. The larger the number, the smoother the curve.
+        :return:
+        """
+        o_coord, d_coord = straight_line_obj.coords[0], straight_line_obj.coords[-1]
+        arc_line_cor = get_arrow(o_loc=o_coord, d_loc=d_coord, ratio=r, sample_num=sample_num)
+        return LineString(arc_line_cor)
+
+    @staticmethod
+    def arc_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
+                      sample_num: int = 30) -> list:
+        """
+        generate arc curve coords based on (o_loc, d_loc)
+        :return:
+        """
+        arc_line_cor = get_arrow(o_loc=o_loc, d_loc=d_loc, ratio=r, sample_num=sample_num)
+        return list(arc_line_cor)
+
+    @staticmethod
+    def bezier_curve_line(straight_line_obj: LineString = None, r: float = 5.0, sample_num: int = 30,
+                          right_side: bool = True) -> LineString:
+        """ generate bezier curve line objects based on a straight line objects
+        :param straight_line_obj: LineString
+        :param r: float, controls the degree of curvature. The larger the value, the more severe the bending
+        :param sample_num: the number of sampling points. The larger the number, the smoother the curve.
+        :param right_side: bool, if True, the curve is generated on the rigth side of the ray directio
+        :return:
+        """
+        o_coord, d_coord = straight_line_obj.coords[0], straight_line_obj.coords[-1]
+        arc_line_cor = calc_bezier(o_loc=o_coord, d_loc=d_coord, sample_num=sample_num, r=r, right_side=right_side)
+        return LineString(arc_line_cor)
+
+    @staticmethod
+    def bezier_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
+                         sample_num: int = 30, right_side: bool = True) -> list:
+        """
+        generate bezier curve coords based on (o_loc, d_loc)
+        :return:
+        """
+        arc_line_cor = calc_bezier(o_loc=o_loc, d_loc=d_loc, r=r, sample_num=sample_num, right_side=right_side)
+        return list(arc_line_cor)
+
+def get_arrow(o_loc: list or tuple = None, d_loc: list or tuple = None, ratio: float = 1.5, sample_num: int = 30) -> \
+        tuple[list[float], list[float]]:
+    """
+    create an arc between two points
+    :param o_loc:
+    :param d_loc:
+    :param ratio:
+    :param sample_num:
+    :return:
+    """
+    d = calc_dis(o_loc=o_loc, d_loc=d_loc)
+    ratio = 0.8 if ratio <= 0.72 else ratio
+    r = ratio * d
+
+    # Calculate the center of the circle
+    cen_loc = get_cen_loc(o_loc=o_loc, d_loc=d_loc, r=r)
+    start_theta = get_rad_loc(x=o_loc[0], y=o_loc[1], x_r=cen_loc[0], y_r=cen_loc[1], r=r)
+    end_theta = get_rad_loc(x=d_loc[0], y=d_loc[1], x_r=cen_loc[0], y_r=cen_loc[1], r=r)
+    if 180 * start_theta / np.pi - 180 * end_theta / np.pi >= 180:
+        start_theta = - (2 * np.pi - start_theta)
+
+    # sampling  points
+    delta_theta = np.linspace(start_theta, end_theta, num=sample_num)
+    x_array = [cen_loc[0] + r * np.cos(delta) for delta in delta_theta]
+    y_array = [cen_loc[1] + r * np.sin(delta) for delta in delta_theta]
+    return zip(x_array, y_array)
+
+
+def get_cen_loc(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = None) -> list[float]:
+    """
+    calculate the center coordinates based on the given start and end coordinates and radius value
+    """
+    if d_loc[0] == o_loc[0]:
+        y0 = y1 = (o_loc[1] + d_loc[1]) / 2
+        dy = (y0 - o_loc[1]) ** 2
+        deltax = math.sqrt(r ** 2 - dy)
+        x0 = d_loc[0] - deltax
+        x1 = d_loc[0] + deltax
+        # if np.cross(np.array([d_loc[0] - o_loc[0], d_loc[1] - o_loc[1]]), np.array([o_loc[0] - x0, o_loc[1] - y0])) < 0:
+        #     return [x0, y0]
+        # else:
+        #     return [x1, y1]
+    else:
+        c1 = (d_loc[0] ** 2 + d_loc[1] ** 2 - o_loc[0] ** 2 - o_loc[1] ** 2) / 2 / (d_loc[0] - o_loc[0])
+        c2 = (d_loc[1] - o_loc[1]) / (d_loc[0] - o_loc[0])
+        a = 1 + c2 ** 2
+        b = 2 * (o_loc[0] - c1) * c2 - 2 * o_loc[1]
+        c = (o_loc[0] - c1) ** 2 + o_loc[1] ** 2 - r ** 2
+        y0 = (-b + math.sqrt(b * b - 4 * a * c)) / 2 / a
+        y1 = (-b - math.sqrt(b * b - 4 * a * c)) / 2 / a
+        x0 = c1 - c2 * y0
+        x1 = c1 - c2 * y1
+    if np.cross(np.array([d_loc[0] - o_loc[0], d_loc[1] - o_loc[1]]), np.array([o_loc[0] - x0, o_loc[1] - y0])) < 0:
+        return [x0, y0]
+    else:
+        return [x1, y1]
+
+
+def get_rad_loc(x: float = 1.1, y: float = 2.1, x_r: float = 0.1, y_r: float = 0.1, r: float = 1.2):
+    """
+
+    :param x:
+    :param y:
+    :param x_r:
+    :param y_r:
+    :param r:
+    :return:
+    """
+    vec = np.array([x - x_r, y - y_r])
+    if vec[0] >= 0 and vec[1] >= 0:
+        theta = np.arccos((x - x_r) / r)
+        return theta
+    elif vec[0] <= 0 and vec[1] >= 0:
+        theta = np.arccos((x - x_r) / r)
+        return theta
+    elif vec[0] <= 0 and vec[1] <= 0:
+        theta = np.arccos((x - x_r) / r)
+        return 2 * np.pi - theta
+    else:
+        theta = np.arccos((x - x_r) / r)
+        return 2 * np.pi - theta
+
+
+def calc_dis(o_loc=None, d_loc=None):
+    """
+    for this distance calculation, you can pass in longitude and latitude coordinates to calculate directly
+    If the longitude and latitude between two points span a large distance,
+    if the plane projection coordinates are passed in, and then converted to geographic coordinates after calculation,
+    the arc will be deformed
+    :param o_loc:
+    :param d_loc:
+    :return:
+    """
+    d = ((d_loc[0] - o_loc[0]) ** 2 + (d_loc[1] - o_loc[1]) ** 2) ** 0.5
+    if d <= 0.00000000001:
+        raise ValueError(r'the start and end points overlap.')
+    else:
+        return d
+
+
+def bezier(t, points: list or tuple or np.ndarray = None) -> float:
+    n = len(points) - 1
+    res = 0
+    c = 1
+    for i in range(n + 1):
+        if i > 0:
+            c = c * (n - i + 1) / i
+        _1_t = (1 - t) ** i
+        _t = t ** (n - i)
+        res += c * _1_t * _t * points[i]
+    return res
+
+
+def bezier_coords(control_x: list or tuple or np.ndarray = None,
+                  control_y: list or tuple or np.ndarray = None,
+                  sample_num: int = 100) -> tuple:
+    x, y = list(), list()
+    _ = [[x.append(bezier(u, points=control_x)), y.append(bezier(u, points=control_y))] for u in
+         np.linspace(0, 1, num=sample_num)]
+    return zip(x, y)
+
+
+def calc_bezier(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.5, sample_num: int = 30,
+                right_side: bool = True) -> tuple:
+    """
+
+    :param o_loc:
+    :param d_loc:
+    :param r:
+    :param sample_num:
+    :param right_side:
+    :return:
+    """
+    left_p_x, left_p_y, right_p_x, right_p_y = point_in_perpendicular_bisector(ox=o_loc[0], oy=o_loc[1], dx=d_loc[0],
+                                                                               dy=d_loc[1], r=r)
+    if not right_side:
+        return bezier_coords(control_x=[d_loc[0], left_p_x, o_loc[0]],
+                             control_y=[d_loc[1], left_p_y, o_loc[1]], sample_num=sample_num)
+    else:
+        return bezier_coords(control_x=[d_loc[0], right_p_x, o_loc[0]],
+                             control_y=[d_loc[1], right_p_y, o_loc[1]], sample_num=sample_num)
+
+
+def point_in_perpendicular_bisector(ox: float, oy: float, dx: float, dy: float, r: float = 5.0):
+    mpx, mpy = (ox + dx) / 2, (oy + dy) / 2
+    vec_x = -(dy - oy) * r
+    vec_y = (dx - ox) * r
+    return mpx + vec_x, mpy + vec_y, mpx - vec_x, mpy - vec_y
+
 
 
 
