@@ -426,7 +426,7 @@ class StraightLineToArc(object):
         :param straight_line_obj: LineString
         :param r: float, controls the degree of curvature. The larger the value, the more severe the bending
         :param sample_num: the number of sampling points. The larger the number, the smoother the curve.
-        :param right_side: bool, if True, the curve is generated on the rigth side of the ray directio
+        :param right_side: bool, if True, the curve is generated on the right side of the ray direction
         :return:
         """
         o_coord, d_coord = straight_line_obj.coords[0], straight_line_obj.coords[-1]
