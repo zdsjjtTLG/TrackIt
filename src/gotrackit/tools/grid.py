@@ -7,12 +7,12 @@
 """划分栅格"""
 
 import math
-import geopandas as gpd
+import numpy as np
 import pandas as pd
+import geopandas as gpd
 from geopy.distance import distance
 from shapely.ops import unary_union
 from shapely.geometry import Polygon
-
 
 geometry_field = 'geometry'
 lon_field = 'lon'
@@ -68,7 +68,6 @@ def generate_range(polygon_obj: Polygon = None, meter_step: float = 100.0, is_ge
 
     return lon_step, lat_step, width_n, length_n, min_x, max_y
 
-
 # 逻辑子模块：生成栅格用于获取预测点
 def generate_mesh(polygon_obj: Polygon = None, meter_step: float = 100.0, is_geo_coord: bool = True,
                   crs: str = 'EPSG:4326', generate_index: bool = True) -> pd.DataFrame:
@@ -92,6 +91,41 @@ def generate_mesh(polygon_obj: Polygon = None, meter_step: float = 100.0, is_geo
         point_list = [(min_x + k * lon_step, max_y - n * lat_step) for k in range(length_n)]
         grid_list = list(map(generate, point_list))
         all_grid_list.extend(grid_list)
+    grid_gdf = gpd.GeoDataFrame({'grid_id': [i + 1 for i in range(len(all_grid_list))]}, geometry=all_grid_list,
+                                crs=crs)
+    if generate_index:
+        grid_gdf['mat_index'] = [[i, j] for i in range(width_n) for j in range(length_n)]
+        # dx代表行索引, dy代表列索引
+        grid_gdf['dx'] = grid_gdf['mat_index'].apply(lambda x: x[0])
+        grid_gdf['dy'] = grid_gdf['mat_index'].apply(lambda x: x[1])
+        del grid_gdf['mat_index']
+    return grid_gdf
+
+def generate_mesh_alpha(polygon_obj: Polygon = None, meter_step: float = 100.0, is_geo_coord: bool = True,
+                        crs: str = 'EPSG:4326', generate_index: bool = True) -> pd.DataFrame:
+    """
+    生成栅格用于获取预测点
+    :param polygon_obj: gdf.GeoDataFrame, 面域数据
+    :param meter_step: int, 栅格大小
+    :param is_geo_coord:
+    :param crs:
+    :param generate_index:
+    :return: gdf.GeoDataFrame
+    """
+    lon_step, lat_step, width_n, length_n, min_x, max_y = \
+        generate_range(polygon_obj=polygon_obj, meter_step=meter_step, is_geo_coord=is_geo_coord)
+
+    def generate(xy):
+        return Polygon([(xy[0], xy[1]), (xy[2], xy[3]), (xy[4], xy[5]), (xy[6], xy[7])])
+
+    x_d = np.array([min_x + k * lon_step for k in range(length_n)])
+    y_d = np.array([max_y - n * lat_step for n in range(width_n)])
+    x_array, y_array = np.meshgrid(x_d, y_d)
+    x_array, y_array = x_array.flatten(), y_array.flatten()
+    d1, d2, d3, d4, d5, d6, d7, d8 = \
+        x_array, y_array, x_array + lon_step, y_array, \
+        x_array + lon_step, y_array - lat_step, x_array, y_array - lat_step
+    all_grid_list = list(map(generate, zip(d1, d2, d3, d4, d5, d6, d7, d8)))
     grid_gdf = gpd.GeoDataFrame({'grid_id': [i + 1 for i in range(len(all_grid_list))]}, geometry=all_grid_list,
                                 crs=crs)
     if generate_index:
