@@ -118,7 +118,7 @@ class GpsPointsGdf(object):
             {agent_field, time_field, lng_field, lat_field}'''
         init_used_set = {agent_field, time_field, lng_field, lat_field}
         sys_field_set = {agent_field, net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD,
-                         gps_field.SUB_SEQ_FIELD,
+                         gps_field.SUB_SEQ_FIELD, gps_field.X_SPEED_FIELD, gps_field.Y_SPEED_FIELD,
                          time_field, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD, 'prj_x', 'prj_y',
                          net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
                          lng_field, lat_field, geometry_field, 'prj_lng', 'prj_lat', markov_field.PRJ_GEO,
@@ -143,10 +143,8 @@ class GpsPointsGdf(object):
         return user_field_list
 
     def generate_plain_xy(self):
-        self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
-            lambda geo: geo.x)
-        self.__gps_points_gdf[gps_field.PLAIN_Y] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].apply(
-            lambda geo: geo.y)
+        self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].x
+        self.__gps_points_gdf[gps_field.PLAIN_Y] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].y
 
     def dense(self, dense_interval: float = 120.0):
         """
@@ -251,17 +249,17 @@ class GpsPointsGdf(object):
         del self.__gps_points_gdf['label']
         return self
 
-    def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1):
+    def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1):
         """
         use kalman filter to smooth the trajectory, fields: agent_id, time, lng, lat
-        :param p_noise_std: standard deviation of process noise
-        :param o_noise_std: standard deviation of observation noise
-        the smaller o_noise_std is, the closer the smoothing result is to the observed trajectory
+        :param p_deviation: standard deviation of process noise
+        :param o_deviation: standard deviation of observation noise
+        the smaller o_deviation is, the closer the smoothing result is to the observed trajectory
         :return:
         """
         tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf,
                                   x_field=gps_field.PLAIN_X, y_field=gps_field.PLAIN_Y)
-        self.__gps_points_gdf = tks.execute(p_noise_std=p_noise_std, o_noise_std=o_noise_std)
+        self.__gps_points_gdf = tks.execute(p_deviation=p_deviation, o_deviation=o_deviation)
         self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
             lambda x: Point(x), axis=1)
         return self
@@ -625,8 +623,8 @@ class GpsPointsGdf(object):
         export_trajectory = pd.merge(export_trajectory, self.__user_gps_info,
                                      on=[agent_field, gps_field.POINT_SEQ_FIELD], how='left')
         export_trajectory[gps_field.LOC_TYPE] = export_trajectory[gps_field.LOC_TYPE].fillna('d')
-        export_trajectory[lng_field] = export_trajectory[geometry_field].apply(lambda g: g.x)
-        export_trajectory[lat_field] = export_trajectory[geometry_field].apply(lambda g: g.y)
+        export_trajectory[lng_field] = export_trajectory[geometry_field].x
+        export_trajectory[lat_field] = export_trajectory[geometry_field].y
         if _type == 'df':
             del export_trajectory[geometry_field]
             return export_trajectory
