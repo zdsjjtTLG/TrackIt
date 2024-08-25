@@ -66,9 +66,12 @@ class Route2Gps(object):
         self.path_gdf[o_time_field] = self.path_gdf[o_time_field].apply(
             lambda t: t.timestamp())
         self.path_gdf[time_field] = self.path_gdf[o_time_field] + self.path_gdf['accu_cost']
-        self.path_gdf[[lng_field, lat_field]] = self.path_gdf.apply(lambda row: (row['p_list'].x, row['p_list'].y),
-                                                                    axis=1,
-                                                                    result_type='expand')
+        # self.path_gdf[[lng_field, lat_field]] = self.path_gdf.apply(lambda row: (row['p_list'].x, row['p_list'].y),
+        #                                                             axis=1,
+        #                                                             result_type='expand')
+        p_geo = gpd.GeoSeries(self.path_gdf['p_list'])
+        self.path_gdf[lng_field] = p_geo.x
+        self.path_gdf[lat_field] = p_geo.y
         self.path_gdf.rename(columns={'path_id': agent_id_field}, inplace=True)
         self.path_gdf[time_field] = self.path_gdf[time_field].astype(int)
         self.path_gdf.drop_duplicates(subset=[agent_id_field, time_field], inplace=True, keep='first')
