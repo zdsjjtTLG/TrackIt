@@ -397,8 +397,8 @@ class RouteInfoCollector(object):
             format_gdf[gps_field.GEOMETRY_FIELD] = \
                 format_gdf[gps_field.GEOMETRY_FIELD].apply(
                     lambda geo: con.obj_convert(geo_obj=geo, con_type=convert_type))
-        format_gdf[gps_field.LNG_FIELD] = format_gdf[gps_field.GEOMETRY_FIELD].apply(lambda geo: geo.x)
-        format_gdf[gps_field.LAT_FIELD] = format_gdf[gps_field.GEOMETRY_FIELD].apply(lambda geo: geo.y)
+        format_gdf[gps_field.LNG_FIELD] = format_gdf[gps_field.GEOMETRY_FIELD].x
+        format_gdf[gps_field.LAT_FIELD] = format_gdf[gps_field.GEOMETRY_FIELD].y
 
         attr_name_field_list.remove(gps_field.GEOMETRY_FIELD)
         attr_name_field_list.extend([gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.GEOMETRY_FIELD])
