@@ -451,7 +451,7 @@ class KeplerConfig(object):
                 },
                 "isVisible": True,
                 "visConfig": {
-                    "radius": 3.0,
+                    "radius": 5.0,
                     "fixedRadius": False,
                     "opacity": 0.9,
                     "outline": False,
@@ -463,7 +463,7 @@ class KeplerConfig(object):
                         "category": "Uber",
                         "colors": [
                             "#C1FC02",
-                            "#1B5CA1",
+                            "#53A2EB",
                         ]
                     },
                     "strokeColorRange": {
