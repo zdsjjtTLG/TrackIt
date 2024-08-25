@@ -14,7 +14,6 @@ from pykalman import KalmanFilter
 from ..tools.time_build import build_time_col
 
 
-
 gps_field = GpsField()
 agent_field, lng_field, lat_field, time_field = \
     gps_field.AGENT_ID_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD, gps_field.TIME_FIELD
@@ -33,33 +32,29 @@ class TrajectoryKalmanFilter(object):
                                                                       [0, 1, 0, 0]])
 
     def init_kf(self, initial_x: float = 1.0, initial_y: float = 1.0,
-                p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> KalmanFilter:
+                p_deviation: list or float = 0.01, o_deviation: list or float = 0.1) -> KalmanFilter:
 
         initial_state_mean = [initial_x, initial_y, 0, 0]  # initial state, initial speed is 0
 
         # Observation noise covariance matrix
-        if isinstance(o_noise_std, list):
-            observation_covariance = np.diag(o_noise_std) ** 2
+        if isinstance(o_deviation, list):
+            o_cov = np.diag(o_deviation) ** 2
         else:
-            observation_covariance = np.eye(2) * o_noise_std ** 2
+            o_cov = np.eye(2) * o_deviation ** 2
 
         # Process noise covariance matrix
-        if isinstance(p_noise_std, list):
-            transition_covariance = np.diag(p_noise_std) ** 2
+        if isinstance(p_deviation, list):
+            t_cov = np.diag(p_deviation) ** 2
         else:
-            transition_covariance = np.eye(4) * p_noise_std ** 2
+            t_cov = np.eye(4) * p_deviation ** 2
 
         # initial state covariance matrix
         initial_state_covariance = np.eye(4) * 1
 
         # Initialize Kalman filter
-        kf = KalmanFilter(
-            transition_matrices=self.ts_mat,
-            observation_matrices=self.o_mat,
-            initial_state_mean=initial_state_mean,
-            initial_state_covariance=initial_state_covariance,
-            observation_covariance=observation_covariance,
-            transition_covariance=transition_covariance)
+        kf = KalmanFilter(observation_matrices=self.o_mat, transition_matrices=self.ts_mat,
+                          initial_state_mean=initial_state_mean, initial_state_covariance=initial_state_covariance,
+                          observation_covariance=o_cov, transition_covariance=t_cov)
         return kf
 
     @staticmethod
@@ -94,26 +89,27 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
         TrajectoryKalmanFilter.__init__(self, trajectory_df)
         self.x_field, self.y_field = x_field, y_field
 
-    def execute(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> \
+    def execute(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1) -> \
             pd.DataFrame or gpd.GeoDataFrame:
 
-        res_df = pd.DataFrame()
-        for agent_id, tj_df in self.trajectory_df.groupby(agent_field):
-            _res = self.smooth(tj_df=tj_df, p_noise_std=p_noise_std, o_noise_std=o_noise_std)
-            res_df = pd.concat([res_df, _res])
-        res_df.reset_index(inplace=True, drop=True)
+        res_df = self.trajectory_df.groupby(agent_field).apply(lambda df:
+                                                               self.smooth(tj_df=df,
+                                                                           p_deviation=p_deviation,
+                                                                           o_deviation=o_deviation)).reset_index(
+            inplace=False, drop=True)
         return res_df
 
     def smooth(self, tj_df: pd.DataFrame = None,
-               p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> pd.DataFrame:
+               p_deviation: list or float = 0.01, o_deviation: list or float = 0.1) -> pd.DataFrame:
         """
-        kalman filter to smooth the trajectory
+        kalman filter to smooth the trajectory, modify x_field, y_field, and add x_speed and y_speed field
         :param tj_df:
-        :param p_noise_std:
-        :param o_noise_std:
+        :param p_deviation:
+        :param o_deviation:
         :return:
         """
         if len(tj_df) <= 1:
+            tj_df[x_speed_field], tj_df[y_speed_field] = 0, 0
             return tj_df
         timestamps = tj_df[time_field]
         observations = tj_df[[self.x_field, self.y_field]].values
@@ -121,7 +117,7 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 
         # init a new kalman filter
         kf = self.init_kf(initial_x=observations[0, 0], initial_y=observations[0, 1],
-                          p_noise_std=p_noise_std, o_noise_std=o_noise_std)
+                          p_deviation=p_deviation, o_deviation=o_deviation)
 
         # save initial state
         smoothed_states[0, :] = [observations[0, 0], observations[0, 1], 0, 0]
@@ -142,6 +138,8 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 
         tj_df[self.x_field] = smoothed_states[:, 0]
         tj_df[self.y_field] = smoothed_states[:, 1]
+        tj_df[x_speed_field] = smoothed_states[:, 2]
+        tj_df[y_speed_field] = smoothed_states[:, 3]
         return tj_df
 
 
@@ -159,11 +157,11 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
         if trajectory_df is not None:
             build_time_col(df=self.trajectory_df, time_format=time_format, time_unit=time_unit)
 
-    def kf_smooth(self, p_noise_std: list or float = 0.01, o_noise_std: list or float = 0.1) -> \
+    def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1) -> \
             pd.DataFrame or gpd.GeoDataFrame:
         """
-        :param p_noise_std: the smaller p_noise_std is, the closer the trajectory is to the estimated trajectory.
-        :param o_noise_std: the smaller o_noise_std is, the closer the trajectory is to the observed trajectory.
+        :param p_deviation: the smaller p_deviation is, the closer the trajectory is to the estimated trajectory.
+        :param o_deviation: the smaller o_deviation is, the closer the trajectory is to the observed trajectory.
         :return:
         """
         res_df = pd.DataFrame()
@@ -180,7 +178,7 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
             else:
                 kf = self.init_kf(initial_x=observations[0, 0],
                                   initial_y=observations[0, 1],
-                                  o_noise_std=o_noise_std, p_noise_std=p_noise_std)
+                                  o_deviation=o_deviation, p_deviation=p_deviation)
                 self.kf_group[agent_id] = kf
                 self.his_o[agent_id] = [kf.initial_state_mean, kf.initial_state_covariance]
                 self.his_t[agent_id] = t.iloc[0]
