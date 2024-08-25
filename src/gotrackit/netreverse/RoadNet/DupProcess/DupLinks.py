@@ -58,7 +58,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
                                                link_gdf[to_node_id_field])])
     node_degrees_dict = {node: u_g.degree[node] for node in node_gdf[node_id_field]}
 
-    link_gdf['link_buffer'] = link_gdf[geometry_field].apply(lambda x: x.buffer(buffer))
+    link_gdf['link_buffer'] = link_gdf[geometry_field].buffer(buffer)
     link_gdf.set_geometry('link_buffer', inplace=True, crs=plain_crs)
 
     right_link_gdf = link_gdf.copy()
@@ -342,7 +342,7 @@ def del_dup_node(node_gdf=None, node_degrees_dict=None):
     """
     right_node_gdf = node_gdf.copy()
     # 右边是buffer
-    right_node_gdf['geometry'] = right_node_gdf['geometry'].apply(lambda x: x.buffer(0.50))
+    right_node_gdf['geometry'] = right_node_gdf['geometry'].buffer(0.50)
 
     join_df = gpd.sjoin(node_gdf, right_node_gdf)
     join_df.reset_index(inplace=True, drop=True)
@@ -362,14 +362,14 @@ def del_dup_node(node_gdf=None, node_degrees_dict=None):
             group_item_degrees_dict = {node: node_degrees_dict[node] for node in group_item}
             # 按照度排序
             group_item_degrees_dict = dict(sorted(group_item_degrees_dict.items(), key=lambda x: x[1], reverse=True))
-            print(group_item_degrees_dict)
+            # print(group_item_degrees_dict)
             now_sorted_node_list = list(group_item_degrees_dict.keys())
             not_consider_node_list.append(now_sorted_node_list[1:])
             map_dict.update({del_node: now_sorted_node_list[0] for del_node in now_sorted_node_list[1:]})
 
         not_consider_node_list = list(chain(*not_consider_node_list))
-        print('map:')
-        print(map_dict)
+        # print('map:')
+        # print(map_dict)
         node_gdf.drop(index=node_gdf[node_gdf['node_id'].isin(not_consider_node_list)].index, inplace=True, axis=0)
         node_gdf.reset_index(inplace=True, drop=True)
         return node_gdf, map_dict
