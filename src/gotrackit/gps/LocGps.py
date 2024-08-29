@@ -394,16 +394,17 @@ class GpsPointsGdf(object):
             except Exception as e:
                 print(repr(e), 'spatial layered association failure')
         single_link_gdf.reset_index(inplace=True, drop=True)
+        single_link_gdf['single_link_geo'] = single_link_gdf[geometry_field]
         candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))
 
         if not candidate_link.empty:
             candidate_link.drop(columns=['index_right', 'gps_buffer'], axis=1, inplace=True)
             # add link geo
-            single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
-            candidate_link = pd.merge(candidate_link,
-                                      single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
-                                      on=net_field.SINGLE_LINK_ID_FIELD, how='left')
+            # single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
+            # candidate_link = pd.merge(candidate_link,
+            #                           single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
+            #                           on=net_field.SINGLE_LINK_ID_FIELD, how='left')
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
 
