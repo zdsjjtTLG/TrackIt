@@ -38,19 +38,11 @@ class GpsArray(object):
         self.gps_point_dis_dict = dict()
         self.gps_points_gdf = gps_points_df
         self.check()
-        self.gps_points_gdf[gps_field.GEOMETRY_FIELD] = \
-            self.gps_points_gdf[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(lambda p: Point(p), axis=1)
-        self.gps_points_gdf = gpd.GeoDataFrame(self.gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD,
-                                               crs=self.geo_crs)
-        # try:
-        #     self.gps_points_gdf[gps_field.TIME_FIELD] = \
-        #         pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], format=time_format)
-        # except ValueError:
-        #     if self.gps_points_gdf[time_field].dtype == object:
-        #         self.gps_points_gdf[time_field] = self.gps_points_gdf[time_field].astype(float)
-        #     print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
-        #     self.gps_points_gdf[gps_field.TIME_FIELD] = \
-        #         pd.to_datetime(self.gps_points_gdf[gps_field.TIME_FIELD], unit=time_unit)
+        self.gps_points_gdf = \
+            gpd.GeoDataFrame(self.gps_points_gdf,
+                             geometry=gpd.points_from_xy(self.gps_points_gdf[lng_field],
+                                                         self.gps_points_gdf[lat_field]),
+                             crs=self.geo_crs)
         build_time_col(df=self.gps_points_gdf, time_unit=time_unit, time_format=time_format, time_field=time_field)
         self.gps_points_gdf.sort_values(by=[gps_field.AGENT_ID_FIELD, gps_field.TIME_FIELD],
                                         ascending=[True, True], inplace=True)
