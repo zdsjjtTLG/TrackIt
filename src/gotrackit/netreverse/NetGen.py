@@ -435,7 +435,8 @@ class NetReverse(Reverse):
         :return:
         """
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
-        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False, plane_crs=self.plain_crs)
+        net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False, plane_crs=self.plain_crs,
+                  delete_circle=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         link_gdf, node_gdf = conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name,
                                           generate_mark=generate_mark)
