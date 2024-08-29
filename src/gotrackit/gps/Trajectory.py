@@ -19,28 +19,28 @@ geometry_field = gps_field.GEOMETRY_FIELD
 
 class TrajectoryPoints(GpsPointsGdf):
     def __init__(self, gps_points_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plane_crs: str = 'EPSG:32649', already_plain: bool = False):
+                 plain_crs: str = 'EPSG:32649', already_plain: bool = False):
         """
         a class for trajectory process
         :param gps_points_df: pd.DataFrame()
         :param time_format: string
         :param time_unit: string
-        :param plane_crs: string
+        :param plain_crs: string
         :param already_plain: bool
         """
         user_field_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
                                                              gps_field.POINT_SEQ_FIELD})
         user_field_list = self.check(gps_points_df=gps_points_df, user_field_list=user_field_list)
         GpsPointsGdf.__init__(self, gps_points_df=gps_points_df, time_format=time_format, time_unit=time_unit,
-                              plane_crs=plane_crs, already_plain=already_plain, multi_agents=True,
+                              plane_crs=plain_crs, already_plain=already_plain, multi_agents=True,
                               user_filed_list=user_field_list)
 
     def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory'):
         if self.already_plain:
             origin_tj_df = self.source_gps.to_crs(prj_const.PRJ_CRS)
             origin_tj_df = origin_tj_df[[agent_field, time_field, geometry_field]].copy()
-            origin_tj_df[lng_field] = origin_tj_df[geometry_field].apply(lambda g: g.x)
-            origin_tj_df[lat_field] = origin_tj_df[geometry_field].apply(lambda g: g.y)
+            origin_tj_df[lng_field] = origin_tj_df[geometry_field].x
+            origin_tj_df[lat_field] = origin_tj_df[geometry_field].y
             del origin_tj_df[geometry_field]
         else:
             origin_tj_df = self.source_gps[[agent_field, lng_field, lat_field, time_field]].copy()
