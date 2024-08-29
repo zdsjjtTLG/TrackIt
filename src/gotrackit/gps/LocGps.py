@@ -68,12 +68,10 @@ class GpsPointsGdf(object):
         gps_points_df.reset_index(inplace=True, drop=True)
         self.agent_id = gps_points_df.at[0, gps_field.AGENT_ID_FIELD]
         self.already_plain = already_plain
-        gps_points_df[gps_field.GEOMETRY_FIELD] = \
-            gps_points_df[[gps_field.LNG_FIELD, gps_field.LAT_FIELD]].apply(lambda p: Point(p), axis=1)
-        if not already_plain:
-            gps_points_gdf = gpd.GeoDataFrame(gps_points_df, geometry=gps_field.GEOMETRY_FIELD, crs=self.geo_crs)
-        else:
-            gps_points_gdf = gpd.GeoDataFrame(gps_points_df, geometry=gps_field.GEOMETRY_FIELD, crs=self.plane_crs)
+        user_crs = self.geo_crs if not already_plain else self.plane_crs
+        gps_points_gdf = \
+            gpd.GeoDataFrame(gps_points_df, geometry=gpd.points_from_xy(gps_points_df[lng_field],
+                                                                        gps_points_df[lat_field]), crs=user_crs)
         del gps_points_df
         build_time_col(df=gps_points_gdf, time_unit=time_unit, time_format=time_format, time_field=gps_field.TIME_FIELD)
 
