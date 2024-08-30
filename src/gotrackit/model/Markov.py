@@ -856,7 +856,7 @@ class HiddenMarkov(object):
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
                         warnings.warn(
-                            rf'gps seq: {pre_seq} -> {next_seq} 状态转移出现问题, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                            rf'gps seq: {pre_seq} -> {next_seq} problem with state transfer, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
                         # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
                         self.warn_info['from_ft'].append(
                             (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
@@ -888,7 +888,7 @@ class HiddenMarkov(object):
                 else:
                     self.is_warn = True
                     warnings.warn(
-                        rf'gps seq: {pre_seq} -> {next_seq} 状态转移出现问题, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                        rf'gps seq: {pre_seq} -> {next_seq} problem with state transfer, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
                     # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
                     self.warn_info['from_ft'].append(
                         (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
