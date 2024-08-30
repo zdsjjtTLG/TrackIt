@@ -206,7 +206,7 @@ class KeplerConfig(object):
                                             '#FFC300'
                                         ]
                                     },
-                                    'radius': 10,
+                                    'radius': 3,
                                     'sizeRange': [
                                         0,
                                         10
@@ -355,7 +355,7 @@ class KeplerConfig(object):
             "config": {
                 "dataId": 'layer_id',
                 "label": 'layer_id',
-                "color": [65, 72, 88],
+                "color": [100, 100, 100],
                 "highlightColor": [
                     252,
                     242,
@@ -369,20 +369,20 @@ class KeplerConfig(object):
                 "visConfig": {
                     "opacity": 0.8,
                     "strokeOpacity": 0.8,
-                    "thickness": 0.1,
+                    "thickness": 0.3,
                     "strokeColor": [
                         221,
                         178,
                         124
                     ],
-                    "radius": 10,
+                    "radius": 2,
                     "sizeRange": [
                         0,
                         10
                     ],
                     "radiusRange": [
                         0,
-                        50
+                        5
                     ],
                     "heightRange": [
                         0,

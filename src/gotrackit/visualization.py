@@ -201,7 +201,7 @@ def generate_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, file_n
     user_config["config"]["mapState"]["zoom"] = int(zoom)
 
     if error_gdf is not None and not error_gdf.empty:
-        error_item = generate_polygon_layer(color=[245, 97, 129], layer_id=kepler_config.ERROR_XFER)
+        error_item = generate_polygon_layer(color=[245, 97, 129], layer_id=kepler_config.ERROR_XFER, width=0.6)
         user_config["config"]["visState"]["layers"].append(error_item)
         data_item[kepler_config.ERROR_XFER] = error_gdf
 
@@ -269,12 +269,13 @@ def generate_point_html(point_df: pd.DataFrame = None, out_fldr: str = None, fil
     user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
 
 
-def generate_polygon_layer(color: list = None, layer_id: str = None) -> dict:
+def generate_polygon_layer(color: list = None, layer_id: str = None, width:float = 0.3) -> dict:
     polygon_item = kepler_config.get_polygon_config()
     polygon_item['id'] = layer_id
     polygon_item['config']['dataId'] = layer_id
     polygon_item['config']['label'] = layer_id
-    polygon_item['config']['color'] = color
+    polygon_item['config']["visConfig"]['strokeColor'] = color
+    polygon_item['config']["visConfig"]['thickness'] = width
     return polygon_item
 
 def generate_point_layer(color: list = None, layer_id: str = None) -> dict:

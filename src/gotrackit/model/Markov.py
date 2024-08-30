@@ -1008,20 +1008,21 @@ class HiddenMarkov(object):
             # 路网底图
             origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first').copy()
             del single_link_gdf
-            if is_geo_crs:
-                origin_link_gdf = origin_link_gdf.to_crs(plain_crs)
-                node_gdf = node_gdf.to_crs(plain_crs)
-                may_error_gdf = may_error_gdf.to_crs(plain_crs)
-            origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
-            node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].buffer(node_radius)
+            if not is_geo_crs:
+                origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
+                node_gdf = node_gdf.to_crs(self.net.geo_crs)
+                if not may_error_gdf.empty:
+                    may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
+            # origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
+            # node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].buffer(node_radius)
 
-            if not may_error_gdf.empty:
-                may_error_gdf[net_field.GEOMETRY_FIELD] = may_error_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
+            # if not may_error_gdf.empty:
+            #     may_error_gdf[net_field.GEOMETRY_FIELD] = may_error_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
 
-            origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
-            if not may_error_gdf.empty:
-                may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
-            node_gdf = node_gdf.to_crs(self.net.geo_crs)
+            # origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
+            # if not may_error_gdf.empty:
+            #     may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
+            # node_gdf = node_gdf.to_crs(self.net.geo_crs)
 
             self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error = \
                 gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
