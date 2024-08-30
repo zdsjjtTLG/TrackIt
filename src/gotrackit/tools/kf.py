@@ -157,11 +157,13 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
         if trajectory_df is not None:
             build_time_col(df=self.trajectory_df, time_format=time_format, time_unit=time_unit)
 
-    def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1) -> \
+    def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1,
+                  time_gap_threshold: float = 1800.0) -> \
             pd.DataFrame or gpd.GeoDataFrame:
         """
         :param p_deviation: the smaller p_deviation is, the closer the trajectory is to the estimated trajectory.
         :param o_deviation: the smaller o_deviation is, the closer the trajectory is to the observed trajectory.
+        :param time_gap_threshold:
         :return:
         """
         res_df = pd.DataFrame()
@@ -172,7 +174,8 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
             t = tj_df[time_field]
 
             start_index = 0
-            if agent_id in self.kf_group.keys():
+            if agent_id in self.kf_group.keys() and \
+                    (t.iloc[0] - self.his_t[agent_id]).total_seconds() <= time_gap_threshold:
                 kf = self.kf_group[agent_id]
                 smoothed_states = np.zeros((len(observations), 4))
             else:
