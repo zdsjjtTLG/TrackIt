@@ -10,6 +10,7 @@ import pandas as pd
 import multiprocessing
 import geopandas as gpd
 from shapely.ops import linemerge
+from shapely.ops import transform
 import xml.etree.cElementTree as ET
 from ..tools.group import cut_group
 from ..WrapsFunc import function_time_cost
@@ -375,7 +376,8 @@ class SumoConvert(object):
             try:
                 avg_center_line = LineString(
                     np.array(avg_line_shape_list).mean(axis=0))
-            except ValueError:
+            except Exception as e:
+                print(repr(e))
                 _l = len(avg_line_shape_list)
                 select_line = [avg_line_shape_list[int(_l / 2)]]
                 avg_center_line = LineString(
@@ -523,5 +525,10 @@ def prj4_2_crs(prj4_str: str = None) -> str:
     return str(x)
 
 
-if __name__ == '__main__':
-    pass
+def prj_xfer(from_crs: str = 'EPSG:32650', to_crs: str = 'EPSG:4326', origin_p: Point = None) -> Point:
+    f = pyproj.CRS(from_crs)
+    t = pyproj.CRS(to_crs)
+    project = pyproj.Transformer.from_crs(f, t, always_xy=True).transform
+    xfer_point = transform(project, origin_p)
+    return xfer_point
+
