@@ -27,7 +27,7 @@ geometry_field = gps_field.GEOMETRY_FIELD
 class Route2Gps(object):
 
     def __init__(self, path_gdf: gpd.GeoDataFrame = None, path_o_time_df: pd.DataFrame = None,
-                 planar_crs: str = 'EPSG:32650'):
+                 planar_crs: str = 'EPSG:3857'):
         """
 
         :param path_gdf: path_id, seq, time_cost, geometry, crs must be: EPSG:4326

@@ -19,7 +19,7 @@ geometry_field = gps_field.GEOMETRY_FIELD
 
 class TrajectoryPoints(GpsPointsGdf):
     def __init__(self, gps_points_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plain_crs: str = 'EPSG:32649', already_plain: bool = False):
+                 plain_crs: str = 'EPSG:3857', already_plain: bool = False):
         """
         a class for trajectory process
         :param gps_points_df: pd.DataFrame()

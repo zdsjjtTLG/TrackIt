@@ -47,7 +47,7 @@ class GpsPointsGdf(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None, buffer: float = 200.0,
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                 plane_crs: str = 'EPSG:32649', user_filed_list: list[str] = None,
+                 plane_crs: str = 'EPSG:3857', user_filed_list: list[str] = None,
                  already_plain: bool = False, multi_agents: bool = False):
         """
 
@@ -258,8 +258,13 @@ class GpsPointsGdf(object):
         tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf,
                                   x_field=gps_field.PLAIN_X, y_field=gps_field.PLAIN_Y)
         self.__gps_points_gdf = tks.execute(p_deviation=p_deviation, o_deviation=o_deviation)
-        self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
-            lambda x: Point(x), axis=1)
+        # self.__gps_points_gdf[geometry_field] = self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(
+        #     lambda x: Point(x), axis=1)
+        # print(self.__gps_points_gdf.crs)
+        self.__gps_points_gdf[geometry_field] = gpd.points_from_xy(self.__gps_points_gdf[gps_field.PLAIN_X],
+                                                                   self.__gps_points_gdf[gps_field.PLAIN_Y],
+                                                                   crs=self.__gps_points_gdf.crs)
+        # print(self.__gps_points_gdf.crs)
         return self
 
     def rolling_average(self, multi_agents: bool = True, rolling_window: int = 2):
