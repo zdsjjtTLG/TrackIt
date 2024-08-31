@@ -141,8 +141,12 @@ class HiddenMarkov(object):
             start_seq = self.gps_points.first_seq()
             now_ft_idx_val = now_ft_idx_map[now_ft_idx_map[gps_field.POINT_SEQ_FIELD] == start_seq].values
             # print(last_seq_list[0], start_seq)
-            if np.sum(his_ft_idx_map[his_ft_idx_map[gps_field.POINT_SEQ_FIELD] == last_seq_list[0]].values[:, 1:] -
-                      now_ft_idx_val[:, 1:]) != 0:
+            try:
+                if np.sum(his_ft_idx_map[his_ft_idx_map[gps_field.POINT_SEQ_FIELD] == last_seq_list[0]].values[:, 1:] -
+                          now_ft_idx_val[:, 1:]) != 0:
+                    cor_his = False
+            except Exception as e:
+                print('without reference to historical probability')
                 cor_his = False
 
         try:
