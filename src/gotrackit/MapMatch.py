@@ -192,6 +192,7 @@ class MapMatch(object):
             # 依据当前的GPS数据(源数据)做一个子网络
             if self.use_sub_net:
                 print(rf'using sub net')
+                add_single_ft[0] = True
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
                                                                   dup_threshold=self.dup_threshold),
@@ -335,7 +336,7 @@ class MapMatch(object):
 
 
 class OnLineMapMatch(MapMatch):
-    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True,
+    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = False,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
@@ -349,7 +350,7 @@ class OnLineMapMatch(MapMatch):
                  export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 30, multi_core_save: bool = False, instant_output: bool = False,
+                 visualization_cache_times: int = 5, multi_core_save: bool = False, instant_output: bool = False,
                  user_field_list: list[str] = None, heading_vec_len: float = 15.0):
         MapMatch.__init__(self, flag_name=flag_name, net=net, use_sub_net=use_sub_net, time_format=time_format,
                           time_unit=time_unit, gps_buffer=gps_buffer, gps_route_buffer_gap=gps_route_buffer_gap,
@@ -366,6 +367,7 @@ class OnLineMapMatch(MapMatch):
                           user_field_list=user_field_list, heading_vec_len=heading_vec_len)
         self.his_hmm_dict = dict()
         self.his_gps = dict()
+        self.add_single_ft = [True]
 
     def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None,
                 gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
@@ -383,7 +385,6 @@ class OnLineMapMatch(MapMatch):
         # check and format
         self.is_rolling_average = False
         # self.del_dwell = False
-        self.use_sub_net = False
         user_field_list = GpsPointsGdf.check(gps_points_df=gps_df, user_field_list=self.user_field_list)
         may_error_list = dict()
         error_list = list()
@@ -397,7 +398,7 @@ class OnLineMapMatch(MapMatch):
 
         # 对每辆车的轨迹进行匹配
         agent_count = 0
-        add_single_ft = [True]
+        # self.add_single_ft = [True]
 
         for agent_id, _gps_df in gps_df.groupby(gps_field.AGENT_ID_FIELD):
             cor_with_his = False
@@ -409,9 +410,10 @@ class OnLineMapMatch(MapMatch):
                     self.his_gps[agent_id] = _gps_df.copy()
                     continue
                 else:
-                    _gps_df = pd.concat([self.his_gps[agent_id], _gps_df])
+                    if agent_id in self.his_gps.keys():
+                        _gps_df = pd.concat([self.his_gps[agent_id], _gps_df])
+                        del self.his_gps[agent_id]
                     _gps_df.reset_index(inplace=True, drop=True)
-                    del self.his_gps[agent_id]
 
             print(rf'- gotrackit ------> No.{agent_count}: agent: {agent_id} ')
             try:
@@ -453,6 +455,7 @@ class OnLineMapMatch(MapMatch):
             # 依据当前的GPS数据(源数据)做一个子网络
             if self.use_sub_net:
                 print(rf'using sub net')
+                self.add_single_ft[0] = True
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
                                                                   dup_threshold=self.dup_threshold),
@@ -483,7 +486,7 @@ class OnLineMapMatch(MapMatch):
                 his_ft_idx_map = self.his_hmm_dict[agent_id].get_ft_idx_map
 
             is_success, _match_res_df = \
-                hmm_obj.hmm_rt_execute(add_single_ft=add_single_ft, last_em_para=his_emission,
+                hmm_obj.hmm_rt_execute(add_single_ft=self.add_single_ft, last_em_para=his_emission,
                                        last_seq_list=last_seq_list, his_ft_idx_map=his_ft_idx_map)
             if not is_success:
                 error_list.append(agent_id)
@@ -514,4 +517,11 @@ class OnLineMapMatch(MapMatch):
                     del hmm_res_list
                     hmm_res_list = []
 
+        if hmm_res_list:
+            export_visualization(hmm_obj_list=hmm_res_list, use_gps_source=self.use_gps_source,
+                                 export_geo=self.export_geo_res, export_html=self.export_html,
+                                 gps_radius=self.gps_radius, export_all_agents=self.export_all_agents,
+                                 out_fldr=self.out_fldr, flag_name=self.flag_name,
+                                 multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
+                                 dup_threshold=self.dup_threshold)
         return match_res_df, may_error_list, error_list
