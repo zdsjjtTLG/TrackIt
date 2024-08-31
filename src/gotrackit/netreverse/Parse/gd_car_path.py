@@ -107,8 +107,8 @@ class ParseGdPath(object):
                     q += 1
 
                 path_gdf = gpd.GeoDataFrame()
-                print(rf'##########   {self.flag_name}解析, 一共{len(path_route_dict)}条路径')
-                print(rf'##########   od_id从{min(list(path_route_dict.keys()))}开始')
+                print(rf'##########   {self.flag_name} parsing, a total of {len(path_route_dict)} paths')
+                print(rf'##########   od_id start from {min(list(path_route_dict.keys()))}')
                 for path_id in path_route_dict.keys():
                     o_loc = None
                     if self.generate_rod:
