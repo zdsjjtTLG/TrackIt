@@ -276,7 +276,7 @@ class GpsPointsGdf(object):
         """
         # 滑动窗口执行后会重置所有的gps的seq字段
         if len(self.__gps_points_gdf) <= rolling_window:
-            return None
+            return self
 
         self.__gps_points_gdf[gps_field.TIME_FIELD] = self.__gps_points_gdf[gps_field.TIME_FIELD].apply(
             lambda t: t.timestamp())
@@ -585,34 +585,35 @@ class GpsPointsGdf(object):
         """
         agent_count = self.__gps_points_gdf.groupby(agent_field)[[time_field]].count().rename(columns={time_field: 'c'})
         one_agent = list(agent_count[agent_count['c'] <= 1].index)
-
         process_trajectory = self.__gps_points_gdf[~self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
-        process_trajectory.reset_index(inplace=True, drop=True)
 
-        no_process_gps = self.__gps_points_gdf[self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
+        if not process_trajectory.empty:
+            process_trajectory.reset_index(inplace=True, drop=True)
 
-        origin_crs = self.__gps_points_gdf.crs
-        del self.__gps_points_gdf
+            no_process_gps = self.__gps_points_gdf[self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
 
-        line_gdf = process_trajectory.groupby(agent_field)[[geometry_field]].agg(
-            {geometry_field: list}).reset_index(drop=False)
-        line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda p: LineString(p))
-        line_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=origin_crs)
-        line_gdf[geometry_field] = line_gdf[geometry_field].simplify(l_threshold)
+            origin_crs = self.__gps_points_gdf.crs
+            del self.__gps_points_gdf
 
-        p_simplify_line = pd.merge(process_trajectory[[gps_field.AGENT_ID_FIELD]],
-                                   line_gdf, on=gps_field.AGENT_ID_FIELD, how='left')
-        p_simplify_line = gpd.GeoSeries(p_simplify_line[geometry_field])
+            line_gdf = process_trajectory.groupby(agent_field)[[geometry_field]].agg(
+                {geometry_field: list}).reset_index(drop=False)
+            line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda p: LineString(p))
+            line_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=origin_crs)
+            line_gdf[geometry_field] = line_gdf[geometry_field].simplify(l_threshold)
 
-        # origin point prj to simplify
-        prj_p_array = p_simplify_line.project(process_trajectory[geometry_field])
+            p_simplify_line = pd.merge(process_trajectory[[gps_field.AGENT_ID_FIELD]],
+                                       line_gdf, on=gps_field.AGENT_ID_FIELD, how='left')
+            p_simplify_line = gpd.GeoSeries(p_simplify_line[geometry_field])
 
-        process_trajectory[geometry_field] = p_simplify_line.interpolate(prj_p_array)
+            # origin point prj to simplify
+            prj_p_array = p_simplify_line.project(process_trajectory[geometry_field])
 
-        if not no_process_gps.empty:
-            self.__gps_points_gdf = pd.concat([process_trajectory, no_process_gps])
-        self.__gps_points_gdf = process_trajectory
-        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+            process_trajectory[geometry_field] = p_simplify_line.interpolate(prj_p_array)
+
+            if not no_process_gps.empty:
+                self.__gps_points_gdf = pd.concat([process_trajectory, no_process_gps])
+            self.__gps_points_gdf = process_trajectory
+            self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         return self
 
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
