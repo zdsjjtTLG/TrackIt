@@ -221,8 +221,9 @@ class GpsTrip(GpsArray):
             self.gps_points_gdf[time_field])
         self.gps_points_gdf[pre_p_field] = self.gps_points_gdf[geometry_field].shift(1).fillna(
             self.gps_points_gdf[geometry_field])
-        self.gps_points_gdf[time_gap_field] = self.gps_points_gdf[time_field] - self.gps_points_gdf[pre_time_field]
-        self.gps_points_gdf[time_gap_field] = self.gps_points_gdf[time_gap_field].apply(lambda t: t.seconds)
+        self.gps_points_gdf[time_gap_field] = \
+            (self.gps_points_gdf[time_field] - self.gps_points_gdf[pre_time_field]).dt.total_seconds()
+        # self.gps_points_gdf[time_gap_field] = self.gps_points_gdf[time_gap_field].apply(lambda t: t.seconds)
         self.gps_points_gdf[dis_gap_field] = self.gps_points_gdf[pre_p_field].distance(
             self.gps_points_gdf[geometry_field])
         # 前序agent_id

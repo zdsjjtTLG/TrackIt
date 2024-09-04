@@ -186,8 +186,8 @@ class GpsPointsGdf(object):
                                  axis=1, inplace=True)
         # must be plain
         should_be_dense_gdf = gpd.GeoDataFrame(should_be_dense_gdf, geometry=geometry_field, crs=self.crs)
-        should_be_dense_gdf[gps_field.PLAIN_X] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.x)
-        should_be_dense_gdf[gps_field.PLAIN_Y] = should_be_dense_gdf[geometry_field].apply(lambda geo: geo.y)
+        should_be_dense_gdf[gps_field.PLAIN_X] = should_be_dense_gdf[geometry_field].x
+        should_be_dense_gdf[gps_field.PLAIN_Y] = should_be_dense_gdf[geometry_field].y
         should_be_dense_gdf = should_be_dense_gdf.astype(self.__gps_points_gdf.dtypes)
         self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
         should_be_dense_gdf[ori_seq_field] = -1
@@ -220,9 +220,8 @@ class GpsPointsGdf(object):
         # 时间差
         self.__gps_points_gdf[next_time_field] = self.__gps_points_gdf[time_field].shift(-1).fillna(
             self.__gps_points_gdf[time_field])
-        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[next_time_field] - self.__gps_points_gdf[
-            time_field]
-        self.__gps_points_gdf[time_gap_field] = self.__gps_points_gdf[time_gap_field].apply(lambda x: x.seconds)
+        self.__gps_points_gdf[time_gap_field] = (self.__gps_points_gdf[next_time_field] - self.__gps_points_gdf[
+            time_field]).dt.total_seconds()
 
     def calc_pre_next_dis(self) -> pd.DataFrame():
         self.calc_adj_dis_gap()
