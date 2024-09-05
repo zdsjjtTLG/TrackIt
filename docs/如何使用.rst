@@ -778,6 +778,12 @@ GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字�
         sc = SumoConvert()
         lane_gdf, junction_gdf, lane_polygon_gdf, avg_edge_gdf, conn_gdf = sc.get_net_shp(net_path=r'./way.net.xml')
 
+        # lane_gdf = lane_gdf.to_crs('EPSG:4326')
+        # ......
+
+.. note::
+    解析出来的GeoDataFrame，其坐标系与net.xml保持一致，不一定是EPSG:4326，需要使用to_crs进行转换
+
 
 .. image:: _static/images/sumo_xfer.png
     :align: center
