@@ -1348,6 +1348,10 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
 
     gps_df = pd.read_csv(r'gps.csv')
 
+    # 去除同一出行中的相同定位时间点数据
+    gps_df.drop_duplicates(subset=['agent_id', 'time'], keep='first', inplace=True)
+    gps_df.reset_index(inplace=True, drop=True)
+
     # 构建TrajectoryPoints类, 并且指定一个plain_crs
     tp = TrajectoryPoints(gps_points_df=gps_df, time_unit='ms', plane_crs='EPSG:32649')
 
