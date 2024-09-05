@@ -1338,6 +1338,7 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
 
 --------------------------------------------------------------------------------
 
+
 示例代码如下：
 
 .. code-block:: python
@@ -1362,7 +1363,7 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
     # 卡尔曼滤波平滑
     tp.kf_smooth()
 
-    # 使用链式操作自定义预处理的先后顺序, 只要保证kf_smooth()为最后一步操作，处理后的轨迹数据即可得到分项速度数据
+    # 使用链式操作自定义预处理的先后顺序, 只要保证kf_smooth()操作后没有执行 - 滑动窗口平滑、增密，处理后的轨迹数据即可得到分项速度数据
     # tp.rolling_average().kf_smooth()
     # tp.rolling_average().lower_frequency().kf_smooth()
 
@@ -1378,6 +1379,12 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
 
     # 输出为html进行动态可视化
     tp.export_html(out_fldr=out_fldr, file_name='sample')
+
+
+.. note::
+    使用链式操作自定义预处理的先后顺序, 只要保证kf_smooth()操作后没有执行: 滑动窗口平滑，处理后的轨迹数据即可得到分项速度数据
+
+
 
 输出的html文件可以动态可视化清洗前后的轨迹点对比
 
