@@ -99,7 +99,7 @@
         # 第二个是发生警告的agent的相关信息({agent_id1: pd.DataFrame(), agent_id2: pd.DataFrame()...})
         # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
         match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-        match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/general_match_res.csv',
+        match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/sparse_match_res.csv',
                          encoding='utf_8_sig', index=False)
 
 
