@@ -1364,7 +1364,7 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
         gps_df.reset_index(inplace=True, drop=True)
 
         # 构建TrajectoryPoints类, 并且指定一个plain_crs
-        tp = TrajectoryPoints(gps_points_df=gps_df, time_unit='ms', plane_crs='EPSG:32649')
+        tp = TrajectoryPoints(gps_points_df=gps_df, time_unit='ms', plain_crs='EPSG:32649')
 
         # 间隔3个点采样一个点
         # tp.lower_frequency(lower_n=3)
@@ -2395,7 +2395,7 @@ html可视化文件是我们对匹配结果进行排查的重要文件，它可�
 
         link = gpd.read_file('Link.shp')
         node = gpd.read_file('Node.shp')
-        my_net = Net(link_gdf=link, node_gdf=node, plane_crs='EPSG:32649')
+        my_net = Net(link_gdf=link, node_gdf=node)
         my_net.init_net()
 
         # 新建一个实时匹配类别
