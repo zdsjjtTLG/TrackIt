@@ -33,7 +33,7 @@
 
 **❗❗❗Do not download the code from the GitHub repository to use!!! Just pip install gotrackit as a third-party library and use it❗❗❗**
 
-😆😁👉[Gotrackit User Manual](https://gotrackit.readthedocs.io/en/latest/)👈😝😉
+😆😁👉[Gotrackit User Manual](https://gotrackitdocs.readthedocs.io/en/latest/)👈😝😉
 </div>
 <br>
 
