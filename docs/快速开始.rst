@@ -47,7 +47,10 @@
 
         # 构建匹配类
         # 指定要输出HTML可视化文件
-        mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='general_sample',
+        # 指定项目的标志字符flag_name='general_sample', 这个用户可以自定义
+        # gps数据时间列的值都是形如2022-05-12 16:27:46，因此指定时间列格式为 '%Y-%m-%d %H:%M:%S'
+        # 关于gps_buffer的确定，需要将路网和gps数据一同使用gis软件可视化，大概确定GPS数据和候选路段的距离
+        mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='general_sample', time_format='%Y-%m-%d %H:%M:%S',
                        use_heading_inf=True, omitted_l=6.0, export_html=True, del_dwell=False,
                        out_fldr=r'./data/output/match_visualization/QuickStart-Match-1', dense_gps=False,
                        gps_radius=20.0)
@@ -59,6 +62,9 @@
         match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
         match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/general_match_res.csv',
                          encoding='utf_8_sig', index=False)
+
+
+
 
 1.4. 匹配代码2 - 稀疏数据
 ``````````````````````````````
