@@ -1,0 +1,115 @@
+🚀 快速开始
+===================================
+
+
+1. 地图匹配示例
+--------------------
+
+1.1. 安装gotrackit
+```````````````````````
+安装教程见：:doc:`如何使用`
+
+
+1.2. 数据下载
+```````````````````````
+从GitHub仓库下载样例数据：`QuickStart-Match-1 <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/QuickStart-Match-1>`_
+
+或者从百度网盘下载样例数据：`QuickStart-Match-1 <https://pan.baidu.com/s/11UdmhGJKMz3O9vmGHHSm3A?pwd=kn74>`_
+
+
+1.3. 匹配代码1 - 非稀疏数据
+``````````````````````````````
+.. code-block:: python
+    :linenos:
+
+
+    import pandas as pd
+    import geopandas as gpd
+    from gotrackit.map.Net import Net
+    from gotrackit.MapMatch import MapMatch
+    from gotrackit.gps.Trajectory import TrajectoryPoints
+
+    # 读取GPS样例数据
+    gps_df = pd.read_csv(r'./data/input/QuickStart-Match-1/example_gps.csv')
+
+    # 利用gps数据构建TrajectoryPoints, 并且对数据进行清洗
+    # 是否需要进行该步操作视实际情况而定
+    tp = TrajectoryPoints(gps_points_df=gps_df, plain_crs='EPSG:32649')
+    tp.lower_frequency(lower_n=2).kf_smooth(o_deviation=0.3)  # 由于样例数据定位频率高且有一定的误差，因此先做间隔采样然后执行滤波平滑
+    gps_df = tp.trajectory_data(_type='df')
+
+    # 读取路网数据并且构建Net类、初始化
+    link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+    my_net = Net(link_gdf=link, node_gdf=node, not_conn_cost=1200)
+    my_net.init_net()  # net初始化
+
+    # 构建匹配类
+    # 指定要输出HTML可视化文件
+    mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='general_sample',
+                   use_heading_inf=True, omitted_l=6.0, export_html=True, del_dwell=False,
+                   out_fldr=r'./data/output/match_visualization/QuickStart-Match-1', dense_gps=False,
+                   gps_radius=20.0)
+
+    # 执行匹配
+    # 第一个返回结果是匹配结果表
+    # 第二个是发生警告的agent的相关信息({agent_id1: pd.DataFrame(), agent_id2: pd.DataFrame()...})
+    # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
+    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/general_match_res.csv',
+                     encoding='utf_8_sig', index=False)
+
+1.4. 匹配代码1 - 稀疏数据
+``````````````````````````````
+.. code-block:: python
+    :linenos:
+
+    import pandas as pd
+    import geopandas as gpd
+    from gotrackit.map.Net import Net
+    from gotrackit.MapMatch import MapMatch
+    from gotrackit.gps.Trajectory import TrajectoryPoints
+
+    # 读取GPS样例数据
+    gps_df = pd.read_csv(r'./data/input/QuickStart-Match-1/example_sparse_gps.csv')
+
+    # 利用gps数据构建TrajectoryPoints, 是否需要进行该步操作视实际情况而定
+    tp = TrajectoryPoints(gps_points_df=gps_df, plain_crs='EPSG:32649')
+    tp.dense(dense_interval=120)  # 由于样例数据是稀疏定位数据，我们在匹配前进行增密处理
+    gps_df = tp.trajectory_data(_type='df')
+    tp.export_html(out_fldr=r'./data/output/match_visualization/QuickStart-Match-1')  # 输出增密前后的轨迹对比
+
+    # 读取路网数据并且构建Net类、初始化
+    link = gpd.read_file(r'./data/input/net/xian/modifiedConn_link.shp')
+    node = gpd.read_file(r'./data/input/net/xian/modifiedConn_node.shp')
+    my_net = Net(link_gdf=link, node_gdf=node, not_conn_cost=1200)
+    my_net.init_net()  # net初始化
+
+    # 由于轨迹点中大部分点是增密后的点，所以我们需要将gps_buffer调大才能确保轨迹点关联到路段
+    # 由于我们已经提前将GPS数据进行增密，因此不需要使用MapMatch中的增密 - dense_gps=False
+    mpm = MapMatch(net=my_net, gps_buffer=700, top_k=20, flag_name='sparse_sample',
+                   export_html=True,
+                   out_fldr=r'./data/output/match_visualization/QuickStart-Match-1', dense_gps=False,
+                   gps_radius=15.0)
+
+
+    # 执行匹配
+    # 第一个返回结果是匹配结果表
+    # 第二个是发生警告的agent的相关信息({agent_id1: pd.DataFrame(), agent_id2: pd.DataFrame()...})
+    # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
+    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/general_match_res.csv',
+                     encoding='utf_8_sig', index=False)
+
+
+1.3. 结果输出与可视化
+```````````````````````
+
+1.3.1. 轨迹预处理前后对比可视化
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+1.3.2. 匹配结果可视化
+::::::::::::::::::::::::::::::::::::::::::::::::
+
+匹配解解雇可视化
