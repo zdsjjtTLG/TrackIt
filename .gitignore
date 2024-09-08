@@ -14,11 +14,10 @@ main_get_net_jb.py
 
 用户手册word版.docx
 
+
 data/output/
-data/output/match_visualization/
-data/intput/daily_prj/
-data/intput/net/lane/
-data/intput/net/test/
+data/input/net/
+data/input/region/
 
 PrivateDoc/
 # Distribution / packaging
