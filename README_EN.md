@@ -38,7 +38,7 @@
 <br>
 
 
-**💬version status：07.11 Updated: v0.3.7**
+**💬version status：09.04 Updated: v0.3.10**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
@@ -157,7 +157,7 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 ### 1.2 How to use gotrackit
 
-- [User manual](https://gotrackit.readthedocs.io/en/latest/)
+- [User manual](https://gotrackitdocs.readthedocs.io/en/latest/)
 
 - [Animated version of map matching algorithm based on Hidden Markov Model (HMM)!](https://www.bilibili.com/video/BV1gQ4y1w7dC)
 
