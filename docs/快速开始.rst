@@ -65,12 +65,13 @@
 
 关于如何确定gps_buffer，这个和GPS的定位误差大小有关系，如下图，我们将GPS数据与路网一同在QGIS中进行可视化
 
-可以看到定位频率不算低，且定位点偏离道路不算远，大概在85米左右，为了确保所有的GPS点都能关联到候选路段，我们取gps_buffer=120米较为合适
-
 .. image:: _static/images/quick_start/general.png
     :align: center
 
 --------------------------------------------------------------------------------
+
+可以看到GPS点定位频率不算低，且定位点偏离道路不算远，大概在85米左右，为了确保所有的GPS点都能关联到候选路段，我们取gps_buffer=120米较为合适
+
 
 .. image:: _static/images/quick_start/general_dis.png
     :align: center
@@ -123,12 +124,13 @@
 
 如下图，我们可看到，GPS点进行增密后，增密点距离候选路段很远，大概有350米左右（蓝色点为源数据点，红色点为增密后的点）
 
-为了保证所有的增密点都能关联到候选路段，我们考虑较多的富余，取值gps_buffer=700，top_k=20，即选取每个GPS点附近700米范围内的最近20个路段作为候选路段
-
 .. image:: _static/images/quick_start/dense.png
     :align: center
 
 --------------------------------------------------------------------------------
+
+为了保证所有的增密点都能关联到候选路段，我们考虑较多的富余，取值gps_buffer=700，top_k=20，即选取每个GPS点附近700米范围内的最近20个路段作为候选路段
+
 
 .. image:: _static/images/quick_start/dense_dis.png
     :align: center
