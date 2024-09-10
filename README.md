@@ -29,6 +29,8 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 
 ~ 💪一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位💪 ~
 
+👻Developed by TangKai, Email: 794568794@qq.com，关注B站Up：[码不停的Tank](https://space.bilibili.com/49719605) 获取更多开源分享👻
+
 🔑gotrackit迭代更新很快，记得关注版本更新信息哦🔑
 
 **❗❗❗不要下载GitHub仓库上的代码来使用!!!  直接pip安装gotrackit为第三方库即可使用❗❗❗**
@@ -66,9 +68,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 - 时间序列计算BUG修复
 
 - 其他BUG修复
-
-👻Developed by TangKai, Email: 794568794@qq.com，关注B站Up：[码不停的Tank](https://space.bilibili.com/49719605) 获取更多开源分享👻
-
 
 
 <div align=center>
