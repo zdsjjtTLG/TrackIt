@@ -46,7 +46,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
     <img src="docs/_static/images/FunctionGraph.png" />
 </div>
 
-👻Developed by TangKai, Email: 794568794@qq.com，关注B站Up：[码不停的Tank](https://space.bilibili.com/49719605) 获取更多开源分享👻
 
 **💬版本状态: 09.04已经更新v0.3.10**
 
@@ -68,6 +67,7 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 
 - 其他BUG修复
 
+👻Developed by TangKai, Email: 794568794@qq.com，关注B站Up：[码不停的Tank](https://space.bilibili.com/49719605) 获取更多开源分享👻
 
 
 
