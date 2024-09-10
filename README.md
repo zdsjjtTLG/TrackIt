@@ -40,6 +40,15 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 <br>
 
 
+<div align=center>
+~ gotrackit功能概览 ~
+</div>
+
+<div align="center">
+    <img src="docs/_static/images/FunctionGraph.png" />
+</div>
+
+
 **💬版本状态: 09.04已经更新v0.3.10**
 
 - 路网优化模块：节点/路段重塑函数BUG修复、创建点层函数BUG修复
@@ -61,15 +70,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 - 其他BUG修复
 
 
-
-
-<div align=center>
-~ gotrackit功能概览 ~
-</div>
-
-<div align="center">
-    <img src="docs/_static/images/FunctionGraph.png" />
-</div>
 
 
 <div align=center>
