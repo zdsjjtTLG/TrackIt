@@ -56,7 +56,27 @@ GDAL若安装失败，推荐直接安装whl文件，下载地址：https://githu
 
     pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
+1.2.1. 从0开始配置新环境
+::::::::::::::::::::::::::
 
+1.直接使用pip配置这些库 ::
+
+    pip install pandas -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install networkx -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install shapely==2.0.3 -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install fiona==1.9.5 -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install pyproj==3.6.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+2.然后使用whl配置GDAL, 直接把下载好的whl文件拖到install命令行即可 ::
+    pip install GDAL-3.8.4-cp311-cp311-win_amd64.whl
+
+3.pip继续配置 ::
+    pip install geopandas -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install geopy -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install keplergl==0.3.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install -i  https://pypi.org/simple/ gotrackit
+
+完成安装
 
 2. 算法包概览
 --------------------
