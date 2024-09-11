@@ -68,9 +68,11 @@ GDAL若安装失败，推荐直接安装whl文件，下载地址：https://githu
     pip install pyproj==3.6.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 2.然后使用whl配置GDAL, 直接把下载好的whl文件拖到install命令行即可 ::
+
     pip install GDAL-3.8.4-cp311-cp311-win_amd64.whl
 
 3.pip继续配置 ::
+
     pip install geopandas -i https://pypi.tuna.tsinghua.edu.cn/simple
     pip install geopy -i https://pypi.tuna.tsinghua.edu.cn/simple
     pip install keplergl==0.3.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
