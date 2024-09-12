@@ -208,12 +208,23 @@ https://github.com/zdsjjtTLG/TrackIt
 [BUG提交页面](https://github.com/zdsjjtTLG/TrackIt/issues)
 
 
-## 2. 地图匹配定义
+## 2. 贡献者名单
+
+在GoTrackIt的迭代发展过程中，他们对GoTrackIt提出了很多宝贵的意见，带来了大量实用的设计思路，助力GotTrackIt成为更加普及的开源项目！
+
+- 陈先龙，314059@qq.com，广州市交通规划研究院有限公司-模型工程师
+- 郑贵兵，1441411885@qq.com，广州市交通规划研究院有限公司-GIS工程师
+- 陈龙，cl@gmail.com，英国利兹大学博士后
+- 万志杨，1115897470@qq.com，四川省交通运输发展战略和规划科学研究院-交通大数据工程师
+- 郭凯，rsroyceguo@gmail.com，独立开发者
+- 费怡瑄，2022224127@chd.edu.cn，长安大学信息工程学院-硕士研究生
+
+## 3. 地图匹配定义
 
 ![car_gps.png](docs/_static/images/MapMatch.PNG)
 
 
-## 3. 地图匹配应用场景
+## 4. 地图匹配应用场景
 
 ![car_gps.png](docs/_static/images/application.PNG)
 
