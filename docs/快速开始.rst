@@ -110,7 +110,7 @@
         # 由于轨迹点中大部分点是增密后的点，所以我们需要将gps_buffer调大才能确保轨迹点关联到路段
         # 由于我们已经提前将GPS数据进行增密，因此不需要使用MapMatch中的增密 - dense_gps=False
         mpm = MapMatch(net=my_net, gps_buffer=700, top_k=20, flag_name='sparse_sample',
-                       export_html=True, time_format='%Y-%m-%d %H:%M:%S',
+                       export_html=True, time_format='%Y-%m-%d %H:%M:%S', use_heading_inf=True,
                        out_fldr=r'./data/output/match_visualization/QuickStart-Match-1', dense_gps=False,
                        gps_radius=15.0)
 
