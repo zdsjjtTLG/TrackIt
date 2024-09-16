@@ -159,12 +159,12 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                     [LineString(coords[:i + 1]), LineString(coords[i:])], dx, dy
             if xd > distance:
                 cp = line.interpolate(distance)
-                prj_p = Point((cp.x, cp.y))
+                # prj_p = Point((cp.x, cp.y))
                 # prj_vec = np.array(coords[i]) - np.array(coords[i - 1])
                 dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
-                return prj_p, prj_p.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
-                                                                         LineString(
-                                                                             [(cp.x, cp.y)] + coords[i:])], dx, dy
+                return cp, cp.distance(p), distance, line.length, [LineString(coords[:i] + [(cp.x, cp.y)]),
+                                                                   LineString(
+                                                                       [(cp.x, cp.y)] + coords[i:])], dx, dy
     # to here means error
     raise ValueError(r'路段几何存在重叠环路线型, 请使用redivide_link_node函数处理')
 
