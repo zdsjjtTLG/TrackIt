@@ -179,7 +179,7 @@ class Link(object):
             cost_list = [self.get_link_attr_by_ft(attr_name=self.weight_field, from_node=node_path[i],
                                                   to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
             return node_path, sum(cost_list)
-        except nx.NetworkXNoPath as e:
+        except Exception as e:
             return [], self.not_conn_cost
 
     def get_shortest_path(self, o_node=None, d_node=None, weight_field: str = None):
