@@ -16,10 +16,11 @@ def build_time_col(df: pd.DataFrame or gpd.GeoDataFrame = None, time_format: str
     :param time_field:
     :return:
     """
-    try:
-        df[time_field] = pd.to_datetime(df[time_field], format=time_format)
-    except ValueError:
-        print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
-        if df[time_field].dtype == object:
-            df[time_field] = df[time_field].astype(float)
-        df[time_field] = pd.to_datetime(df[time_field], unit=time_unit)
+    if df[time_field].dtype not in ['datetime64[ns]', 'datetime64[ms]', 'datetime64[s]']:
+        try:
+            df[time_field] = pd.to_datetime(df[time_field], format=time_format)
+        except ValueError:
+            print(rf'time column does not match format {time_format}, try using time-unit: {time_unit}')
+            if df[time_field].dtype == object:
+                df[time_field] = df[time_field].astype(float)
+            df[time_field] = pd.to_datetime(df[time_field], unit=time_unit)
