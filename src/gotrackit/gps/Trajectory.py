@@ -28,6 +28,8 @@ class TrajectoryPoints(GpsPointsGdf):
         :param plain_crs: string
         :param already_plain: bool
         """
+        self.time_format = time_format
+        self.time_unit = time_unit
         user_field_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
                                                              gps_field.POINT_SEQ_FIELD})
         user_field_list = self.check(gps_points_df=gps_points_df, user_field_list=user_field_list)
@@ -60,14 +62,12 @@ class TrajectoryPoints(GpsPointsGdf):
             vis_df = pd.DataFrame(_df)
             vis_df.sort_values(by='type', ascending=False, inplace=True)
             cen_x, cen_y = vis_df[gps_field.LNG_FIELD].mean(), vis_df[gps_field.LAT_FIELD].mean(),
-            s_time, e_time = vis_df[gps_field.TIME_FIELD].min().timestamp(), vis_df[
-                gps_field.TIME_FIELD].max().timestamp()
-            vis_df[gps_field.TIME_FIELD] = vis_df[gps_field.TIME_FIELD].astype(str)
+            # vis_df[gps_field.TIME_FIELD] = vis_df[gps_field.TIME_FIELD].astype(str)
             try:
                 kv = KeplerVis(cen_loc=[cen_x, cen_y])
-                kv.add_point_layer(data=vis_df, lng_field=lng_field, lat_field=lat_field,
-                                   time_field=time_field, layer_id='trajectory', color=[65, 72, 88],
-                                   s_time=s_time, e_time=e_time)
+                kv.add_point_layer(vis_df, lng_field=lng_field, lat_field=lat_field, time_format=self.time_format,
+                                   time_unit=self.time_unit,
+                                   time_field=time_field, layer_id='trajectory', color=[65, 72, 88])
                 kv.export_html(out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
             except Exception as e:
                 print(repr(e))
