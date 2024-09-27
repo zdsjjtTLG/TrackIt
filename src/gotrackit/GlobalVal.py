@@ -46,6 +46,7 @@ class GpsField(object):
         self.ORIGIN_AGENT_ID_FIELD = 'origin_agent_id'
         self.TYPE_FIELD = 'type'
         self.NEXT_LINK_FIELD = 'next_link'
+        self.NEXT_SINGLE = 'next_single'
         self.GEOMETRY_FIELD = 'geometry'
         self.FROM_GPS_SEQ = 'from_seq'
         self.TO_GPS_SEQ = 'to_seq'
@@ -328,16 +329,22 @@ class KeplerConfig(object):
         self.MATCH_LINK_NAME = 'match_link'
         self.TRAJECTORY_NAME = 'trajectory'
 
-    def get_glb_map_config(self):
+    def get_glb_map_config(self) -> dict:
         return copy.deepcopy(self.__GLB_MAP_CONFIG)
 
-    def get_base_layer_config(self):
+    def get_base_layer_config(self) -> dict:
         return copy.deepcopy(self.__BASE_LAYER_CONFIG)
 
-    def get_time_filter_config(self):
+    def get_time_filter_config(self) -> dict:
         return copy.deepcopy(self.__TIME_FILTER_CONFIG)
 
 
 class PrjConst(object):
     def __init__(self):
         self.PRJ_CRS = 'EPSG:4326'
+
+
+class ColorMap(object):
+    def __init__(self):
+        self.color = {'red': [255, 0, 0], 'yellow': [255, 255, 0], 'blue': [0, 0, 255],
+                      'cyan': [0, 255, 255], 'pink': [255, 192, 203], 'purple': [255, 192, 203]}
