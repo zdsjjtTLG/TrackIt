@@ -181,26 +181,28 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
     con = LngLatTransfer()
 
     gdf[geometry_field] = gdf.apply(lambda row: con.obj_convert(geo_obj=row[geometry_field], con_type='None'), axis=1)
-    gdf = pd.DataFrame(gdf)
-    gdf[[geometry_field, 'is_multi']] = \
-        gdf.apply(lambda row:
-                  (list(row[geometry_field].geoms), 1)
-                  if isinstance(row[geometry_field], (MultiPolygon, MultiLineString, MultiPoint))
-                  else (row[geometry_field], 0), axis=1, result_type='expand')
+    gdf = gdf.explode(ignore_index=True)
+    # gdf = pd.DataFrame(gdf)
+    # gdf[[geometry_field, 'is_multi']] = \
+    #     gdf.apply(lambda row:
+    #               (list(row[geometry_field].geoms), 1)
+    #               if isinstance(row[geometry_field], (MultiPolygon, MultiLineString, MultiPoint))
+    #               else (row[geometry_field], 0), axis=1, result_type='expand')
+    #
+    # is_multi_index = gdf['is_multi'] == 1
+    # multi_gdf = gdf[is_multi_index].copy()
+    #
+    # if not multi_gdf.empty:
+    #     gdf.drop(index=gdf[is_multi_index].index, axis=0, inplace=True)
+    #     multi_gdf = multi_gdf.explode(column=[geometry_field], ignore_index=True)
+    #     multi_gdf.dropna(subset=[geometry_field], axis=0, inplace=True)
+    #     multi_gdf = multi_gdf.astype(gdf.dtypes)
+    #     gdf = pd.concat([gdf, multi_gdf])
+    #     gdf.reset_index(inplace=True, drop=True)
+    #
+    # gdf.drop(columns=['is_multi'], axis=1, inplace=True)
+    # gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
 
-    is_multi_index = gdf['is_multi'] == 1
-    multi_gdf = gdf[is_multi_index].copy()
-
-    if not multi_gdf.empty:
-        gdf.drop(index=gdf[is_multi_index].index, axis=0, inplace=True)
-        multi_gdf = multi_gdf.explode(column=[geometry_field], ignore_index=True)
-        multi_gdf.dropna(subset=[geometry_field], axis=0, inplace=True)
-        multi_gdf = multi_gdf.astype(gdf.dtypes)
-        gdf = pd.concat([gdf, multi_gdf])
-        gdf.reset_index(inplace=True, drop=True)
-
-    gdf.drop(columns=['is_multi'], axis=1, inplace=True)
-    gdf = gpd.GeoDataFrame(gdf, geometry=geometry_field, crs=origin_crs)
     gdf = gdf.to_crs(plain_crs)
     try:
         gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(l_threshold)
