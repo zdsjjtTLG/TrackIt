@@ -2584,7 +2584,7 @@ add_point_layer功能参数：
 * set_avg_zoom
     bool, 是否自动定位中心点, 默认True
 
-若数据中包含时间信息，请指定时间列格式参数：
+（可选）若数据中包含时间信息，请指定时间列格式参数：
 
 * time_field
     str, 时间列字段名称，默认None
@@ -2649,7 +2649,7 @@ add_geo_layer功能参数：
 * set_avg_zoom
     bool, 是否自动定位中心点, 默认True
 
-若数据中包含时间信息，请指定时间列格式参数：
+（可选）若数据中包含时间信息，请指定时间列格式参数：
 
 * time_field
     str, 时间列字段名称，默认None
