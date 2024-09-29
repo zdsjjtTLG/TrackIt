@@ -144,7 +144,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].x
         self.__gps_points_gdf[gps_field.PLAIN_Y] = self.__gps_points_gdf[net_field.GEOMETRY_FIELD].y
 
-    def dense(self, dense_interval: float = 120.0):
+    def dense_alpha(self, dense_interval: float = 120.0):
         """
 
         :param dense_interval:
@@ -197,6 +197,69 @@ class GpsPointsGdf(object):
 
         self.add_seq_field(gps_points_gdf=self.__gps_points_gdf, multi_agents=self.multi_agents)
 
+        if not self.__user_gps_info.empty:
+            self.__user_gps_info[ori_seq_field] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD]
+            del self.__user_gps_info[gps_field.POINT_SEQ_FIELD]
+            self.__user_gps_info = pd.merge(self.__user_gps_info, self.__gps_points_gdf[
+                [ori_seq_field, gps_field.POINT_SEQ_FIELD, agent_field]], on=[ori_seq_field, agent_field],
+                                            how='left')
+            self.__user_gps_info[gps_field.POINT_SEQ_FIELD] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD].fillna(
+                -1).astype(int)
+            del self.__user_gps_info[ori_seq_field]
+        del self.__gps_points_gdf[ori_seq_field]
+        return self
+
+    def dense(self, dense_interval: float = 120.0):
+        """
+
+        :param dense_interval:
+        :return:
+        """
+        if len(self.__gps_points_gdf) <= 1:
+            return self
+        # 时间差和距离差
+        self.calc_adj_dis_gap()
+        self.calc_adj_time_gap()
+        not_same_agent_idx = self.not_same_agent_idx()
+        choose_idx = (self.__gps_points_gdf[dis_gap_field] > dense_interval) & ~not_same_agent_idx
+        self.__gps_points_gdf['all_idx'] = [i for i in range(len(self.__gps_points_gdf))]
+        self.__gps_points_gdf[n_seg_field] = 0
+        should_be_dense_gdf = self.__gps_points_gdf[choose_idx].copy()
+        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
+                                   inplace=True)
+        if should_be_dense_gdf.empty:
+            return self
+
+        should_be_dense_gdf[n_seg_field] = (0.001 + should_be_dense_gdf[dis_gap_field] / dense_interval).astype(
+            int) + 1
+        should_be_dense_gdf[n_seg_field] = should_be_dense_gdf[n_seg_field].apply(lambda n: [x for x in range(1, n)])
+        del should_be_dense_gdf[geometry_field]
+        should_be_dense_gdf = should_be_dense_gdf[[agent_field, n_seg_field, 'all_idx']].copy()
+        should_be_dense_gdf = should_be_dense_gdf.explode(column=n_seg_field, ignore_index=True)
+
+        self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
+        self.__gps_points_gdf.sort_values(by=[agent_field, 'all_idx', n_seg_field], inplace=True)
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = \
+            self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].fillna(-1).astype(int)
+
+        self.__gps_points_gdf[[time_field, 'prj_x', 'prj_y']] = self.__gps_points_gdf[
+            [time_field, 'prj_x', 'prj_y']].interpolate(method='linear')
+        del self.__gps_points_gdf['all_idx'], self.__gps_points_gdf[n_seg_field]
+
+        # must be plain
+        dense_idx = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] == -1
+        self.__gps_points_gdf.loc[dense_idx, geometry_field] = gpd.points_from_xy(
+            self.__gps_points_gdf.loc[dense_idx, 'prj_x'],
+            self.__gps_points_gdf.loc[dense_idx, 'prj_y'], crs=self.plane_crs)
+
+        self.__gps_points_gdf[ori_seq_field] = self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD]
+
+        # self.__gps_points_gdf = pd.concat([self.__gps_points_gdf, should_be_dense_gdf])
+        # self.__gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
+        # self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+        self.add_seq_field(gps_points_gdf=self.__gps_points_gdf, multi_agents=self.multi_agents)
+        #
         if not self.__user_gps_info.empty:
             self.__user_gps_info[ori_seq_field] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD]
             del self.__user_gps_info[gps_field.POINT_SEQ_FIELD]
@@ -576,8 +639,10 @@ class GpsPointsGdf(object):
         if not multi_agents:
             gps_points_gdf[gps_field.POINT_SEQ_FIELD] = [i for i in range(len(gps_points_gdf))]
         else:
+            gps_points_gdf['-'] = [i for i in range(len(gps_points_gdf))]
             gps_points_gdf[gps_field.POINT_SEQ_FIELD] = \
-                gps_points_gdf.groupby(agent_field)[gps_field.TIME_FIELD].rank(method='min').astype(int) - 1
+                gps_points_gdf.groupby(agent_field)['-'].rank(method='min').astype(int) - 1
+            del gps_points_gdf['-']
 
     def simplify_trajectory(self, l_threshold: float = 5.0):
         """
