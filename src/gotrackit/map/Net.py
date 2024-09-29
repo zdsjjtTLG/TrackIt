@@ -858,11 +858,12 @@ class Net(object):
         return min_lng, min_lat, max_lng, max_lat
 
     @staticmethod
-    def split_segment(path_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame or pd.DataFrame:
+    def split_segment(path_gdf: gpd.GeoDataFrame = None, del_loc: bool = True) -> gpd.GeoDataFrame or pd.DataFrame:
         """
         拆解轨迹坐标, 并且粗去重(按照路段的起终点坐标)
         :param path_gdf: gpd.GeoDataFrame(), 必需参数, 必须字段: [geometry], crs要求EPSG:4326
-        :return: gpd.GeoDataFrame(),
+        :param del_loc:
+        :return: gpd.GeoDataFrame()
         """
         path_gdf['point_list'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: list(x.coords))
         path_gdf['line_list'] = path_gdf['point_list'].apply(
@@ -880,7 +881,8 @@ class Net(object):
         del path_gdf['ft-loc'], path_gdf[net_field.LENGTH_FIELD]
         path_gdf[net_field.X_DIFF] = path_gdf['t_x'] - path_gdf['f_x']
         path_gdf[net_field.Y_DIFF] = path_gdf['t_y'] - path_gdf['f_y']
-        del path_gdf['f_x'], path_gdf['f_y'], path_gdf['t_x'], path_gdf['t_y']
+        if del_loc:
+            del path_gdf['f_x'], path_gdf['f_y'], path_gdf['t_x'], path_gdf['t_y']
         path_gdf[net_field.VEC_LEN] = np.sqrt(path_gdf[net_field.X_DIFF] ** 2 + path_gdf[net_field.Y_DIFF] ** 2)
         # path_gdf['__l__'] = path_gdf[net_field.GEOMETRY_FIELD].length
         path_gdf[net_field.SEG_ACCU_LENGTH] = \
