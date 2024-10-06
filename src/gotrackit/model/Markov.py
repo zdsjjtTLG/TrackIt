@@ -13,14 +13,16 @@ import networkx as nx
 import geopandas as gpd
 from ..map.Net import Net
 from .Para import ParaGrid
-from datetime import timedelta
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
 from ..tools.geo_process import prj_inf
+from ..tools.geo_process import vec_angle
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Point, LineString
+from ..MatchResAna import format_warn_info_to_geo
 from ..GlobalVal import NetField, GpsField, MarkovField
-from ..tools.geo_process import n_equal_points, vec_angle
+
+
 
 gps_field = GpsField()
 net_field = NetField()
@@ -721,96 +723,95 @@ class HiddenMarkov(object):
         p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
         return p
 
-    def acquire_res(self) -> gpd.GeoDataFrame():
+    def acquire_res(self, path_completion_method: str = 'alpha') -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(
             {'idx': self.index_state_list, gps_field.POINT_SEQ_FIELD: self.gps_points.used_observation_seq_list})
 
-        gps_link_state_df = pd.merge(state_idx_df, self.__ft_idx_map, on=[gps_field.POINT_SEQ_FIELD, 'idx'])
-        del gps_link_state_df['idx']
+        gps_match_res_gdf = pd.merge(state_idx_df, self.__ft_idx_map, on=[gps_field.POINT_SEQ_FIELD, 'idx'])
+        del gps_match_res_gdf['idx'], state_idx_df
         single_link = self.net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD,
                                                 net_field.LINK_ID_FIELD,
                                                 net_field.DIRECTION_FIELD,
                                                 net_field.FROM_NODE_FIELD,
                                                 net_field.TO_NODE_FIELD]].copy()
         single_link.reset_index(inplace=True, drop=True)
-        gps_link_state_df = pd.merge(gps_link_state_df, single_link, on=net_field.SINGLE_LINK_ID_FIELD, how='left')
-
-        gps_link_state_df[gps_field.SUB_SEQ_FIELD] = 0
-        gps_link_state_df = pd.merge(gps_link_state_df, self.__done_prj_df[[gps_field.POINT_SEQ_FIELD,
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf, single_link, on=net_field.SINGLE_LINK_ID_FIELD, how='left')
+        del single_link
+        gps_match_res_gdf[gps_field.SUB_SEQ_FIELD] = 0
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf, self.__done_prj_df[[gps_field.POINT_SEQ_FIELD,
                                                                             net_field.SINGLE_LINK_ID_FIELD,
                                                                             markov_field.PRJ_GEO, net_field.X_DIFF,
                                                                             net_field.Y_DIFF, net_field.VEC_LEN,
                                                                             'route_dis']],
                                      on=[gps_field.POINT_SEQ_FIELD,
                                          net_field.SINGLE_LINK_ID_FIELD], how='left')
-        temp_df = gps_link_state_df[[net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN]].copy()
+        temp_df = gps_match_res_gdf[[net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN]].copy()
         temp_df['vl'], temp_df['dx'], temp_df['dy'] = 1.0, 0.0, 1.0
         vec_angle(df=temp_df, val_field='vl', va_dx_field='dx', va_dy_field='dy')
         __idx = temp_df[net_field.X_DIFF] < 0
         temp_df.loc[__idx, 'theta'] = 360 - temp_df.loc[__idx, :]['theta']
-        gps_link_state_df[markov_field.MATCH_HEADING] = np.around(temp_df['theta'], 2)
+        gps_match_res_gdf[markov_field.MATCH_HEADING] = np.around(temp_df['theta'], 2)
         del temp_df
 
-        gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[
-            [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1)
-        gps_link_state_df.fillna(-99, inplace=True)
-        gps_link_state_df[['next_single', 'next_seq']] = gps_link_state_df[['next_single', 'next_seq']].astype(int)
+        gps_match_res_gdf[[gps_field.NEXT_SINGLE, gps_field.NEXT_SEQ]] = gps_match_res_gdf[
+            [net_field.SINGLE_LINK_ID_FIELD, gps_field.POINT_SEQ_FIELD]].shift(-1).ffill().astype(int)
 
         self.__s2s_route_l.rename(columns={gps_field.FROM_GPS_SEQ: gps_field.POINT_SEQ_FIELD,
-                                           gps_field.TO_GPS_SEQ: 'next_seq',
+                                           gps_field.TO_GPS_SEQ: gps_field.NEXT_SEQ,
                                            markov_field.FROM_STATE: net_field.SINGLE_LINK_ID_FIELD,
-                                           markov_field.TO_STATE: 'next_single',
+                                           markov_field.TO_STATE: gps_field.NEXT_SINGLE,
                                            markov_field.ROUTE_LENGTH: markov_field.DIS_TO_NEXT}, inplace=True)
 
-        # 给每个gps加上dis_to_next
-        gps_link_state_df = pd.merge(gps_link_state_df, self.__s2s_route_l, how='left',
-                                     on=[gps_field.POINT_SEQ_FIELD, 'next_seq',
-                                         net_field.SINGLE_LINK_ID_FIELD, 'next_single'])
+        # add dis_to_next
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf, self.__s2s_route_l, how='left',
+                                     on=[gps_field.POINT_SEQ_FIELD, gps_field.NEXT_SEQ,
+                                         net_field.SINGLE_LINK_ID_FIELD, gps_field.NEXT_SINGLE])
 
         # 给每个gps加上geo和time, 匹配gps和原gps可能不一样, 存在GPS没有关联到任何路网
         gps_time_geo = self.gps_points.gps_gdf
-        gps_link_state_df = pd.merge(gps_link_state_df, gps_time_geo[[gps_field.POINT_SEQ_FIELD, gps_field.TIME_FIELD,
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf, gps_time_geo[[gps_field.POINT_SEQ_FIELD, gps_field.TIME_FIELD,
                                                                       gps_field.GEOMETRY_FIELD]], how='left',
                                      on=gps_field.POINT_SEQ_FIELD)
-
-        # 获取补全的路径
-        # gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, gps_field.SUB_SEQ_FIELD
-        # net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD
-        # gps_field.TIME_FIELD, net_field.GEOMETRY_FIELD
-        omitted_gps_state_df = self.acquire_omitted_match_item(gps_link_state_df=gps_link_state_df)
-        del gps_link_state_df['next_single'], gps_link_state_df['next_seq'], gps_link_state_df[gps_field.NEXT_LINK_FIELD]
-
-        gps_user_info = self.gps_points.user_info
-        del gps_user_info[gps_field.AGENT_ID_FIELD]
-        gps_link_state_df = pd.merge(gps_link_state_df, gps_user_info, on=gps_field.POINT_SEQ_FIELD, how='left')
-
-        if not omitted_gps_state_df.empty:
-            omitted_gps_state_df[gps_field.TIME_FIELD] = omitted_gps_state_df[gps_field.TIME_FIELD].astype(
-                gps_link_state_df[gps_field.TIME_FIELD].dtype)
-            gps_link_state_df = pd.concat([gps_link_state_df, omitted_gps_state_df])
-            gps_link_state_df.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
-                                          ascending=[True, True], inplace=True)
-            gps_link_state_df.reset_index(inplace=True, drop=True)
-        gps_link_state_df.loc[gps_link_state_df[gps_field.SUB_SEQ_FIELD] >= 1, gps_field.LOC_TYPE] = 'c'
-        gps_link_state_df[gps_field.LOC_TYPE] = gps_link_state_df[gps_field.LOC_TYPE].fillna('d')
-
-        gps_match_res_gdf = gpd.GeoDataFrame(gps_link_state_df, geometry=gps_field.GEOMETRY_FIELD,
-                                             crs=self.gps_points.crs)
-        del gps_link_state_df
+        gps_match_res_gdf = \
+            gpd.GeoDataFrame(gps_match_res_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.gps_points.crs)
         gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
         gps_match_res_gdf[gps_field.LNG_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].x
         gps_match_res_gdf[gps_field.LAT_FIELD] = gps_match_res_gdf[gps_field.GEOMETRY_FIELD].y
-        prj_gdf = gps_match_res_gdf[[markov_field.PRJ_GEO]].copy()
-        del gps_match_res_gdf[markov_field.PRJ_GEO]
-        prj_gdf.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
-        prj_gdf = gpd.GeoDataFrame(prj_gdf, geometry=markov_field.PRJ_GEO, crs=self.gps_points.plane_crs)
-        prj_gdf = prj_gdf.to_crs(self.gps_points.geo_crs)
-        prj_gdf['prj_lng'] = prj_gdf[markov_field.PRJ_GEO].x
-        prj_gdf['prj_lat'] = prj_gdf[markov_field.PRJ_GEO].y
-        gps_match_res_gdf = pd.merge(gps_match_res_gdf, prj_gdf, how='left', left_index=True, right_index=True)
+
+        # 获取补全的路径
+        # seq, single_link_id, sub_seq, link_id, dir, from_node, to_node, time
+        if path_completion_method == 'alpha':
+            omitted_gps_state_df = self.acquire_omitted_match_item(gps_link_state_df=gps_match_res_gdf)
+        else:
+            omitted_gps_state_df = self.acquire_omitted_match_item_alpha(gps_link_state_df=gps_match_res_gdf)
+        del gps_match_res_gdf[gps_field.NEXT_SINGLE], gps_match_res_gdf[gps_field.NEXT_SEQ]
+
+        gps_user_info = self.gps_points.user_info
+        del gps_user_info[gps_field.AGENT_ID_FIELD]
+        gps_match_res_gdf = pd.merge(gps_match_res_gdf, gps_user_info, on=gps_field.POINT_SEQ_FIELD, how='left')
+
+        if not omitted_gps_state_df.empty:
+            gps_match_res_gdf = pd.concat([gps_match_res_gdf, omitted_gps_state_df])
+            gps_match_res_gdf.sort_values(by=[gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD],
+                                          ascending=[True, True], inplace=True)
+            gps_match_res_gdf.reset_index(inplace=True, drop=True)
+            gps_match_res_gdf[[gps_field.TIME_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD]] = gps_match_res_gdf[
+                [gps_field.TIME_FIELD, gps_field.LNG_FIELD, gps_field.LAT_FIELD]].interpolate(method='linear')
+        gps_match_res_gdf.loc[gps_match_res_gdf[gps_field.SUB_SEQ_FIELD] >= 1, gps_field.LOC_TYPE] = 'c'
+        gps_match_res_gdf[gps_field.LOC_TYPE] = gps_match_res_gdf[gps_field.LOC_TYPE].fillna('d')
+
+        na_geo = gps_match_res_gdf[net_field.GEOMETRY_FIELD].isna()
+        gps_match_res_gdf.loc[na_geo, net_field.GEOMETRY_FIELD] = gpd.points_from_xy(
+            gps_match_res_gdf.loc[na_geo, gps_field.LNG_FIELD], gps_match_res_gdf.loc[na_geo, gps_field.LAT_FIELD])
+
+        gps_match_res_gdf.set_geometry(markov_field.PRJ_GEO, crs=self.net.planar_crs, inplace=True)
+        gps_match_res_gdf = gps_match_res_gdf.to_crs(self.gps_points.geo_crs)
+        gps_match_res_gdf['prj_lng'] = gps_match_res_gdf[markov_field.PRJ_GEO].x
+        gps_match_res_gdf['prj_lat'] = gps_match_res_gdf[markov_field.PRJ_GEO].y
+        gps_match_res_gdf.set_geometry(gps_field.GEOMETRY_FIELD, crs=self.net.geo_crs, inplace=True)
         gps_match_res_gdf[gps_field.AGENT_ID_FIELD] = self.gps_points.agent_id
-        del prj_gdf
+        # del prj_gdf
         self.gps_match_res_gdf = gps_match_res_gdf
         return self.gps_match_res_gdf[[gps_field.AGENT_ID_FIELD, gps_field.POINT_SEQ_FIELD, gps_field.SUB_SEQ_FIELD,
                                        gps_field.TIME_FIELD, gps_field.LOC_TYPE, net_field.LINK_ID_FIELD,
@@ -821,27 +822,22 @@ class HiddenMarkov(object):
 
     def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
         """
-        推算补全不完整的路径之间的path以及GPS点
-        :param gps_link_state_df: 初步的匹配结果, 可能存在断掉的路径
+        Calculate and complete the paths between discontinuous links
+        :param gps_link_state_df: preliminary matching results, there may be broken paths
         :return:
         """
         bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
-        gps_match_res_gdf = self.gps_points.gps_gdf
 
         # 找出断掉的路径
         gps_link_state_df.sort_values(by=gps_field.POINT_SEQ_FIELD, ascending=True, inplace=True)
-        gps_link_state_df[gps_field.NEXT_LINK_FIELD] = \
-            gps_link_state_df[net_field.SINGLE_LINK_ID_FIELD].shift(-1).fillna(-99).astype(int)
         gps_link_state_df.reset_index(inplace=True, drop=True)
 
         ft_node_link_mapping = self.net.get_ft_node_link_mapping()
         omitted_gps_state_item = []
-        omitted_gps_points = []
-        omitted_gps_points_time = []
         used_observation_seq_list = self.gps_points.used_observation_seq_list
         for i, used_o in enumerate(used_observation_seq_list[:-1]):
             ft_state = (int(gps_link_state_df.at[i, net_field.SINGLE_LINK_ID_FIELD]),
-                        int(gps_link_state_df.at[i, gps_field.NEXT_LINK_FIELD]))
+                        int(gps_link_state_df.at[i, gps_field.NEXT_SINGLE]))
 
             now_from_node, now_to_node = int(gps_link_state_df.at[i, net_field.FROM_NODE_FIELD]), \
                 int(gps_link_state_df.at[i, net_field.TO_NODE_FIELD])
@@ -855,12 +851,11 @@ class HiddenMarkov(object):
                 pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
                 next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                 if ft_state in self.__adj_seq_path_dict.keys():
-                    # pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
-                    # next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
                     node_seq = self.__adj_seq_path_dict[ft_state]
                     if node_seq[1] != now_to_node:
                         warnings.warn(
-                            rf'gps seq: {pre_seq} -> {next_seq} problem with state transfer, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                            rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                            from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
                         # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
                         self.warn_info['from_ft'].append(
                             (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
@@ -871,28 +866,15 @@ class HiddenMarkov(object):
                     else:
                         _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
                                              range(1, len(node_seq) - 1)]
-
                     omitted_gps_state_item.extend([
                         (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
                         for _single_link, sub_seq in zip(_single_link_list,
                                                          range(1, len(_single_link_list) + 1))])
-
-                    # 利用前后的GPS点信息来补全缺失的GPS点
-                    pre_order_gps, next_order_gps = gps_match_res_gdf.at[pre_seq, net_field.GEOMETRY_FIELD], \
-                        gps_match_res_gdf.at[next_seq, net_field.GEOMETRY_FIELD]
-                    omitted_gps_points.extend(n_equal_points(len(_single_link_list) + 1,
-                                                             from_loc=(pre_order_gps.x, pre_order_gps.y),
-                                                             to_loc=(next_order_gps.x, next_order_gps.y)))
-                    # 一条补出来的路生成一个GPS点
-                    pre_seq_time, next_seq_time = gps_match_res_gdf.at[pre_seq, gps_field.TIME_FIELD], \
-                        gps_match_res_gdf.at[next_seq, gps_field.TIME_FIELD]
-                    dt = (next_seq_time - pre_seq_time).total_seconds() / (len(omitted_gps_points) + 1)
-                    omitted_gps_points_time.extend(
-                        [pre_seq_time + timedelta(seconds=dt * n) for n in range(1, len(_single_link_list) + 1)])
                 else:
                     self.is_warn = True
                     warnings.warn(
-                        rf'gps seq: {pre_seq} -> {next_seq} problem with state transfer, from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}')
+                        rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                        from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
                     # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
                     self.warn_info['from_ft'].append(
                         (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
@@ -907,10 +889,100 @@ class HiddenMarkov(object):
                                                                              net_field.FROM_NODE_FIELD,
                                                                              net_field.TO_NODE_FIELD])
         del omitted_gps_state_item
+        omitted_gps_state_df = pd.merge(omitted_gps_state_df, self.net.get_link_data()[[net_field.FROM_NODE_FIELD,
+                                                                                        net_field.TO_NODE_FIELD,
+                                                                                        net_field.GEOMETRY_FIELD,
+                                                                                        net_field.LENGTH_FIELD]],
+                                        on=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], how='left')
+        omitted_gps_state_df[markov_field.DRIVING_L] = omitted_gps_state_df[net_field.LENGTH_FIELD] / 2
+        omitted_gps_state_df[markov_field.PRJ_GEO] = gpd.GeoSeries(
+            omitted_gps_state_df[net_field.GEOMETRY_FIELD]).interpolate(omitted_gps_state_df[markov_field.DRIVING_L])
+        del omitted_gps_state_df[net_field.LENGTH_FIELD], omitted_gps_state_df[net_field.GEOMETRY_FIELD]
+        return omitted_gps_state_df
 
-        omitted_gps_state_df[gps_field.TIME_FIELD] = omitted_gps_points_time
-        omitted_gps_state_df[net_field.GEOMETRY_FIELD] = [Point(loc) for loc in omitted_gps_points]
+    @function_time_cost
+    def acquire_omitted_match_item_alpha(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Calculate and complete the paths between discontinuous links, suitable for large amounts of data
+        :param gps_link_state_df: preliminary matching results, there may be broken paths
+        """
+        bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
 
+        # Finding discontinuous paths
+        gps_link_state_df.sort_values(by=gps_field.POINT_SEQ_FIELD, ascending=True, inplace=True)
+        gps_link_state_df.reset_index(inplace=True, drop=True)
+        gps_link_state_df[['next_f', 'next_t']] = \
+            gps_link_state_df[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]].shift(-1).ffill().astype(int)
+
+        not_conn_df = gps_link_state_df[
+            ~((gps_link_state_df[net_field.SINGLE_LINK_ID_FIELD] == gps_link_state_df[gps_field.NEXT_SINGLE]) |
+              (gps_link_state_df['next_f'] == gps_link_state_df[net_field.TO_NODE_FIELD]))].copy()
+        del gps_link_state_df['next_f'], gps_link_state_df['next_t']
+        if not_conn_df.empty:
+            return pd.DataFrame()
+        val = not_conn_df[[net_field.SINGLE_LINK_ID_FIELD, gps_field.NEXT_SINGLE,
+                           net_field.FROM_NODE_FIELD, 'next_f', net_field.TO_NODE_FIELD, 'next_t',
+                           gps_field.POINT_SEQ_FIELD, gps_field.NEXT_SEQ]].values
+        del not_conn_df
+        ft_node_link_mapping = self.net.get_ft_node_link_mapping()
+        omitted_item_list = list()
+        for i in range(len(val)):
+            pre_seq, next_seq = val[i, 6], val[i, 7]
+            ft_state = (int(val[i, 0]), int(val[i, 1]))
+            now_from_node, now_to_node = val[i, 2], val[i, 4]
+            next_from_node, next_to_node = val[i, 3], val[i, 5]
+            if ft_state in self.__adj_seq_path_dict.keys():
+                node_seq = self.__adj_seq_path_dict[ft_state]
+                if node_seq[1] != now_to_node:
+                    warnings.warn(
+                        rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                        from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                    # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                    self.warn_info['from_ft'].append(
+                        (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    self.warn_info['to_ft'].append(
+                        (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    _single_link_list = [pre_seq, [j + 1 for j in range(len(node_seq) - 1)],
+                                         [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                          range(0, len(node_seq) - 1)]]
+                else:
+                    _single_link_list = [pre_seq, [j + 1 for j in range(len(node_seq) - 2)],
+                                         [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                          range(1, len(node_seq) - 1)]]
+                omitted_item_list.append(_single_link_list)
+            else:
+                self.is_warn = True
+                warnings.warn(
+                    rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                    from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                self.warn_info['from_ft'].append(
+                    (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                self.warn_info['to_ft'].append(
+                    (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+
+        omitted_gps_state_df = pd.DataFrame(omitted_item_list,
+                                            columns=[gps_field.POINT_SEQ_FIELD, 'sub_seq',
+                                                     net_field.SINGLE_LINK_ID_FIELD])
+        del omitted_item_list
+        omitted_gps_state_df = omitted_gps_state_df.explode(column=['sub_seq', net_field.SINGLE_LINK_ID_FIELD],
+                                                            ignore_index=True)
+        omitted_gps_state_df['link_info'] = omitted_gps_state_df[net_field.SINGLE_LINK_ID_FIELD].map(
+            bilateral_unidirectional_mapping)
+        omitted_gps_state_df[net_field.LINK_ID_FIELD] = omitted_gps_state_df['link_info'].apply(lambda item: item[0])
+        omitted_gps_state_df[net_field.DIRECTION_FIELD] = omitted_gps_state_df['link_info'].apply(lambda item: item[1])
+        omitted_gps_state_df[net_field.FROM_NODE_FIELD] = omitted_gps_state_df['link_info'].apply(lambda item: item[2])
+        omitted_gps_state_df[net_field.TO_NODE_FIELD] = omitted_gps_state_df['link_info'].apply(lambda item: item[3])
+        del omitted_gps_state_df['link_info']
+        omitted_gps_state_df = pd.merge(omitted_gps_state_df, self.net.get_link_data()[[net_field.FROM_NODE_FIELD,
+                                                                                        net_field.TO_NODE_FIELD,
+                                                                                        net_field.GEOMETRY_FIELD,
+                                                                                        net_field.LENGTH_FIELD]],
+                                        on=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], how='left')
+        omitted_gps_state_df[markov_field.DRIVING_L] = omitted_gps_state_df[net_field.LENGTH_FIELD] / 2
+        omitted_gps_state_df[markov_field.PRJ_GEO] = gpd.GeoSeries(
+            omitted_gps_state_df[net_field.GEOMETRY_FIELD]).interpolate(omitted_gps_state_df[markov_field.DRIVING_L])
+        del omitted_gps_state_df[net_field.LENGTH_FIELD], omitted_gps_state_df[net_field.GEOMETRY_FIELD]
         return omitted_gps_state_df
 
     def acquire_visualization_res(self, use_gps_source: bool = False,
@@ -920,6 +992,8 @@ class HiddenMarkov(object):
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """获取可视化结果"""
         if self.__plot_mix_gdf is None:
+            if self.gps_match_res_gdf is None:
+                self.acquire_res()
             # print('初次计算')
             single_link_gdf = self.net.get_link_data()[
                 [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
@@ -940,16 +1014,24 @@ class HiddenMarkov(object):
                             single_link_gdf[net_field.LINK_ID_FIELD].isin(pre_filter_link)].copy()
                     except Exception as e:
                         print(repr(e), 'spatial layered association failure')
-                single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
-                used_node = set(single_link_gdf[net_field.FROM_NODE_FIELD]) | set(single_link_gdf[net_field.TO_NODE_FIELD])
+                _single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
+                _gap = set(self.gps_match_res_gdf[net_field.SINGLE_LINK_ID_FIELD]) - set(
+                    _single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])
+                if _gap:
+                    single_link_gdf = pd.concat(
+                        [_single_link_gdf, single_link_gdf[single_link_gdf[net_field.SINGLE_LINK_ID_FIELD].isin(_gap)]])
+                else:
+                    single_link_gdf = _single_link_gdf
+                used_node = set(single_link_gdf[net_field.FROM_NODE_FIELD]) | set(
+                    single_link_gdf[net_field.TO_NODE_FIELD])
                 node_gdf = node_gdf[node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].copy()
-
+                single_link_gdf.reset_index(inplace=True, drop=True)
             net_crs = self.net.crs
             plain_crs = self.net.planar_crs
             is_geo_crs = self.net.is_geo_crs()
 
-            if self.gps_match_res_gdf is None:
-                self.acquire_res()
+            # if self.gps_match_res_gdf is None:
+            #     self.acquire_res()
 
             # gps点输出
             plot_gps_gdf = self.gps_match_res_gdf[
@@ -996,18 +1078,7 @@ class HiddenMarkov(object):
             if self.format_warn_info.empty:
                 pass
             else:
-                self.format_warn_info[['from_single', 'to_single', 'ft_gps']] = self.format_warn_info.apply(
-                    lambda row: (row['from_ft'][0], row['to_ft'][0], row['from_ft'][3]),
-                    axis=1, result_type='expand')
-                format_warn_df = pd.concat([self.format_warn_info[['from_single', 'ft_gps']].rename(
-                    columns={'from_single': net_field.SINGLE_LINK_ID_FIELD}),
-                                            self.format_warn_info[['to_single', 'ft_gps']].rename(
-                                                columns={'to_single': net_field.SINGLE_LINK_ID_FIELD})])
-                format_warn_df.reset_index(inplace=True, drop=True)
-                may_error_gdf = pd.merge(format_warn_df,
-                                         single_link_gdf, on=net_field.SINGLE_LINK_ID_FIELD, how='left')
-                may_error_gdf = gpd.GeoDataFrame(may_error_gdf, geometry=net_field.GEOMETRY_FIELD,
-                                                 crs=single_link_gdf.crs)
+                may_error_gdf = format_warn_info_to_geo(warn_info=self.format_warn_info, single_link_gdf=single_link_gdf)
 
             # 路网底图
             origin_link_gdf = single_link_gdf.drop_duplicates(subset=[net_field.LINK_ID_FIELD], keep='first').copy()
@@ -1017,16 +1088,6 @@ class HiddenMarkov(object):
                 node_gdf = node_gdf.to_crs(self.net.geo_crs)
                 if not may_error_gdf.empty:
                     may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
-            # origin_link_gdf[net_field.GEOMETRY_FIELD] = origin_link_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
-            # node_gdf[net_field.GEOMETRY_FIELD] = node_gdf[net_field.GEOMETRY_FIELD].buffer(node_radius)
-
-            # if not may_error_gdf.empty:
-            #     may_error_gdf[net_field.GEOMETRY_FIELD] = may_error_gdf[net_field.GEOMETRY_FIELD].buffer(link_width)
-
-            # origin_link_gdf = origin_link_gdf.to_crs(self.net.geo_crs)
-            # if not may_error_gdf.empty:
-            #     may_error_gdf = may_error_gdf.to_crs(self.net.geo_crs)
-            # node_gdf = node_gdf.to_crs(self.net.geo_crs)
 
             self.__plot_mix_gdf, self.__base_link_gdf, self.__base_node_gdf, self.__may_error = \
                 gps_link_gdf, origin_link_gdf, node_gdf, may_error_gdf
@@ -1054,8 +1115,10 @@ class HiddenMarkov(object):
         prj_p_layer.dropna(subset=[markov_field.PRJ_GEO], inplace=True)
         prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=self.gps_points.geo_crs)
 
-        prj_p_layer['__geo'] = prj_p_layer.apply(
-            lambda item: LineString((item[gps_field.GEOMETRY_FIELD], item[markov_field.PRJ_GEO])), axis=1)
+        # prj_p_layer['__geo'] = prj_p_layer.apply(
+        #     lambda item: LineString((item[gps_field.GEOMETRY_FIELD], item[markov_field.PRJ_GEO])), axis=1)
+        prj_p_layer['__geo'] = [LineString((g, pg)) for g, pg in
+                                zip(prj_p_layer[gps_field.GEOMETRY_FIELD], prj_p_layer[markov_field.PRJ_GEO])]
 
         # prj_l_layer
         prj_l_layer = prj_p_layer[[gps_field.POINT_SEQ_FIELD, '__geo']].copy()
@@ -1083,6 +1146,7 @@ class HiddenMarkov(object):
 
         # heading vec layer
         match_heading_gdf = prj_p_layer.copy()
+        match_heading_gdf.dropna(subset=[net_field.X_DIFF], inplace=True, axis=0)
         match_heading_gdf = match_heading_gdf.to_crs(self.net.planar_crs)
         match_heading_gdf.loc[match_heading_gdf[net_field.VEC_LEN] <= 0, net_field.VEC_LEN] = 1
 
