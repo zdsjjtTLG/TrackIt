@@ -3,11 +3,11 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-"""GCJO2、百度、84坐标互转"""
+"""GCJ-O2、百度、84坐标互转"""
 
 import math
 import shapely
-import datetime
+import numpy as np
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
 
 
@@ -19,20 +19,20 @@ class LngLatTransfer(object):
         self.a = 6378245.0  # 长半轴
         self.es = 0.00669342162296594323  # 偏心率平方
 
-    def GCJ02_to_BD09(self, gcj_lng, gcj_lat) -> tuple[float, float]:
+    def GCJ02_to_BD09(self, gcj_lng: float or np.ndarray, gcj_lat: float or np.ndarray) -> tuple[float, float]:
         """
         实现GCJ02向BD09坐标系的转换
         :param gcj_lng: GCJ02坐标系下的经度
         :param gcj_lat: GCJ02坐标系下的纬度
         :return:
         """
-        z = math.sqrt(gcj_lng * gcj_lng + gcj_lat * gcj_lat) + 0.00002 * math.sin(gcj_lat * self.x_pi)
-        theta = math.atan2(gcj_lat, gcj_lng) + 0.000003 * math.cos(gcj_lng * self.x_pi)
-        bd_lng = z * math.cos(theta) + 0.0065
-        bd_lat = z * math.sin(theta) + 0.006
+        z = np.sqrt(gcj_lng * gcj_lng + gcj_lat * gcj_lat) + 0.00002 * np.sin(gcj_lat * self.x_pi)
+        theta = np.arctan2(gcj_lat, gcj_lng) + 0.000003 * np.cos(gcj_lng * self.x_pi)
+        bd_lng = z * np.cos(theta) + 0.0065
+        bd_lat = z * np.sin(theta) + 0.006
         return bd_lng, bd_lat
 
-    def BD09_to_GCJ02(self, bd_lng, bd_lat) -> tuple[float, float]:
+    def BD09_to_GCJ02(self, bd_lng: float or np.ndarray, bd_lat: float or np.ndarray) -> tuple[float, float]:
         '''
         实现BD09坐标系向GCJ02坐标系的转换
         :param bd_lng: BD09坐标系下的经度
@@ -41,13 +41,13 @@ class LngLatTransfer(object):
         '''
         x = bd_lng - 0.0065
         y = bd_lat - 0.006
-        z = math.sqrt(x * x + y * y) - 0.00002 * math.sin(y * self.x_pi)
-        theta = math.atan2(y, x) - 0.000003 * math.cos(x * self.x_pi)
-        gcj_lng = z * math.cos(theta)
-        gcj_lat = z * math.sin(theta)
+        z = np.sqrt(x * x + y * y) - 0.00002 * np.sin(y * self.x_pi)
+        theta = np.arctan2(y, x) - 0.000003 * np.cos(x * self.x_pi)
+        gcj_lng = z * np.cos(theta)
+        gcj_lat = z * np.sin(theta)
         return gcj_lng, gcj_lat
 
-    def WGS84_to_GCJ02(self, lng, lat) -> tuple[float, float]:
+    def WGS84_to_GCJ02(self, lng: float or np.ndarray, lat: float or np.ndarray) -> tuple[float, float]:
         '''
         实现WGS84坐标系向GCJ02坐标系的转换
         :param lng: WGS84坐标系下的经度
@@ -57,16 +57,16 @@ class LngLatTransfer(object):
         dlat = self._transformlat(lng - 105.0, lat - 35.0)
         dlng = self._transformlng(lng - 105.0, lat - 35.0)
         radlat = lat / 180.0 * self.pi
-        magic = math.sin(radlat)
+        magic = np.sin(radlat)
         magic = 1 - self.es * magic * magic
-        sqrtmagic = math.sqrt(magic)
+        sqrtmagic = np.sqrt(magic)
         dlat = (dlat * 180.0) / ((self.a * (1 - self.es)) / (magic * sqrtmagic) * self.pi)
-        dlng = (dlng * 180.0) / (self.a / sqrtmagic * math.cos(radlat) * self.pi)
+        dlng = (dlng * 180.0) / (self.a / sqrtmagic * np.cos(radlat) * self.pi)
         gcj_lat = lat + dlat
         gcj_lng = lng + dlng
         return gcj_lng, gcj_lat
 
-    def GCJ02_to_WGS84(self, gcj_lng, gcj_lat) -> tuple[float, float]:
+    def GCJ02_to_WGS84(self, gcj_lng: float or np.ndarray, gcj_lat: float or np.ndarray) -> tuple[float, float]:
         '''
         实现GCJ02坐标系向WGS84坐标系的转换
         :param gcj_lng: GCJ02坐标系下的经度
@@ -76,11 +76,11 @@ class LngLatTransfer(object):
         dlat = self._transformlat(gcj_lng - 105.0, gcj_lat - 35.0)
         dlng = self._transformlng(gcj_lng - 105.0, gcj_lat - 35.0)
         radlat = gcj_lat / 180.0 * self.pi
-        magic = math.sin(radlat)
+        magic = np.sin(radlat)
         magic = 1 - self.es * magic * magic
-        sqrtmagic = math.sqrt(magic)
+        sqrtmagic = np.sqrt(magic)
         dlat = (dlat * 180.0) / ((self.a * (1 - self.es)) / (magic * sqrtmagic) * self.pi)
-        dlng = (dlng * 180.0) / (self.a / sqrtmagic * math.cos(radlat) * self.pi)
+        dlng = (dlng * 180.0) / (self.a / sqrtmagic * np.cos(radlat) * self.pi)
         mglat = gcj_lat + dlat
         mglng = gcj_lng + dlng
         lng = gcj_lng * 2 - mglng
@@ -107,29 +107,29 @@ class LngLatTransfer(object):
         lng, lat = self.WGS84_to_GCJ02(lng, lat)
         return self.GCJ02_to_BD09(lng, lat)
 
-    def _transformlat(self, lng, lat) -> float:
+    def _transformlat(self, lng: float or np.ndarray, lat: float or np.ndarray) -> float:
         ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + \
-              0.1 * lng * lat + 0.2 * math.sqrt(math.fabs(lng))
-        ret += (20.0 * math.sin(6.0 * lng * self.pi) + 20.0 *
-                math.sin(2.0 * lng * self.pi)) * 2.0 / 3.0
-        ret += (20.0 * math.sin(lat * self.pi) + 40.0 *
-                math.sin(lat / 3.0 * self.pi)) * 2.0 / 3.0
-        ret += (160.0 * math.sin(lat / 12.0 * self.pi) + 320 *
-                math.sin(lat * self.pi / 30.0)) * 2.0 / 3.0
+              0.1 * lng * lat + 0.2 * np.sqrt(np.fabs(lng))
+        ret += (20.0 * np.sin(6.0 * lng * self.pi) + 20.0 *
+                np.sin(2.0 * lng * self.pi)) * 2.0 / 3.0
+        ret += (20.0 * np.sin(lat * self.pi) + 40.0 *
+                np.sin(lat / 3.0 * self.pi)) * 2.0 / 3.0
+        ret += (160.0 * np.sin(lat / 12.0 * self.pi) + 320 *
+                np.sin(lat * self.pi / 30.0)) * 2.0 / 3.0
         return ret
 
-    def _transformlng(self, lng, lat) -> float:
+    def _transformlng(self, lng: float or np.ndarray, lat: float or np.ndarray) -> float:
         ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + \
-              0.1 * lng * lat + 0.1 * math.sqrt(math.fabs(lng))
-        ret += (20.0 * math.sin(6.0 * lng * self.pi) + 20.0 *
-                math.sin(2.0 * lng * self.pi)) * 2.0 / 3.0
-        ret += (20.0 * math.sin(lng * self.pi) + 40.0 *
-                math.sin(lng / 3.0 * self.pi)) * 2.0 / 3.0
-        ret += (150.0 * math.sin(lng / 12.0 * self.pi) + 300.0 *
-                math.sin(lng / 30.0 * self.pi)) * 2.0 / 3.0
+              0.1 * lng * lat + 0.1 * np.sqrt(np.fabs(lng))
+        ret += (20.0 * np.sin(6.0 * lng * self.pi) + 20.0 *
+                np.sin(2.0 * lng * self.pi)) * 2.0 / 3.0
+        ret += (20.0 * np.sin(lng * self.pi) + 40.0 *
+                np.sin(lng / 3.0 * self.pi)) * 2.0 / 3.0
+        ret += (150.0 * np.sin(lng / 12.0 * self.pi) + 300.0 *
+                np.sin(lng / 30.0 * self.pi)) * 2.0 / 3.0
         return ret
 
-    def WGS84_to_WebMercator(self, lng, lat) -> tuple[float, float]:
+    def WGS84_to_WebMercator(self, lng: float or np.ndarray, lat: float or np.ndarray) -> tuple[float, float]:
         '''
         实现WGS84向web墨卡托的转换
         :param lng: WGS84经度
@@ -137,11 +137,11 @@ class LngLatTransfer(object):
         :return: 转换后的web墨卡托坐标
         '''
         x = lng * 20037508.342789 / 180
-        y = math.log(math.tan((90 + lat) * self.pi / 360)) / (self.pi / 180)
+        y = np.log(np.tan((90 + lat) * self.pi / 360)) / (self.pi / 180)
         y = y * 20037508.34789 / 180
         return x, y
 
-    def WebMercator_to_WGS84(self, x, y) -> tuple[float, float]:
+    def WebMercator_to_WGS84(self, x: float or np.ndarray, y: float or np.ndarray) -> tuple[float, float]:
         '''
         实现web墨卡托向WGS84的转换
         :param x: web墨卡托x坐标
@@ -150,10 +150,10 @@ class LngLatTransfer(object):
         '''
         lng = x / 20037508.34 * 180
         lat = y / 20037508.34 * 180
-        lat = 180 / self.pi * (2 * math.atan(math.exp(lat * self.pi / 180)) - self.pi / 2)
+        lat = 180 / self.pi * (2 * np.arctan2(np.exp(lat * self.pi / 180)) - self.pi / 2)
         return lng, lat
 
-    def loc_convert(self, lng, lat, con_type='gc2bd') -> tuple[float, float]:
+    def loc_convert(self, lng: float or np.ndarray, lat: float or np.ndarray, con_type='gc2bd') -> tuple[float, float]:
         if con_type == 'gc-bd':
             return self.GCJ02_to_BD09(lng, lat)
         elif con_type == 'gc-84':
@@ -230,22 +230,16 @@ def judge_hole(p=None) -> bool:
 
 
 if __name__ == '__main__':
-    # fileName = r'F:\武汉轨迹数据\交通事故(2018年)\accidentFileLocations.csv'
-    # transData = pd.read_csv(fileName, engine='python')
-    # transData["WGS84lng"] = None
-    # transData["WGS84lat"] = None
-    # # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
-    # handler = LngLatTransfer()
-    # # transData[["WGS84lng", "WGS84lat"]] = transData.apply(lambda x: handler.GCJ02_to_WGS84(x["LON"], x["LAT"]), axis=1,
-    # #                                                       result_type="expand")
-    #
-    # x, y = handler.loc_convert(120.002458,30.288055, con_type='gc-84')
-    # print(x, y)
+    import pandas as pd
+    handler = LngLatTransfer()
+    transData = pd.DataFrame({'x': [114.2361, 114.669, 113.695], 'y': [22.22,22.36, 36.44]})
+    transData["lng"], transData['lat'] = handler.loc_convert(transData['x'], transData['y'], con_type='gc-84')
+    # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
+    print(transData)
 
-    x = datetime.datetime.now()
+    x, y = handler.loc_convert(113.695, 36.44, con_type='gc-bd')
+
     print(x)
-    print(x.timestamp())
-
-
+    print(y)
 
 
