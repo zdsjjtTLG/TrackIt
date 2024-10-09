@@ -10,11 +10,12 @@ import os
 import pickle
 import numpy as np
 import pandas as pd
+import networkx as nx
 import multiprocessing
 from .Link import Link
 from .Node import Node
-import networkx as nx
 import geopandas as gpd
+from itertools import islice
 from ..tools.group import cut_group
 from shapely.geometry import LineString
 from ..tools.geo_process import prj_inf
@@ -891,3 +892,6 @@ class Net(object):
         # del path_gdf['__l__']
         return path_gdf
 
+    def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2):
+        g = self.__link.get_graph()
+        return list(islice(nx.shortest_simple_paths(g, o, d, weight=self.weight_field), k))
