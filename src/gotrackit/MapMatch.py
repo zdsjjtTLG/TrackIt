@@ -26,7 +26,7 @@ node_id_field = net_field.NODE_ID_FIELD
 class MapMatch(object):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
-                 gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
+                 gps_buffer: float = 200.0, use_node_restrict: bool = False, gps_route_buffer_gap: float = 15.0,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
                  is_lower_f: bool = False, lower_n: int = 2,
                  use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
@@ -93,6 +93,7 @@ class MapMatch(object):
         self.dense_gps = dense_gps  # 是否加密GPS
         self.dense_interval = dense_interval  # 加密阈值(前后GPS点直线距离超过该值就会启用线性加密)
         self.gps_buffer = gps_buffer  # gps的关联范围(m)
+        self.use_node_restrict = use_node_restrict
         self.use_sub_net = use_sub_net  # 是否启用子网络
         self.gps_route_buffer_gap = gps_route_buffer_gap
         self.use_heading_inf = use_heading_inf
@@ -142,6 +143,7 @@ class MapMatch(object):
         :return:
         """
         # check and format
+        self.node_restrict_format(gps_df=gps_df)
         user_field_list = GpsPointsGdf.check(gps_points_df=gps_df, user_field_list=self.user_field_list)
 
         match_res_df = pd.DataFrame()
@@ -210,7 +212,8 @@ class MapMatch(object):
             hmm_obj = HiddenMarkov(net=used_net, gps_points=gps_obj, beta=self.beta, gps_sigma=self.gps_sigma,
                                    not_conn_cost=self.not_conn_cost, use_heading_inf=self.use_heading_inf,
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
-                                   top_k=self.top_k, omitted_l=self.omitted_l, para_grid=self.para_grid,
+                                   top_k=self.top_k, use_node_restrict=self.use_node_restrict,
+                                   omitted_l=self.omitted_l, para_grid=self.para_grid,
                                    heading_vec_len=self.heading_vec_len)
             if not self.use_para_grid:
                 is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
@@ -334,6 +337,13 @@ class MapMatch(object):
             print(rf'gps-preprocessing: dense gps by interval: {self.dense_interval}m')
             gps_obj.dense(dense_interval=dense_interval)
 
+    def node_restrict_format(self, gps_df: pd.DataFrame = None):
+        if self.use_node_restrict:
+            assert node_id_field in gps_df.columns, 'turn on use_node_restrict, but no node_id field in data'
+            if self.user_field_list is None:
+                self.user_field_list = [node_id_field]
+            if node_id_field not in self.user_field_list:
+                self.user_field_list.append(node_id_field)
 
 class OnLineMapMatch(MapMatch):
     def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = False,

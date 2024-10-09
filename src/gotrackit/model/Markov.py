@@ -43,7 +43,8 @@ class HiddenMarkov(object):
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
                  not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
                  dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
-                 use_para_grid: bool = False, heading_vec_len: float = 15.0, flag_name: str = None,
+                 use_para_grid: bool = False, use_node_restrict: bool = False,
+                 heading_vec_len: float = 15.0, flag_name: str = None,
                  out_fldr: str = None):
         self.gps_points = gps_points
         self.net = net
@@ -83,6 +84,7 @@ class HiddenMarkov(object):
         self.use_para_grid = use_para_grid
         self.para_grid = para_grid
         self.heading_vec_len = heading_vec_len
+        self.use_node_restrict = use_node_restrict
 
         self.out_fldr = out_fldr
         self.flag_name = flag_name
@@ -297,7 +299,8 @@ class HiddenMarkov(object):
         # 初步依据gps点buffer得到候选路段, 关联不到的GPS点删除掉
         # seq, geometry, single_link_id, from_node, to_node, dir, length
         gps_candidate_link, _gap = self.gps_points.generate_candidate_link(net=self.net,
-                                                                           is_hierarchical=self.net.is_hierarchical)
+                                                                           is_hierarchical=self.net.is_hierarchical,
+                                                                           use_node_restrict=self.use_node_restrict)
 
         if gps_candidate_link.empty:
             print(r'GPS data sample points cannot be associated with any road section.')

@@ -41,6 +41,7 @@ n_seg_field = gps_field.N_SEGMENTS
 geo_crs = prj_const.PRJ_CRS
 sub_group_field = gps_field.SUB_GROUP_FIELD
 ori_seq_field = gps_field.ORIGIN_POINT_SEQ_FIELD
+node_id_field = net_field.NODE_ID_FIELD
 
 
 class GpsPointsGdf(object):
@@ -437,12 +438,14 @@ class GpsPointsGdf(object):
         self.gps_rou_buffer = gps_array_buffer
         return gps_array_buffer
 
-    def generate_candidate_link(self, net: Net = None, is_hierarchical: bool = False) -> \
+    def generate_candidate_link(self, net: Net = None, is_hierarchical: bool = False,
+                                use_node_restrict: bool = False) -> \
             tuple[pd.DataFrame, list[int]]:
         """
         计算GPS观测点的候选路段
         :param net:
-        :param is_hierarchical
+        :param is_hierarchical:
+        :param use_node_restrict:
         :return: GPS候选路段信息, 未匹配到候选路段的gps点id
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
@@ -463,17 +466,52 @@ class GpsPointsGdf(object):
         single_link_gdf.reset_index(inplace=True, drop=True)
         single_link_gdf['single_link_geo'] = single_link_gdf[geometry_field]
         candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
+
+        if use_node_restrict:
+            candidate_link = self.station_restrict(candidate_link=candidate_link, single_link_gdf=single_link_gdf)
+
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))
 
         if not candidate_link.empty:
             candidate_link.drop(columns=['index_right', 'gps_buffer'], axis=1, inplace=True)
-            # add link geo
-            # single_link_gdf.rename(columns={net_field.GEOMETRY_FIELD: 'single_link_geo'}, inplace=True)
-            # candidate_link = pd.merge(candidate_link,
-            #                           single_link_gdf[[net_field.SINGLE_LINK_ID_FIELD, 'single_link_geo']],
-            #                           on=net_field.SINGLE_LINK_ID_FIELD, how='left')
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
+
+    def station_restrict(self, candidate_link:gpd.GeoDataFrame or pd.DataFrame, single_link_gdf:gpd.GeoDataFrame):
+        restrict_candidate_list = list()
+        try:
+            if node_id_field in self.__user_gps_info.columns:
+                # del origin candidate
+                restrict_node = self.__user_gps_info[~self.__user_gps_info[node_id_field].isna()].copy()
+                if not restrict_node.empty:
+                    restrict_node[node_id_field] = restrict_node[node_id_field].astype(int)
+                    restrict_candidate_list = \
+                        [single_link_gdf[(single_link_gdf[net_field.FROM_NODE_FIELD] == n) |
+                                         (single_link_gdf[net_field.TO_NODE_FIELD] == n)].copy().assign(seq=seq)
+                         for seq, n in zip(restrict_node[gps_field.POINT_SEQ_FIELD], restrict_node[node_id_field])]
+
+                if restrict_candidate_list:
+                    restrict_candidate = pd.concat(restrict_candidate_list)
+                    del restrict_candidate_list
+                    restrict_candidate.reset_index(inplace=True, drop=True)
+                    restrict_candidate['single_link_geo'] = restrict_candidate[geometry_field]
+                    del restrict_candidate['geometry']
+                    restrict_candidate = pd.merge(restrict_candidate,
+                                                  self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, geometry_field]],
+                                                  how='left', on=gps_field.POINT_SEQ_FIELD)
+                    candidate_link.reset_index(inplace=True, drop=True)
+                    candidate_link.drop(
+                        index=candidate_link[candidate_link[gps_field.POINT_SEQ_FIELD].isin(
+                            restrict_node[gps_field.POINT_SEQ_FIELD])].index,
+                        axis=0,
+                        inplace=True)
+                    candidate_link = pd.concat([candidate_link, restrict_candidate])
+                    candidate_link.reset_index(inplace=True, drop=True)
+            else:
+                print('no node_id field in data.')
+        except Exception as e:
+            print(repr(e))
+        return candidate_link
 
     def to_plane_prj(self) -> None:
         self.__gps_points_gdf = self.__gps_points_gdf.to_crs(self.plane_crs)
