@@ -11,6 +11,7 @@ import os.path
 import datetime
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
@@ -74,15 +75,15 @@ class Route(object):
         return ft_seq
 
     @property
-    def od_route(self) -> list[tuple[int, int]]:
+    def od_route(self) -> tuple[list[tuple[int, int]], bool]:
         """通过指定起终点节点获取路径"""
         node_route, route_cost = self.net.get_shortest_path_length(o_node=self.o_node, d_node=self.d_node)
         if node_route:
             ft_seq = [(node_route[i], node_route[i + 1]) for i in range(len(node_route) - 1)]
-            return ft_seq
+            return ft_seq, True
         else:
-            print(rf'{self.od_route}->{self.d_node}: no path, enable random path...')
-            return self.random_route
+            print(rf'{self.o_node}->{self.d_node}: no path, ignore...')
+            return [(-1, -1)], False
 
 
 class GpsDevice(object):
@@ -130,8 +131,8 @@ class GpsDevice(object):
             link, f, t = int(loc[3]), int(loc[4]), int(loc[5])
             self.__final_loc_gps.append((now_time, Point(device_loc_x, device_loc_y), round(device_heading, 2),
                                          self.agent_id, link, f, t))
-            logging.info(
-                rf'LOCATION - Car-{self.agent_id}, LocTime:{now_time.strftime(self._f)}, XY:{device_loc_x, device_loc_y, device_heading}, Error: {round(loc_error[0], 2), round(loc_error[1], 2), round(loc_error[2], 2)}  - LOCATION')
+            # logging.info(
+            #     rf'LOCATION - Car-{self.agent_id}, LocTime:{now_time.strftime(self._f)}, XY:{device_loc_x, device_loc_y, device_heading}, Error: {round(loc_error[0], 2), round(loc_error[1], 2), round(loc_error[2], 2)}  - LOCATION')
 
     @property
     def tic_gap(self) -> float:
@@ -153,7 +154,7 @@ class Car(object):
 
     def __init__(self, agent_id: str = None, speed_miu: float = 10.0, speed_sigma: float = 3,
                  net: Net = None, time_step: float = 0.2, start_time: datetime.datetime = None,
-                 loc_frequency: float = 1.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
+                 loc_frequency: float = 10.0, loc_error_miu: float = 0.0, loc_error_sigma: float = 15,
                  heading_error_sigma: float = 10.0, heading_error_miu: float = 0.0,
                  save_gap: int = 5, route: Route = None, save_log: bool = False):
         """
@@ -175,7 +176,7 @@ class Car(object):
         self.net = net
         self.time_step = time_step
         self.save_log = save_log
-        assert self.time_step <= 0.5, '仿真时间步长应该小于0.5s'
+        assert loc_frequency / self.time_step >= 2, 'loc_frequency/time_step must be greater than or equal to 2.0'
         self.agent_id = agent_id
         self.speed_miu = speed_miu
         self.speed_sigma = speed_sigma
@@ -215,27 +216,29 @@ class Car(object):
                                 handlers=[console_handler])
         logging.info(rf'Car {self.agent_id}_logging_info:.....')
 
-    def acquire_route(self) -> list[tuple[int, int]]:
+    def acquire_route(self) -> tuple[list[tuple[int, int]], bool]:
         if self.route.ft_seq is None:
             if self.route.o_node is None or self.route.d_node is None:
-                return self.route.random_route
+                return self.route.random_route, True
             else:
                 return self.route.od_route
         else:
-            return self.route.ft_seq
+            return self.route.ft_seq, True
 
     @function_time_cost
-    def start_drive(self) -> None:
+    def start_drive(self) -> bool:
         """开始模拟行车"""
-        ft_seq = self.acquire_route()
+        ft_seq, is_success = self.acquire_route()
+        if not is_success:
+            return False
         for ft in ft_seq:
             f, t = ft[0], ft[1]
             now_drive_link_geo = self.net.get_line_geo_by_ft(from_node=f, to_node=t)
             now_drive_link_name = self.net.get_link_attr_by_ft(attr_name='road_name', from_node=f, to_node=t)
             now_drive_link = self.net.get_link_attr_by_ft(attr_name=net_field.LINK_ID_FIELD, from_node=f, to_node=t)
             link_length = now_drive_link_geo.length
-            logging.info(
-                rf'### Car-{self.agent_id} driving in Node({ft[0]}) - Node({ft[1]}), {now_drive_link_name}, {link_length} ###')
+            # logging.info(
+            #     rf'### Car-{self.agent_id} driving in Node({ft[0]}) - Node({ft[1]}), {now_drive_link_name}, {link_length} ###')
             done_l = 0  # 用于记录在当前link上的累计行进距离
             his_index = 0  # 用于记录上一仿真时间步所到达的link折点索引
 
@@ -257,7 +260,7 @@ class Car(object):
 
                 # 判断是否到达轨迹存储条件
                 if self.__time_tic % self.save_gap == 0:
-                    logging.info(rf'saving true trajectory ......')
+                    # logging.info(rf'saving true trajectory ......')
                     self.__step_loc.append((now_time, Point(now_loc_x, now_loc_y), now_heading, self.agent_id))
 
                 # speed加一个微小的扰动, 计算即将开始的仿真步的车辆速度和沿着link移动的路径长度
@@ -265,8 +268,8 @@ class Car(object):
                 # print(used_speed)
                 step_l = used_speed * self.time_step
 
-                logging.info(
-                    rf'Car-{self.agent_id}: TimeStep-{self.__time_tic}, NowTime-{now_time.strftime("%Y/%m/%d %H:%M:%S")}, speed: {round(used_speed, 2)}m/s, accu_l: {round(done_l, 2)}m')
+                # logging.info(
+                #     rf'Car-{self.agent_id}: TimeStep-{self.__time_tic}, NowTime-{now_time.strftime("%Y/%m/%d %H:%M:%S")}, speed: {round(used_speed, 2)}m/s, accu_l: {round(done_l, 2)}m')
 
                 self.__time_tic += 1
                 done_l += step_l
@@ -276,6 +279,7 @@ class Car(object):
                     break
 
         self.__time_tic = 0
+        return True
 
     @property
     def speed(self) -> float:
@@ -415,7 +419,7 @@ class RouteInfoCollector(object):
         :param time_format:
         :return:
         """
-        if self.trajectory_gdf.empty:
+        if self.trajectory_gdf.empty and self.trajectory_info_list:
             self.trajectory_gdf = self.format_gdf(from_crs=self.from_crs,
                                                   to_crs=self.to_crs,
                                                   crs=self.crs, convert_loc=self.convert_loc,
@@ -425,6 +429,8 @@ class RouteInfoCollector(object):
                                                                         gps_field.HEADING_FIELD,
                                                                         gps_field.AGENT_ID_FIELD],
                                                   time_format=time_format)
+        else:
+            return gpd.GeoDataFrame()
         if out_fldr is None:
             pass
         else:
@@ -442,7 +448,7 @@ class RouteInfoCollector(object):
         :param time_format:
         :return:
         """
-        if self.gps_gdf.empty:
+        if self.gps_gdf.empty and self.gps_info_list:
             self.gps_gdf = self.format_gdf(convert_prj_sys=self.convert_prj_sys, from_crs=self.from_crs,
                                            to_crs=self.to_crs,
                                            crs=self.crs, convert_loc=self.convert_loc, convert_type=self.convert_type,
@@ -452,6 +458,8 @@ class RouteInfoCollector(object):
                                                                  net_field.LINK_ID_FIELD,
                                                                  net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD],
                                            time_format=time_format)
+        else:
+            return gpd.GeoDataFrame()
         if out_fldr is None:
             pass
         else:
@@ -477,7 +485,7 @@ class RouteInfoCollector(object):
         :param time_format
         :return:
         """
-        if self.gps_gdf.empty:
+        if self.gps_gdf.empty and self.gps_info_list:
             self.gps_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
                                            crs=crs, convert_loc=convert_loc, convert_type=convert_type,
                                            info_list=self.gps_info_list,
@@ -486,7 +494,7 @@ class RouteInfoCollector(object):
                                                                  net_field.LINK_ID_FIELD,
                                                                  net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD],
                                            time_format=time_format)
-        if self.trajectory_gdf.empty:
+        if self.trajectory_gdf.empty and self.trajectory_info_list:
             self.trajectory_gdf = self.format_gdf(convert_prj_sys=convert_prj_sys, from_crs=from_crs, to_crs=to_crs,
                                                   crs=crs, convert_loc=convert_loc, convert_type=convert_type,
                                                   info_list=self.trajectory_info_list,
@@ -494,16 +502,19 @@ class RouteInfoCollector(object):
                                                                         gps_field.HEADING_FIELD,
                                                                         gps_field.AGENT_ID_FIELD],
                                                   time_format=time_format)
-        self.gps_gdf[gps_field.TYPE_FIELD] = 'gps'
-        self.trajectory_gdf[gps_field.TYPE_FIELD] = 'trajectory'
-        mix_gdf = pd.concat([self.trajectory_gdf, self.gps_gdf])
-        mix_gdf.reset_index(inplace=True, drop=True)
-        if out_fldr is None:
-            pass
+        if not self.trajectory_gdf.empty:
+            self.gps_gdf[gps_field.TYPE_FIELD] = 'gps'
+            self.trajectory_gdf[gps_field.TYPE_FIELD] = 'trajectory'
+            mix_gdf = pd.concat([self.trajectory_gdf, self.gps_gdf])
+            mix_gdf.reset_index(inplace=True, drop=True)
+            if out_fldr is None:
+                pass
+            else:
+                self.save_file(file_type=file_type, df=mix_gdf,
+                               file_name=file_name, out_fldr=out_fldr)
+            return mix_gdf
         else:
-            self.save_file(file_type=file_type, df=mix_gdf,
-                           file_name=file_name, out_fldr=out_fldr)
-        return mix_gdf
+            return gpd.GeoDataFrame()
 
     @staticmethod
     def save_file(file_type: str = 'csv', df: pd.DataFrame or gpd.GeoDataFrame = None,
@@ -519,10 +530,13 @@ class RouteInfoCollector(object):
         if file_type == 'csv':
             df.to_csv(os.path.join(out_fldr, ''.join([file_name, '.csv'])), encoding='utf_8_sig',
                       index=False)
-        else:
+        elif file_type == 'geojson':
             assert isinstance(df, gpd.GeoDataFrame)
             df.to_file(os.path.join(out_fldr, ''.join([file_name, '.geojson'])), encoding='gbk',
                        driver='GeoJSON')
+        else:
+            assert isinstance(df, gpd.GeoDataFrame)
+            df.to_file(os.path.join(out_fldr, ''.join([file_name, '.shp'])), encoding='gbk')
 
 
 def calc_north_angle(dir_vec: np.ndarray = None) -> float:

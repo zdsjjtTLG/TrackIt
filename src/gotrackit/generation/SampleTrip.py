@@ -3,9 +3,9 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-
 import datetime
 from ..map import Net
+from tqdm import tqdm
 import geopandas as gpd
 from .GpsGen import Route
 from .GpsGen import Car, RouteInfoCollector
@@ -38,13 +38,57 @@ class TripGeneration(object):
     def generate_rand_trips(self, trip_num: int = 10, instant_output: bool = False,
                             out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S", agent_flag: str = 'agent',
                             start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
-                            start_minute: int = 20, start_second: int = 12):
+                            start_minute: int = 20, start_second: int = 12,
+                            file_type: str = 'geojson'):
+
+        return self.__generate_trips(trip_num=trip_num, instant_output=instant_output, out_fldr=out_fldr,
+                                     time_format=time_format, agent_flag=agent_flag, start_year=start_year,
+                                     start_month=start_month, start_day=start_day, start_hour=start_hour,
+                                     start_minute=start_minute, start_second=start_second, file_type=file_type)
+
+    def generate_od_trips(self, od_set: list or tuple = None, instant_output: bool = False,
+                          out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S", agent_flag: str = 'agent',
+                          start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
+                          start_minute: int = 20, start_second: int = 12,
+                          file_type: str = 'geojson'):
+        if od_set is None or not od_set:
+            return None
+        return self.__generate_trips(od_set=od_set, instant_output=instant_output, out_fldr=out_fldr,
+                                     time_format=time_format, agent_flag=agent_flag, start_year=start_year,
+                                     start_month=start_month, start_day=start_day, start_hour=start_hour,
+                                     start_minute=start_minute, start_second=start_second, file_type=file_type)
+
+    def generate_destined_trips(self, node_paths: list or tuple = None, instant_output: bool = False,
+                                out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S",
+                                agent_flag: str = 'agent',
+                                start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
+                                start_minute: int = 20, start_second: int = 12,
+                                file_type: str = 'geojson'):
+        if node_paths is None or not node_paths:
+            return None
+        return self.__generate_trips(node_paths=node_paths, instant_output=instant_output, out_fldr=out_fldr,
+                                     time_format=time_format, agent_flag=agent_flag, start_year=start_year,
+                                     start_month=start_month, start_day=start_day, start_hour=start_hour,
+                                     start_minute=start_minute, start_second=start_second, file_type=file_type)
+
+    def __generate_trips(self, trip_num: int = 10, instant_output: bool = False,
+                         out_fldr: str = r'./', time_format: str = "%Y-%m-%d %H:%M:%S", agent_flag: str = 'agent',
+                         start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
+                         start_minute: int = 20, start_second: int = 12, od_set: list or tuple = None,
+                         node_paths: list or tuple = None, file_type: str = 'geojson'):
+
         trajectory_gdf, gps_gdf, mix_gdf = gpd.GeoDataFrame(), gpd.GeoDataFrame(), gpd.GeoDataFrame()
         data_col = RouteInfoCollector(from_crs=self.net.planar_crs, to_crs=self.net.geo_crs, convert_prj_sys=True)
 
+        if od_set:
+            trip_num = len(od_set)
+        if node_paths:
+            trip_num = len(node_paths)
+
         # 开始行车
-        for car_id in [rf'{agent_flag}_{i}' for i in range(1, trip_num + 1)]:
+        for i in tqdm(range(trip_num), desc=rf'TripGeneration', ncols=100):
             # 新建车对象, 分配一个车辆ID, 配备一个Net和一个Route, 并且设置仿真参数
+            car_id = rf'{agent_flag}_{i + 1}'
             car = Car(net=self.net, time_step=self.time_step, save_log=False,
                       route=Route(net=self.net),
                       agent_id=car_id, speed_miu=self.speed_miu, speed_sigma=self.speed_sigma,
@@ -54,18 +98,31 @@ class TripGeneration(object):
                                                    hour=start_hour, minute=start_minute, second=start_second),
                       save_gap=self.save_gap)
 
+            if od_set:
+                car.route = Route(o_node=od_set[i][0], d_node=od_set[i][1], net=self.net)
+            else:
+                if node_paths:
+                    node_seq = node_paths[i]
+                    car.route = Route(net=self.net,
+                                      ft_seq=[(node_seq[i], node_seq[i + 1]) for i in range(len(node_seq) - 1)])
+
             # 开始行车
-            car.start_drive()
+            try:
+                is_success = car.start_drive()
+                if not is_success:
+                    continue
+            except:
+                continue
 
             # 收集数据
             data_col.collect_trajectory(car.get_trajectory_info())
             data_col.collect_gps(car.get_gps_loc_info())
             if instant_output:
-                trajectory_gdf = data_col.save_trajectory(file_type='geojson',
+                trajectory_gdf = data_col.save_trajectory(file_type=file_type,
                                                           out_fldr=out_fldr,
                                                           file_name=rf'{car_id}-trajectory',
                                                           time_format=time_format)
-                gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=out_fldr,
+                gps_gdf = data_col.save_gps_info(file_type=file_type, out_fldr=out_fldr,
                                                  file_name=rf'{car_id}-gps',
                                                  time_format=time_format)
                 mix_gdf = data_col.save_mix_info(file_type='geojson', out_fldr=out_fldr,
@@ -74,13 +131,13 @@ class TripGeneration(object):
                 data_col = RouteInfoCollector(from_crs=self.net.planar_crs, to_crs=self.net.geo_crs,
                                               convert_prj_sys=True)
         if not instant_output:
-            trajectory_gdf = data_col.save_trajectory(file_type='geojson', out_fldr=out_fldr,
+            trajectory_gdf = data_col.save_trajectory(file_type=file_type, out_fldr=out_fldr,
                                                       file_name='-'.join([agent_flag, 'trajectory']),
                                                       time_format=time_format)
-            gps_gdf = data_col.save_gps_info(file_type='geojson', out_fldr=out_fldr,
+            gps_gdf = data_col.save_gps_info(file_type=file_type, out_fldr=out_fldr,
                                              file_name='-'.join([agent_flag, 'gps']),
                                              time_format=time_format)
-            mix_gdf = data_col.save_mix_info(file_type='geojson', out_fldr=out_fldr,
+            mix_gdf = data_col.save_mix_info(file_type=file_type, out_fldr=out_fldr,
                                              file_name='-'.join([agent_flag, 'mix']),
                                              time_format=time_format)
         return trajectory_gdf, gps_gdf, mix_gdf

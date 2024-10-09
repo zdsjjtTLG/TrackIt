@@ -6,10 +6,14 @@
 """GCJ-O2、百度、84坐标互转"""
 
 import math
+import os.path
+
 import shapely
 import numpy as np
+import geopandas as gpd
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
 
+geometry_field = 'geometry'
 
 class LngLatTransfer(object):
 
@@ -153,7 +157,8 @@ class LngLatTransfer(object):
         lat = 180 / self.pi * (2 * np.arctan2(np.exp(lat * self.pi / 180)) - self.pi / 2)
         return lng, lat
 
-    def loc_convert(self, lng: float or np.ndarray, lat: float or np.ndarray, con_type='gc2bd') -> tuple[float, float]:
+    def loc_convert(self, lng: float or np.ndarray, lat: float or np.ndarray,
+                    con_type: str = 'gc-bd') -> tuple[float, float]:
         if con_type == 'gc-bd':
             return self.GCJ02_to_BD09(lng, lat)
         elif con_type == 'gc-84':
@@ -169,7 +174,7 @@ class LngLatTransfer(object):
         else:
             return lng, lat
 
-    def obj_convert(self, geo_obj: shapely.geometry, con_type: str) -> shapely.geometry:
+    def obj_convert(self, geo_obj: shapely.geometry, con_type: str, ignore_z: bool = True) -> shapely.geometry:
         if isinstance(geo_obj, (MultiPolygon, MultiLineString, MultiPoint)):
             convert_obj_list = [self.obj_convert(geo, con_type=con_type) for geo in geo_obj.geoms]
             if isinstance(geo_obj, MultiPolygon):
@@ -179,46 +184,86 @@ class LngLatTransfer(object):
             elif isinstance(geo_obj, MultiPoint):
                 return MultiPoint(convert_obj_list) if len(convert_obj_list) > 1 else convert_obj_list[0]
             else:
-                raise ValueError(r'Multi类型只允许MultiLineString or MultiPolygon')
+                raise ValueError(r'MultiTypeGeoms only allow: MultiLineString or MultiPolygon')
         else:
             if isinstance(geo_obj, (LineString, LinearRing)):
-                coords_list = self.get_coords(obj=geo_obj)
-                return LineString([self.loc_convert(x, y, con_type) for (x, y) in coords_list[0]])
+                coords_list = self.get_coords(obj=geo_obj, ignore_z=ignore_z)
+                return LineString(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
             elif isinstance(geo_obj, Polygon):
                 coords_list = self.get_coords(obj=geo_obj)
                 if len(coords_list) > 1:
-                    return Polygon([self.loc_convert(x, y, con_type) for (x, y) in coords_list[0]],
-                                   holes=[[self.loc_convert(x, y, con_type) for x, y in ring_coord] for ring_coord
-                                          in
-                                          coords_list[1:]])
+                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z),
+                                   holes=[self.xfer_coords(coords_list=ring_coord, con_type=con_type, ignore_z=ignore_z)
+                                          for ring_coord in coords_list[1:]])
                 else:
-                    return Polygon([self.loc_convert(x, y, con_type) for (x, y) in coords_list[0]])
+                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
             elif isinstance(geo_obj, Point):
                 return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type))
             else:
                 raise ValueError(r'Single类型只允许LineString or Polygon or Point or LineRing')
 
+    def xfer_coords(self, coords_list: list = None, con_type: str = None, ignore_z: bool = True):
+        if ignore_z:
+            return [self.loc_convert(x, y, con_type) for (x, y) in coords_list]
+        else:
+            return [self.loc_convert(x, y, con_type) + (z,) for (x, y, z) in coords_list]
+
     @staticmethod
-    def get_coords(obj=None):
+    def get_coords(obj=None, ignore_z: bool = True):
         """
         获取单个line或者polygon的坐标序列
         :param obj:
+        :param ignore_z:
         :return: [coords_list]
         """
         if isinstance(obj, (LineString, LinearRing)):
-            return [remove_z(list(obj.coords))]
+            return [process_z(list(obj.coords), ignore_z=ignore_z)]
         elif isinstance(obj, Polygon):
             if judge_hole(p=obj):
                 holes = list(obj.interiors)
-                return [remove_z(list(obj.exterior.coords))] + [remove_z(list(ring.coords)) for ring in holes]
+                return [process_z(list(obj.exterior.coords), ignore_z=ignore_z)] + \
+                    [process_z(list(ring.coords), ignore_z=ignore_z) for ring in holes]
             else:
-                return [remove_z(list(obj.exterior.coords))]
+                return [process_z(list(obj.exterior.coords), ignore_z=ignore_z)]
         else:
-            raise ValueError('obj只能为 LineString or LinearRing or Polygon')
+            raise ValueError('Only LineString or LinearRing or Polygon is allowed.')
 
+    def geo_convert(self, gdf: gpd.GeoDataFrame, con_type: str = 'gc-84', ignore_z: bool = True) -> gpd.GeoDataFrame:
+        if gdf is None or gdf.empty:
+            return gpd.GeoDataFrame()
+        else:
+            gdf = gdf.explode(ignore_index=True)
+            g = gdf.at[0, geometry_field]
+            if isinstance(g, Point):
+                nx, ny = self.loc_convert(lng=gdf[geometry_field].x, lat=gdf[geometry_field].y,
+                                          con_type=con_type)
+                if ignore_z:
+                    gdf[geometry_field] = gpd.points_from_xy(nx, ny, crs=gdf.crs)
+                else:
+                    try:
+                        z = gdf[geometry_field].z
+                    except Exception as e:
+                        z = 0
+                    gdf[geometry_field] = gpd.points_from_xy(nx, ny, z, crs=gdf.crs)
+            elif isinstance(g, (LineString, LinearRing, Polygon)):
+                gdf[geometry_field] = gdf[geometry_field].apply(
+                    lambda l: self.obj_convert(geo_obj=l, con_type=con_type, ignore_z=ignore_z))
+            else:
+                raise ValueError('Unknown Geo-Type')
+            return gdf
 
-def remove_z(coords_list=None) -> list[tuple]:
-    return [(item[0], item[1]) for item in coords_list]
+    def file_convert(self, file_path: str = None, con_type: str = 'gc-84',
+                     out_fldr: str = r'./', out_file_name: str = 'transfer', file_type: str = 'shp',
+                     ignore_z: bool = True):
+        gdf = gpd.read_file(file_path)
+        gdf = self.geo_convert(gdf=gdf, con_type=con_type, ignore_z=ignore_z)
+        if file_type == 'shp':
+            gdf.to_file(os.path.join(out_fldr, out_file_name + '.shp'))
+        else:
+            gdf.to_file(os.path.join(out_fldr, out_file_name + '.geojson'), driver='GeoJSON')
+
+def process_z(coords_list: list = None, ignore_z: bool = True) -> list[tuple]:
+    return [(item[0], item[1]) for item in coords_list] if ignore_z else coords_list
 
 
 def judge_hole(p=None) -> bool:
@@ -230,16 +275,27 @@ def judge_hole(p=None) -> bool:
 
 
 if __name__ == '__main__':
-    import pandas as pd
+    # import pandas as pd
     handler = LngLatTransfer()
-    transData = pd.DataFrame({'x': [114.2361, 114.669, 113.695], 'y': [22.22,22.36, 36.44]})
-    transData["lng"], transData['lat'] = handler.loc_convert(transData['x'], transData['y'], con_type='gc-84')
-    # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
-    print(transData)
+    # transData = pd.DataFrame({'x': [114.2361, 114.669, 113.695], 'y': [22.22,22.36, 36.44]})
+    # transData['geometry'] = gpd.points_from_xy(transData.x, transData.y, crs='EPSG:4326')
+    # transData['geometry'] = transData['geometry'].apply(lambda row: handler.obj_convert(geo_obj=row, con_type='gc-84'))
+    # transData["lng"], transData['lat'] = handler.loc_convert(transData['x'], transData['y'], con_type='gc-84')
+    #
+    #
+    # # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
+    # x, y = handler.loc_convert(113.695, 36.44, con_type='gc-bd')
+    #
+    # print(x)
+    # print(y)
 
-    x, y = handler.loc_convert(113.695, 36.44, con_type='gc-bd')
+    # link = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_link.shp')
+    #
+    # link['geometry'] = link['geometry'].apply(
+    #     lambda row: handler.obj_convert(geo_obj=row, con_type='gc-84', ignore_z=True))
 
-    print(x)
-    print(y)
+    # node = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_node.shp')
 
-
+    handler.file_convert(file_path=r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_node.shp',
+                         out_fldr=r'C:\Users\Administrator\Desktop\temp',
+                         con_type='84-gc')
