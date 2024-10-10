@@ -468,7 +468,7 @@ class GpsPointsGdf(object):
         candidate_link = gpd.sjoin(gps_buffer_gdf, single_link_gdf)
 
         if use_node_restrict:
-            candidate_link = self.station_restrict(candidate_link=candidate_link, single_link_gdf=single_link_gdf)
+            candidate_link = self.node_restrict(candidate_link=candidate_link, single_link_gdf=single_link_gdf)
 
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))
 
@@ -477,7 +477,7 @@ class GpsPointsGdf(object):
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
 
-    def station_restrict(self, candidate_link:gpd.GeoDataFrame or pd.DataFrame, single_link_gdf:gpd.GeoDataFrame):
+    def node_restrict(self, candidate_link:gpd.GeoDataFrame or pd.DataFrame, single_link_gdf:gpd.GeoDataFrame):
         restrict_candidate_list = list()
         try:
             if node_id_field in self.__user_gps_info.columns:
