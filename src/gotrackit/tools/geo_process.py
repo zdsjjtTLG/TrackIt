@@ -11,7 +11,7 @@ import geopandas as gpd
 from .grid import get_grid_data
 from ..GlobalVal import NetField
 from .coord_trans import LngLatTransfer
-from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
+from shapely.geometry import Point, LineString, Polygon
 
 net_field = NetField()
 geometry_field = net_field.GEOMETRY_FIELD
@@ -397,7 +397,7 @@ class StraightLineToArc(object):
         pass
 
     @staticmethod
-    def arc_curve_line(straight_line_obj: LineString = None, r: float = 1.0, sample_num: int = 30) \
+    def arc_curve_line(straight_line_obj: LineString, r: float = 1.0, sample_num: int = 30) \
             -> LineString:
 
         """generate arc curve line objects based on a straight line objects
@@ -422,7 +422,7 @@ class StraightLineToArc(object):
         return list(arc_line_cor)
 
     @staticmethod
-    def bezier_curve_line(straight_line_obj: LineString = None, r: float = 5.0, sample_num: int = 30,
+    def bezier_curve_line(straight_line_obj: LineString, r: float = 5.0, sample_num: int = 30,
                           right_side: bool = True) -> LineString:
         """ generate bezier curve line objects based on a straight line objects
         :param straight_line_obj: LineString
