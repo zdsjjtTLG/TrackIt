@@ -1,0 +1,244 @@
+🌍 时空可视化
+===================================
+
+gotrackit中提供了对kepler部分可视化功能的封装，使用KeplerVis类即可轻松进行网页端的动态可视化。
+
+KeplerVis类概述
+--------------------------------------------
+
+引入KeplerVis ::
+
+    from gotrackit.visualization import KeplerVis
+
+然后构建KeplerVis实例 ::
+
+    kv = KeplerVis(map_style='dark)
+
+
+KeplerVis的初始化参数为：
+
+* zoom
+    int, 缩放层级, 默认15
+
+* cen_loc
+    list or tuple, 地图中心点经纬度坐标，默认[108.9437, 34.231]
+
+* show_roads
+    bool, 是否在底图上显示路网图层，默认False
+
+* map_style
+    str, 地图风格, 默认dark, 可选dark, light, mutedLight, mutedNight, statellite
+
+
+添加点图层
+--------------------------------------------
+
+使用KeplerVis类提供的add_point_layer即可为底图加上一个点层, 样例数据：
+
+.. code-block:: python
+    :linenos:
+
+    # 1. 从gotrackit导入相关模块
+    import pandas as pd
+    from gotrackit.visualization import KeplerVis
+
+    if __name__ == '__main__':
+
+        # 读取点层文件数据
+        point_df = pd.read_csv(r'p.csv')
+
+        # 新建KeplerVis类
+        kv = KeplerVis()
+
+        # 添加点层
+        kv.add_point_layer(data=point_df, lng_field='lng', lat_field='lat', set_avg_zoom=True)
+
+        # 输出HTML到本地
+        # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='point')
+
+add_point_layer功能参数：
+
+* data
+    pd.DataFrame，点层图层数据，必填参数
+
+* lng_field
+    str, 经度字段, 默认'lng'
+
+* lat_field
+    str, 纬度字段, 默认'lat'
+
+* altitude_field
+    str, 高程字段, 默认None
+
+* layer_id
+    str, 图层ID, 默认point-1, 若有多个point图层, 默认point-1, point-2,...递增
+
+* radius
+    float, 点半径大小, 默认3.0
+
+* color
+    list, 点的填充颜色, 默认[65, 72, 88]
+
+* set_avg_zoom
+    bool, 是否自动定位中心点, 默认True
+
+（可选）若数据中包含时间信息，请指定时间列格式参数：
+
+* time_field
+    str, 时间列字段名称，默认None
+
+* time_format
+    见：`时间列构建参数`_
+
+* time_unit
+    见：`时间列构建参数`_
+
+* speed
+    float, 时间动画播放速度, 默认0.3
+
+
+
+添加geo图层
+--------------------------------------------
+
+使用KeplerVis类提供的add_geo_layer即可为底图加上任何一个几何图层, 样例数据：
+
+
+.. code-block:: python
+    :linenos:
+
+    # 1. 从gotrackit导入相关模块
+    import geopandas as gpd
+    from gotrackit.visualization import KeplerVis
+
+    if __name__ == '__main__':
+
+        # 读取几何文件
+        region_df = gpd.read_file(r'region.shp')
+
+        # 新建KeplerVis类
+        kv = KeplerVis()
+
+        # 添加点层
+        kv.add_geo_layer(data=region_df, set_avg_zoom=True)
+
+        # 输出HTML到本地
+        # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='point')
+
+add_geo_layer功能参数：
+
+
+* data
+    gpd.GeoDataFrame，几何图层数据，必填参数
+
+* layer_id
+    str, 图层ID, 默认geo-1, 若有多个geo图层, 默认geo-1,geo-2,...递增
+
+* width
+    float, 显示宽度
+
+* color
+    list, 点的填充颜色, 默认[65, 72, 88]
+
+* stroke_color
+    list, 边缘填充颜色, 默认[65, 72, 88]
+
+* set_avg_zoom
+    bool, 是否自动定位中心点, 默认True
+
+（可选）若数据中包含时间信息，请指定时间列格式参数：
+
+* time_field
+    str, 时间列字段名称，默认None
+
+* time_format
+    见：`时间列构建参数`_
+
+* time_unit
+    见：`时间列构建参数`_
+
+* speed
+    float, 时间动画播放速度, 默认0.3
+
+
+
+添加路径动画图层
+--------------------------------------------
+
+使用KeplerVis类提供的add_trip_layer即可为底图加上一个路径动画图层，所需数据必须要包含坐标列信息(支持3维坐标)以及时间列信息, 样例数据：
+
+
+.. code-block:: python
+    :linenos:
+
+    # 1. 从gotrackit导入相关模块
+    import pandas as pd
+    from gotrackit.visualization import KeplerVis
+
+    if __name__ == '__main__':
+
+        # 读取几何文件
+        trip_df = pd.read_csv(r'trip.csv')
+
+        # 新建KeplerVis类
+        kv = KeplerVis()
+
+        # 添加点层
+        kv.add_trip_layer(trip_df, lng_field='lng', lat_field='lat')
+
+        # 输出HTML到本地
+        # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='point')
+
+add_trip_layer功能参数：
+
+
+* data
+    pd.DataFrame，轨迹数据
+
+* lng_field
+    str, 经度字段, 默认'lng'
+
+* lat_field
+    str, 纬度字段, 默认'lat'
+
+* altitude_field
+    str, 高程字段, 默认None(即默认不启用三维坐标)
+
+* layer_id
+    str, 图层ID, 默认trip-1, 若有多个trip图层, 默认trip-1,trip-2,...递增
+
+* thickness
+    float, 轨迹的显示宽度
+
+* opacity
+    float，轨迹的透明度
+
+* color
+    list, 轨迹的颜色
+
+* trail_length
+    float, 路径拖尾长度
+
+* time_format
+    见：`时间列构建参数`_
+
+* time_unit
+    见：`时间列构建参数`_
+
+
+图层叠加与地图输出
+--------------------------------------------
+
+叠加多个图层：
+
+.. code-block:: python
+    :linenos:
+
+    if __name__ == '__main__':
+        kv.add_point_layer(point_df, lng_field='lng', lat_field='lat')
+        kv.add_geo_layer(region_gdf)
+        kv.add_trip_layer(trip_df, lng_field='lng', lat_field='lat')
+        kv.export_html()
