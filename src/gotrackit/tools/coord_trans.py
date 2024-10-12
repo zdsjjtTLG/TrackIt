@@ -174,7 +174,7 @@ class LngLatTransfer(object):
         else:
             return lng, lat
 
-    def obj_convert(self, geo_obj: shapely.geometry, con_type: str, ignore_z: bool = True) -> shapely.geometry:
+    def obj_convert(self, geo_obj: shapely.geometry, con_type: str = None, ignore_z: bool = True) -> shapely.geometry:
         if isinstance(geo_obj, (MultiPolygon, MultiLineString, MultiPoint)):
             convert_obj_list = [self.obj_convert(geo, con_type=con_type) for geo in geo_obj.geoms]
             if isinstance(geo_obj, MultiPolygon):
@@ -190,7 +190,7 @@ class LngLatTransfer(object):
                 coords_list = self.get_coords(obj=geo_obj, ignore_z=ignore_z)
                 return LineString(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
             elif isinstance(geo_obj, Polygon):
-                coords_list = self.get_coords(obj=geo_obj)
+                coords_list = self.get_coords(obj=geo_obj, ignore_z=ignore_z)
                 if len(coords_list) > 1:
                     return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z),
                                    holes=[self.xfer_coords(coords_list=ring_coord, con_type=con_type, ignore_z=ignore_z)
@@ -198,7 +198,10 @@ class LngLatTransfer(object):
                 else:
                     return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
             elif isinstance(geo_obj, Point):
-                return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type))
+                if ignore_z:
+                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type))
+                else:
+                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type) + (geo_obj.z,))
             else:
                 raise ValueError(r'Single类型只允许LineString or Polygon or Point or LineRing')
 
@@ -272,30 +275,3 @@ def judge_hole(p=None) -> bool:
         return True
     else:
         return False
-
-
-if __name__ == '__main__':
-    # import pandas as pd
-    handler = LngLatTransfer()
-    # transData = pd.DataFrame({'x': [114.2361, 114.669, 113.695], 'y': [22.22,22.36, 36.44]})
-    # transData['geometry'] = gpd.points_from_xy(transData.x, transData.y, crs='EPSG:4326')
-    # transData['geometry'] = transData['geometry'].apply(lambda row: handler.obj_convert(geo_obj=row, con_type='gc-84'))
-    # transData["lng"], transData['lat'] = handler.loc_convert(transData['x'], transData['y'], con_type='gc-84')
-    #
-    #
-    # # 火星坐标系 转换为 wgs84坐标系：GCJ02_to_WGS84 (lng, lat)
-    # x, y = handler.loc_convert(113.695, 36.44, con_type='gc-bd')
-    #
-    # print(x)
-    # print(y)
-
-    # link = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_link.shp')
-    #
-    # link['geometry'] = link['geometry'].apply(
-    #     lambda row: handler.obj_convert(geo_obj=row, con_type='gc-84', ignore_z=True))
-
-    # node = gpd.read_file(r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_node.shp')
-
-    handler.file_convert(file_path=r'F:\PyPrj\TrackIt\data\input\QuickStart-Match-1\modifiedConn_node.shp',
-                         out_fldr=r'C:\Users\Administrator\Desktop\temp',
-                         con_type='84-gc')
