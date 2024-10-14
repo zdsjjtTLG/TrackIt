@@ -90,12 +90,7 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 </div>
 
 <div align="center">
-    <img src="docs/_static/images/匹配动画样例2.gif" />
-</div>
-
-
-<div align="center">
-    <img src="docs/_static/images/匹配动画样例4.gif" />
+    <img src="docs/_static/images/kvs/hk_trip.gif" />
 </div>
 
 <div align="center">

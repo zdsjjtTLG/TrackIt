@@ -2,22 +2,22 @@
 ===================================
 
 
-1. 地图匹配示例
+地图匹配示例
 --------------------
 
-1.1. 安装gotrackit
+安装gotrackit
 ```````````````````````
 安装教程见：:doc:`如何使用`
 
 
-1.2. 数据下载
+数据下载
 ```````````````````````
 从GitHub仓库下载样例数据：`QuickStart-Match-1 <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/QuickStart-Match-1>`_
 
 或者从百度网盘下载样例数据：`QuickStart-Match-1 <https://pan.baidu.com/s/11UdmhGJKMz3O9vmGHHSm3A?pwd=kn74>`_
 
 
-1.3. 匹配代码1 - 非稀疏数据
+匹配代码1 - 非稀疏数据
 ``````````````````````````````
 .. code-block:: python
     :linenos:
@@ -80,7 +80,7 @@
 
 
 
-1.4. 匹配代码2 - 稀疏数据
+匹配代码2 - 稀疏数据
 ``````````````````````````````
 .. code-block:: python
     :linenos:
@@ -144,10 +144,10 @@
 
 
 
-1.5. 结果输出与可视化
+结果输出与可视化
 ```````````````````````
 
-1.5.1. 轨迹预处理前后对比可视化
+轨迹预处理前后对比可视化
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 打开tp.export_html函数输出的文件，按照如下图所示可以查看处理前后的轨迹点(蓝色：源数据；黄色：处理后的数据)
@@ -158,7 +158,7 @@
 --------------------------------------------------------------------------------
 
 
-1.5.2. 匹配结果可视化
+匹配结果可视化
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -174,3 +174,16 @@
 
 
 以上示例为简单的介绍，更多功能使用与探索，请仔细阅读: :doc:`如何使用`
+
+In Shapely 1.x, some of the geometry classes are mutable, meaning that you
+can change their coordinates in-place. Illustrative code::
+
+    >>> from shapely.geometry import LineString
+    >>> line = LineString([(0,0), (2, 2)])
+    >>> print(line)
+    LINESTRING (0 0, 2 2)
+
+    >>> line.coords = [(0, 0), (10, 0), (10, 10)]
+    >>> print(line)
+    LINESTRING (0 0, 10 0, 10 10)
+

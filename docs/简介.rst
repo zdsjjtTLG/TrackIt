@@ -1,7 +1,7 @@
 💡 简介
 ===================================
 
-1. gotrackit功能特点
+gotrackit功能特点
 ------------------------------
 本地图匹配包基于隐马尔可夫模型(HMM)实现了连续GPS点位的概率建模，利用这个包可以轻松对GPS数据进行地图匹配，本开源包的特点如下:
 
@@ -29,7 +29,7 @@
     匹配结果提供三种输出形式：GPS点匹配结果表(csv)、匹配结果矢量化图层、矢量图层匹配动画(HTML文件)，HTML动画方便用户直观地感受匹配结果，同时可以提高问题排查的效率。
 
 
-2. gotrackit功能框架
+gotrackit功能框架
 ------------------------------
 
 .. image:: _static/images/FunctionGraph.png
@@ -37,7 +37,7 @@
 
 -------------------------------------
 
-3. gotrackit匹配效果
+gotrackit匹配效果
 ------------------------------
 
 .. image:: _static/images/极稀疏轨迹匹配.gif
@@ -52,19 +52,13 @@
 -------------------------------------
 
 
-.. image:: _static/images/匹配动画样例2.gif
-    :align: center
-
--------------------------------------
-
-
 .. image:: _static/images/匹配动画样例3.gif
     :align: center
 
 -------------------------------------
 
 
-.. image:: _static/images/匹配动画样例4.gif
+.. image:: _static/images/kvs/hk_trip.gif
     :align: center
 
 -------------------------------------
@@ -74,7 +68,7 @@
 
 -------------------------------------
 
-4. gotrackit用户交流
+gotrackit用户交流
 ------------------------------
 
 .. image:: _static/images/wxq-2.jpg
@@ -83,7 +77,7 @@
 
 
 
-5. gotrackit视频教程
+gotrackit视频教程
 -----------------------
 
  `基于隐马尔可夫模型(HMM)的地图匹配算法动画版！学不会你来打我！ <https://www.bilibili.com/video/BV1gQ4y1w7dC>`_
@@ -93,22 +87,3 @@
  `gotrackit地图匹配包参数详解与问题排查 <https://www.bilibili.com/video/BV1qK421Y7hV>`_
 
  `QGIS路网拓扑显示、底图加载、样式复用、map保存 <https://www.bilibili.com/video/BV1Sq421F7QX>`_
-
-
-6. 什么是地图匹配
---------------------
-
-地图匹配问题指的是：如何从连续的车辆GPS定位信息推测出车辆实际行驶的路段,将GPS定位数据规范化表示为路段时空序列.
-
-车辆产生的GPS数据会有定位误差，往往会和真实位置有较大的出入，在路网密度较大的时候，最近邻匹配效果会很差，而且最近邻匹配算法极其不稳定，没有充分挖掘GPS点之间的联通性。
-
-.. image:: _static/images/MapMatch.PNG
-    :align: center
-
------------------------------------------------------
-
-
-为了准确获取车辆的实际路段轨迹，我们的匹配算法不能仅仅考虑单点信息，而是要纵观全局，单点的误差不可避免，长期连续的观测所获取的信息可以将这些误差充分平滑，因此基于连续状态的概率图建模是我们的技术路线。
-
-
-.. [Ref] 《Hidden Markov map matching through noise and sparseness》,Paul Newson & John Krumm
