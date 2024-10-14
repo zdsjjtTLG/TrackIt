@@ -134,6 +134,12 @@ GeoDataFrame转换
     >>> coords_list = sla.arc_curve_cor(o_loc=[114.212, 22.31], d_loc=[114.312, 22.131], r=1.2, sample_num=30)
     >>> print(coords_list)
 
+arc_curve_cor方法接收起终点坐标，返回起终点之间的圆弧坐标
+其中：
+* r
+    float, 代表圆弧的曲度，值越大，曲度越大
+* sample_num
+    int, 代表采样点数目
 
 基于LineString得到圆弧线对象
 ````````````````````````````
@@ -141,8 +147,13 @@ GeoDataFrame转换
 
     >>> from gotrackit.tools.geo_process import StraightLineToArc
     >>> sla = StraightLineToArc()
-    >>> arc_line = sla.arc_curve_line(LineString([(114.212, 22.31), (114.312, 22.131)]), r=1.5, sample_num=30)
+    >>> l = LineString([(114.212, 22.31), (114.312, 22.131)])
+    >>> arc_line = sla.arc_curve_line(l, r=1.5, sample_num=30)
     >>> print(arc_line)
+
+arc_curve_line方法接收LineString对象，返回圆弧线LineString对象
+
+
 
 基于起终点坐标得到贝塞尔弧线坐标
 ``````````````````````````````
@@ -152,6 +163,17 @@ GeoDataFrame转换
     >>> sla = StraightLineToArc()
     >>> coords_list = sla.bezier_curve_cor(o_loc=[114.212, 22.31], d_loc=[114.312, 22.131], r=1.2, sample_num=30, right_side=True)
     >>> print(coords_list)
+
+bezier_curve_cor方法接收起终点坐标，返回起终点之间的贝塞尔弧线坐标
+其中：
+* r
+    float, 代表弧的曲度，值越大，曲度越大
+
+* sample_num
+    int, 代表采样点数目
+
+* right_side
+    bool, 是否在拓扑方向右侧生成弧线，默认True
 
 
 基于LineString得到贝塞尔弧线对象
@@ -163,6 +185,9 @@ GeoDataFrame转换
     >>> bezier_line = sla.bezier_curve_line(LineString([(114.212, 22.31), (114.312, 22.131)]), r=1.5, sample_num=30, right_side=False)
     >>> print(bezier_line)
 
+bezier_curve_line方法接收LineString对象，返回贝塞尔弧线LineString对象
+
+
 .. image:: _static/images/straight_arc.png
     :align: center
 -----------------------------------------------
@@ -170,4 +195,6 @@ GeoDataFrame转换
 
 地理配准
 ----------------------------
-预计v0.3.11更新
+
+预计0.3.12更新
+

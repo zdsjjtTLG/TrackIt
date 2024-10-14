@@ -26,7 +26,7 @@
 GpsPreProcess类初始化
 ```````````````````````````````
 
-GpsPreProcess提供了行程切分(trip_segmentations)、抽取带途径点信息的OD(sampling_waypoints_od)这两大功能，你只需要传入GPS表数据即可，确保GPS数据满足 `GPS定位数据字段要求`_ 。
+GpsPreProcess提供了行程切分(trip_segmentations)、抽取带途径点信息的OD(sampling_waypoints_od)这两大功能，你只需要传入GPS表数据即可，确保GPS数据满足 :doc:`数据要求` 中的GPS数据要求。
 
 类初始化参数为：
 
@@ -68,26 +68,16 @@ trip_segmentations函数提供了主行程和子行程的划分功能，示例�
 
 trip_segmentations函数相关参数如下：
 
-* time_unit、time_format
-    GPS数据相关参数，参见：`MapMatch参数解释`_ 中的time_unit、time_format
+* time_format
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
+
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
+
+* time_unit
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
 
 * plain_crs
-    依据研究范围，选择一个合适的平面投影坐标系
-
-    坐标系相关参数查询可以参考：`epsg.io <https://epsg.io/>`_、坐标系的相关知识讲解可以参考：`坐标系简介 <https://mp.weixin.qq.com/s/Ot_Vo4CEtGYRblTMjMQYiw>`_
-
-    .. _6度带划分规则:
-    平面投影坐标系有很多种，这里仅仅列出6度带的划分，按照经度，每6度对应一个平面投影坐标系，可以按照研究范围的中心点经纬度参照下表选取
-
-    如果你的研究区域是世界范围，那么你可以使用EPSG:3857，这个平面投影坐标系适用于全球任何地区
-
-
-.. csv-table:: 6度带划分
-    :header: "经度范围", "-180 ~ -174", "-174 ~ -168", "-168 ~ -162", "...", "108 ~ 114", "114 ~ 120", "120 ~ 126", "...", "174 ~ 180"
-    :widths: 15, 15, 15, 15, 15, 15, 15, 15, 15, 15
-
-    "6度带平面投影CRS名称", "EPSG:32601", "EPSG:32602", "EPSG:32603", "...", "EPSG:32649", "EPSG:32650", "EPSG:32651", "...", "EPSG:32660"
-
+    依据研究范围，选择一个合适的平面投影坐标系，详情见 :doc:`数据要求` 中的平面投影坐标系解释
 
 * group_gap_threshold
     时间阈值，主行程划分参数，单位秒，如果前后GPS点的定位时间超过该阈值，则在该点切分主行程，默认1800s(30分钟)
@@ -108,7 +98,7 @@ trip_segmentations函数相关参数如下：
 从GPS数据计算途径点OD
 `````````````````````````````````````````````````````
 
-如果你的GPS数据已经完成了行程切分，且已经按照agent_id、time两个字段升序排列，那么你可以直接使用该接口进行途径点的抽样，得到带途径点的OD数据, 其数据格式满足 `OD表要求`_
+如果你的GPS数据已经完成了行程切分，且已经按照agent_id、time两个字段升序排列，那么你可以直接使用该接口进行途径点的抽样，得到带途径点的OD数据表
 
 示例代码如下：
 
@@ -143,7 +133,7 @@ sampling_waypoints_od相关参数如下：
 轨迹数据清洗
 -----------------------------
 
-要使用gotrackit的轨迹数据清洗模块，确保输入的GPS数据满足 `GPS定位数据字段要求`_ 。
+要使用gotrackit的轨迹数据清洗模块，确保输入的GPS数据满足 :doc:`数据要求` 中的GPS数据要求。
 
 利用gotrackit提供的TrajectoryPoints类可以对轨迹数据进行各种预处理：间隔采样、停留点识别、滑动窗口平均、轨迹点简化、卡尔曼滤波平滑，这些方法都封装在了TrajectoryPoints类中
 
@@ -166,7 +156,7 @@ TrajectoryPoints初始化的相关参数有：
 * plain_crs:
     要使用的平面投影坐标系，默认None，用户若不指定，程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
 
-    若要手动指定：参见: `6度带划分规则`_
+    若要手动指定：参见: 详情见 :doc:`数据要求` 中的平面投影坐标系解释
 
 TrajectoryPoints提供了以下轨迹点清洗方法：
 

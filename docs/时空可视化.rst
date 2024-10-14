@@ -1,5 +1,6 @@
 🌍 时空可视化
 ===================================
+(0.3.11推出)
 
 gotrackit中提供了对kepler部分可视化功能的封装，使用KeplerVis类即可轻松进行网页端的动态可视化。
 
@@ -89,10 +90,13 @@ add_point_layer功能参数：
     str, 时间列字段名称，默认None
 
 * time_format
-    见：`时间列构建参数`_
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
+
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
 
 * time_unit
-    见：`时间列构建参数`_
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
+
 
 * speed
     float, 时间动画播放速度, 默认0.3
@@ -154,10 +158,13 @@ add_geo_layer功能参数：
     str, 时间列字段名称，默认None
 
 * time_format
-    见：`时间列构建参数`_
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
+
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
 
 * time_unit
-    见：`时间列构建参数`_
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
+
 
 * speed
     float, 时间动画播放速度, 默认0.3
@@ -168,6 +175,13 @@ add_geo_layer功能参数：
 --------------------------------------------
 
 使用KeplerVis类提供的add_trip_layer即可为底图加上一个路径动画图层，所需数据必须要包含坐标列信息(支持3维坐标)以及时间列信息, 样例数据：
+
+
+.. image:: _static/images/kvs/hk_trip.gif
+    :align: center
+
+--------------------------------------------------------------------------------
+
 
 
 .. code-block:: python
@@ -223,10 +237,12 @@ add_trip_layer功能参数：
     float, 路径拖尾长度
 
 * time_format
-    见：`时间列构建参数`_
+    GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
+
+    参考：`pd.to_datetime解释 <https://pandas.pydata.org/pandas-docs/version/0.20/generated/pandas.to_datetime.html#>`_、`ISO_8601 <https://en.wikipedia.org/wiki/ISO_8601>`_
 
 * time_unit
-    见：`时间列构建参数`_
+    GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒,s 或者 ms), 系统会自动按照该参数构建时间列, 默认's'。Gotrackit会先尝试使用time_format进行时间列构建，如果失败会再次尝试使用time_unit进行时间列构建
 
 
 图层叠加与地图输出
@@ -241,4 +257,4 @@ add_trip_layer功能参数：
         kv.add_point_layer(point_df, lng_field='lng', lat_field='lat')
         kv.add_geo_layer(region_gdf)
         kv.add_trip_layer(trip_df, lng_field='lng', lat_field='lat')
-        kv.export_html()
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='map')
