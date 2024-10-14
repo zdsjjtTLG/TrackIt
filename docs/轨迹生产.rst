@@ -114,6 +114,9 @@ TripGeneration提供随机路径trip的生成方法generate_rand_trips，需要�
 生成指定OD的trip
 -----------------------------
 
+.. note::
+    该功能从v0.3.11开始推出
+
 TripGeneration提供指定OD路径trip的生成方法generate_od_trips，需要额外指定od_set参数
 
 * od_set
@@ -136,6 +139,9 @@ TripGeneration提供指定OD路径trip的生成方法generate_od_trips，需要�
 
 生成指定路径的trip
 -----------------------------
+
+.. note::
+    该功能从v0.3.11开始推出
 
 TripGeneration提供指定节点路径trip的生成方法generate_destined_trips，需要额外指定node_paths参数
 
