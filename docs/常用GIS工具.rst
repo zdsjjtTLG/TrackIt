@@ -166,6 +166,7 @@ arc_curve_line方法接收LineString对象，返回圆弧线LineString对象
 
 bezier_curve_cor方法接收起终点坐标，返回起终点之间的贝塞尔弧线坐标
 其中：
+
 * r
     float, 代表弧的曲度，值越大，曲度越大
 
