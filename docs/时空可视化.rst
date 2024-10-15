@@ -131,7 +131,7 @@ add_point_layer功能参数：
 
         # 输出HTML到本地
         # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
-        map = kv.export_html(height=600, out_fldr=r'./', file_name='point')
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='region')
 
 add_geo_layer功能参数：
 
@@ -206,7 +206,7 @@ add_geo_layer功能参数：
 
         # 输出HTML到本地
         # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
-        map = kv.export_html(height=600, out_fldr=r'./', file_name='point')
+        map = kv.export_html(height=600, out_fldr=r'./', file_name='trip')
 
 add_trip_layer功能参数：
 
