@@ -7,7 +7,7 @@
 
 安装gotrackit
 ```````````````````````
-安装教程见：:doc:`如何使用`
+安装教程见：:doc:`如何安装`
 
 
 数据下载
@@ -178,17 +178,5 @@
 -----------------------------------------------
 
 
-以上示例为简单的介绍，更多功能使用与探索，请仔细阅读: :doc:`如何使用`
-
-In Shapely 1.x, some of the geometry classes are mutable, meaning that you
-can change their coordinates in-place. Illustrative code::
-
-    >>> from shapely.geometry import LineString
-    >>> line = LineString([(0,0), (2, 2)])
-    >>> print(line)
-    LINESTRING (0 0, 2 2)
-
-    >>> line.coords = [(0, 0), (10, 0), (10, 10)]
-    >>> print(line)
-    LINESTRING (0 0, 10 0, 10 10)
+以上示例为简单的介绍，更多功能使用与探索，请仔细阅读: :doc:`地图匹配`
 
