@@ -51,7 +51,8 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
         assert out_fldr is not None
 
     if not ignore_merge_rule:
-        assert auxiliary_judge_field in link_gdf.columns, '辅助判别字段必须在线层表的字段内...'
+        assert auxiliary_judge_field in link_gdf.columns, \
+            'The auxiliary_judge_field must be in the field of the link layer table'
 
     origin_crs = link_gdf.crs
 
@@ -190,19 +191,22 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
         link_gdf[net_field.LENGTH_FIELD] = np.around(link_gdf[net_field.GEOMETRY_FIELD].length, 2)
         link_gdf = link_gdf.to_crs(origin_crs)
     else:
-        assert net_field.LENGTH_FIELD in col_list, f'线层数据中缺少{net_field.LENGTH_FIELD}字段, 但是却没有指定更新!'
+        assert net_field.LENGTH_FIELD in col_list, \
+            f'The {net_field.LENGTH_FIELD} field is missing in link layer, but no update is specified'
 
     if net_field.LINK_ID_FIELD in update_link_field_list:
         # 更新link_id
         link_gdf[net_field.LINK_ID_FIELD] = [x for x in range(1, len(link_gdf) + 1)]
     else:
-        assert net_field.LINK_ID_FIELD in col_list, f'线层数据中缺少{net_field.LINK_ID_FIELD}字段, 但是却没有指定更新!'
+        assert net_field.LINK_ID_FIELD in col_list, \
+            f'The {net_field.LINK_ID_FIELD} field is missing in link layer, but no update is specified'
 
     if net_field.DIRECTION_FIELD in update_link_field_list:
         # 更新dir
         link_gdf[net_field.DIRECTION_FIELD] = fill_dir
     else:
-        assert net_field.DIRECTION_FIELD in col_list, f'线层数据中缺少{net_field.DIRECTION_FIELD}字段, 但是却没有指定更新!'
+        assert net_field.DIRECTION_FIELD in col_list, \
+            f'The {net_field.DIRECTION_FIELD} field is missing in link layer, but no update is specified'
 
     non_required_col_list = list(set(col_list) - set(link_required_field_list + [net_field.GEOMETRY_FIELD]))
 

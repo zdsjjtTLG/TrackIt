@@ -17,7 +17,7 @@ net_field = NetField()
 markov_field = MarkovField()
 
 
-def generate_check_file(warn_info_dict: dict = None, net: Net = None, out_fldr: str = r'./', file_name: str = 'check'):
+def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r'./', file_name: str = 'check'):
     single_link_gdf = net.get_link_data()
     single_link_gdf.reset_index(inplace=True, drop=True)
     may_error_list, book_mark_dict = list(), dict()

@@ -38,7 +38,7 @@ class MapMatch(object):
                  export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 30, multi_core_save: bool = False, instant_output: bool = False,
+                 visualization_cache_times: int = 10, multi_core_save: bool = False, instant_output: bool = False,
                  use_para_grid: bool = False, para_grid: ParaGrid = None, user_field_list: list[str] = None,
                  heading_vec_len: float = 15.0):
         """
