@@ -768,12 +768,19 @@ geojson矢量文件可视化
         # 做完匹配后 #
         match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
 
-        generate_check_file(warn_info_dict=warn_info, net=my_net,
+        # my_net是net路网对象
+        generate_check_file(my_net, warn_info_dict=warn_info,
                             out_fldr=r'./data/output/match_visualization/0614BUG/',
                             file_name='check_net')
 
 
-如何使用QGIS的空间书签请参见：
+使用QGIS的空间书签请参见：
+
+.. image:: _static/images/book_mark.png
+    :align: center
+
+如图所示，在QGIS的左侧浏览窗口 - Spatial Bookmarks - User Bookmarks右键 - 新建空间书签后，选择.xml空间书签文件导入，即可看到书签文件夹，展开书签文件夹后通过点击书签可以快速定位问题路段
+
 
 匹配结果不正确的调参方法
 ``````````````````````````````
