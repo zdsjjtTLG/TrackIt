@@ -66,7 +66,7 @@ class TrajectoryPoints(GpsPointsGdf):
             try:
                 kv = KeplerVis(cen_loc=[cen_x, cen_y])
                 kv.add_point_layer(vis_df, lng_field=lng_field, lat_field=lat_field, time_format=self.time_format,
-                                   time_unit=self.time_unit,
+                                   time_unit=self.time_unit, set_avg_zoom=False,
                                    time_field=time_field, layer_id='trajectory', color=[65, 72, 88])
                 kv.export_html(out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
             except Exception as e:
