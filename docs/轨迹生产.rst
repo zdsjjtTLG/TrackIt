@@ -82,11 +82,11 @@ TripGeneration类提供了三种方法来生成trip：随机路径trip、指定O
 
 
 * start_year、start_month、start_day
-    起始年月日，默认2022、5、15
+    车辆出发的起始年月日，默认2022、5、15
 
 
 * start_hour、start_minute、start_second
-    起始时分秒，默认10、20、12
+    车辆出发的起始时分秒，默认10、20、12
 
 
 * agent_flag
@@ -155,6 +155,7 @@ TripGeneration提供指定节点路径trip的生成方法generate_destined_trips
 
     # 利用net对象的k节点间的K最短路接口获取节点路径序列
     node_path = list()
+    # 从节点110943到达节点225405的最短6条路径
     for path in my_net.shortest_k_paths(110943, 225405, 6):
         node_path.append(path)
 
