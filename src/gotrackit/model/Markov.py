@@ -23,7 +23,6 @@ from ..MatchResAna import format_warn_info_to_geo
 from ..GlobalVal import NetField, GpsField, MarkovField
 
 
-
 gps_field = GpsField()
 net_field = NetField()
 markov_field = MarkovField()
@@ -874,15 +873,24 @@ class HiddenMarkov(object):
                         for _single_link, sub_seq in zip(_single_link_list,
                                                          range(1, len(_single_link_list) + 1))])
                 else:
-                    self.is_warn = True
-                    warnings.warn(
-                        rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
-                        from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
-                    # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
-                    self.warn_info['from_ft'].append(
-                        (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
-                    self.warn_info['to_ft'].append(
-                        (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    try:
+                        node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
+                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                                             range(0, len(node_seq) - 1)]
+                        omitted_gps_state_item.extend([
+                            (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
+                            for _single_link, sub_seq in zip(_single_link_list,
+                                                             range(1, len(_single_link_list) + 1))])
+                    except:
+                        self.is_warn = True
+                        warnings.warn(
+                            rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                            from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                        # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                        self.warn_info['from_ft'].append(
+                            (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                        self.warn_info['to_ft'].append(
+                            (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
 
         omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
                                                                              net_field.SINGLE_LINK_ID_FIELD,
