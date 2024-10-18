@@ -777,7 +777,7 @@ dense_res_based_on_net相关函数解释为：
     地图匹配接口返回的匹配结果，必填参数
 
 * dis_threshold
-    点合并阈值，默认1e-5
+    点合并阈值，默认10米
 
 * time_format
     参见 `时间列构建参数`_

@@ -210,7 +210,6 @@ add_geo_layer功能参数：
 
 add_trip_layer功能参数：
 
-
 * data
     pd.DataFrame，轨迹数据
 
@@ -226,17 +225,20 @@ add_trip_layer功能参数：
 * layer_id
     str, 图层ID, 默认trip-1, 若有多个trip图层, 默认trip-1,trip-2,...递增
 
+* set_avg_zoom
+    bool, 是否自动定位中心点, 默认True
+
 * thickness
-    float, 轨迹的显示宽度
+    float, 轨迹的显示宽度, 默认2.0
 
 * opacity
     float，轨迹的透明度
 
 * color
-    list, 轨迹的颜色
+    list, 轨迹的颜色, 默认[241, 225, 37]
 
 * trail_length
-    float, 路径拖尾长度
+    float, 路径拖尾长度, 默认120
 
 * time_format
     GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
