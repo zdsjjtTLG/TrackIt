@@ -75,7 +75,6 @@ class KeplerVis(object):
                 layer_id] = self.tooltip_config(field_list=tooltip_fields)
         self.point_count += 1
 
-
     def add_geo_layer(self, data: gpd.GeoDataFrame, layer_id: str = None, color: list or str = None,
                       stroke_color: list or str = None,
                       width: float = 0.3, time_field: str = None,
