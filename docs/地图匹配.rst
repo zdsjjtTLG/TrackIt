@@ -110,6 +110,8 @@
 时间列构建参数
 ::::::::::::::::::::::::::::::::::::::::::::::::
 
+.. _时间列构建参数:
+
 * time_format
     GPS数据中时间列的格式化字符串模板, 默认"%Y-%m-%d %H:%M:%S"，可以参照pandas中pd.to_datetime()函数的format参数
 
@@ -746,6 +748,42 @@ geojson矢量文件可视化
 .. image:: _static/images/geojson_vis.png
     :align: center
 -----------------------------------------------
+
+
+对匹配结果进行路径增密
+``````````````````````````````
+.. note::
+    该功能从v0.3.11开始推出
+
+由于GPS数据的走向并不会严格和匹配路段的走向一模一样，当我们使用匹配结果的投影点去构造路径动画时，路径动画不能严格贴合路段线型(参见下图-未进行路径增密)
+
+gotrackit提供了路径增密函数，依据匹配结果表中的agent_id、seq、sub_seq、link_id、from_node、to_node、prj_lng、prj_lat、time字段对匹配结果按照路段进行增密，增密后的数据所生成的轨迹和路段线型的贴合度大大提升，可以提升展示效果(参见下图-进行路径增密)
+
+
+.. image:: _static/images/path_dense.png
+    :align: center
+
+使用dense_res_based_on_net函数可进行路径增密：
+
+    >>> from gotrackit.MatchResAna import dense_res_based_on_net
+    >>> dense_match_res = dense_res_based_on_net(net=my_net, match_res_df=match_res_df)
+
+dense_res_based_on_net相关函数解释为：
+
+* net:
+    gotrackit路网对象，必填参数
+
+* match_res_df
+    地图匹配接口返回的匹配结果，必填参数
+
+* dis_threshold
+    点合并阈值，默认1e-5
+
+* time_format
+    参见 `时间列构建参数`_
+
+* time_unit
+    参见 `时间列构建参数`_
 
 
 将地图匹配警告信息转化为空间书签文件
