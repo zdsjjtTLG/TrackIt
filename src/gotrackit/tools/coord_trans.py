@@ -203,7 +203,7 @@ class LngLatTransfer(object):
                 else:
                     return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type) + (geo_obj.z,))
             else:
-                raise ValueError(r'Single类型只允许LineString or Polygon or Point or LineRing')
+                raise ValueError(r'Only LineString or Polygon or Point or LineRing are allowed')
 
     def xfer_coords(self, coords_list: list = None, con_type: str = None, ignore_z: bool = True):
         if ignore_z:
@@ -229,7 +229,7 @@ class LngLatTransfer(object):
             else:
                 return [process_z(list(obj.exterior.coords), ignore_z=ignore_z)]
         else:
-            raise ValueError('Only LineString or LinearRing or Polygon is allowed.')
+            raise ValueError('Only LineString or LinearRing or Polygon are allowed.')
 
     def geo_convert(self, gdf: gpd.GeoDataFrame, con_type: str = 'gc-84', ignore_z: bool = True) -> gpd.GeoDataFrame:
         if gdf is None or gdf.empty:
