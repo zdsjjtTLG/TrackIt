@@ -30,13 +30,13 @@ KeplerVis的初始化参数为：
     bool, 是否在底图上显示路网图层，默认False
 
 * map_style
-    str, 地图风格, 默认dark, 可选dark, light, mutedLight, mutedNight, statellite
+    str, 地图风格, 默认dark, 可选dark, light
 
 
 添加点图层
 --------------------------------------------
 
-使用KeplerVis类提供的add_point_layer即可为底图加上一个点层, 样例数据：
+使用KeplerVis类提供的add_point_layer即可为底图加上一个点层
 
 .. code-block:: python
     :linenos:
@@ -108,7 +108,7 @@ add_point_layer功能参数：
 添加geo图层
 --------------------------------------------
 
-使用KeplerVis类提供的add_geo_layer即可为底图加上任何一个几何图层, 样例数据：
+使用KeplerVis类提供的add_geo_layer即可为底图加上任何一个几何图层
 
 
 .. code-block:: python
@@ -176,7 +176,7 @@ add_geo_layer功能参数：
 添加路径动画图层
 --------------------------------------------
 
-使用KeplerVis类提供的add_trip_layer即可为底图加上一个路径动画图层，所需数据必须要包含坐标列信息(支持3维坐标)以及时间列信息, 样例数据：
+使用KeplerVis类提供的add_trip_layer即可为底图加上一个路径动画图层，所需数据必须要包含坐标列信息(支持3维坐标)以及时间列信息：`路径动画样例数据 <https://github.com/zdsjjtTLG/TrackIt/tree/main/data/input/Trip-Example-Data>`_
 
 
 .. image:: _static/images/kvs/hk_trip.gif
