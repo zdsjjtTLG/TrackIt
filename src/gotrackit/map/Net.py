@@ -250,6 +250,15 @@ class Net(object):
         """
         return self.__link.get_shortest_path_length(o_node=o_node, d_node=d_node)
 
+    def get_shortest_path(self, o_node=1, d_node=2) -> tuple[list, float]:
+        """
+
+        :param o_node:
+        :param d_node:
+        :return:
+        """
+        return self.__link.get_shortest_path(o_node=o_node, d_node=d_node)
+
     def calc_shortest_path(self, source: int = None, method: str = 'dijkstra') -> None:
 
         try:
