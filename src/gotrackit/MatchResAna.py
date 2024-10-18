@@ -63,7 +63,7 @@ def format_warn_info_to_geo(warn_info: pd.DataFrame = None,
     return may_error_gdf
 
 
-def dense_res_based_on_net(net: Net = None, match_res_df: pd.DataFrame = None, lng_field: str = 'prj_lng',
+def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str = 'prj_lng',
                            lat_field: str = 'prj_lat', dis_threshold: float = 1e-5,
                            time_format: str = '%Y-%m-%d %H:%M:%S',
                            time_unit: str = 's') -> pd.DataFrame:
