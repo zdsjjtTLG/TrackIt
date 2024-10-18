@@ -770,7 +770,7 @@ gotrackit提供了路径增密函数，依据匹配结果表中的agent_id、seq
 
 dense_res_based_on_net相关函数解释为：
 
-* net:
+* net
     gotrackit路网对象，必填参数
 
 * match_res_df
