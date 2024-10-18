@@ -1096,5 +1096,5 @@ dense_res_based_on_net相关函数解释为：
 * dis_gap_threshold
     距离阈值，默认600.0m，如果某agent的 当前GPS数据的最早定位点 和 上批次GPS数据的最晚定位点 的距离超过该值，则不参考历史概率链进行匹配计算
 
-* overlapping_window: int = 3
+* overlapping_window
     重叠窗口长度，默认3，和历史GPS数据的重叠窗口
