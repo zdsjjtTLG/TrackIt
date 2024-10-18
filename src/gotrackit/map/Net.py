@@ -250,7 +250,7 @@ class Net(object):
         """
         return self.__link.get_shortest_path_length(o_node=o_node, d_node=d_node)
 
-    def get_shortest_path(self, o_node=1, d_node=2) -> tuple[list, float]:
+    def get_shortest_path(self, o_node=1, d_node=2) -> list:
         """
 
         :param o_node:
