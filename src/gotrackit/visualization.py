@@ -66,7 +66,7 @@ class KeplerVis(object):
                                           time_format=time_format, time_unit=time_unit,
                                           layer_id=layer_id, speed=speed))
         if set_avg_zoom:
-            cen_x, cen_y = data[lng_field].mean(), data[lat_field].mean()
+            cen_x, cen_y = data[lng_field].iloc[0], data[lat_field].iloc[0]
             self.user_config["config"]["mapState"]["longitude"] = cen_x
             self.user_config["config"]["mapState"]["latitude"] = cen_y
         self.data_dict[layer_id] = data
@@ -119,7 +119,7 @@ class KeplerVis(object):
         trip_data = generate_trip_layer(match_res_df=data, time_format=time_format, time_unit=time_unit,
                                         lng_field=lng_field, lat_field=lat_field, altitude_field=altitude_field)
         if set_avg_zoom:
-            cen_x, cen_y = data[lng_field].mean(), data[lat_field].mean()
+            cen_x, cen_y = data[lng_field].iloc[0], data[lat_field].iloc[0]
             self.user_config["config"]["mapState"]["longitude"] = cen_x
             self.user_config["config"]["mapState"]["latitude"] = cen_y
         del data
@@ -361,17 +361,20 @@ def generate_match_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, 
 
     kv = KeplerVis(cen_loc=[cen_x, cen_y], zoom=zoom, show_roads=False)
     if error_gdf is not None and not error_gdf.empty:
-        kv.add_geo_layer(data=error_gdf, layer_id=kepler_config.ERROR_XFER, width=0.6, color=[245, 97, 129])
+        kv.add_geo_layer(data=error_gdf, layer_id=kepler_config.ERROR_XFER, width=0.6, color=[245, 97, 129],
+                         set_avg_zoom=False)
     if mix_gdf is not None and not mix_gdf.empty:
         kv.add_geo_layer(data=mix_gdf, layer_id=kepler_config.MIX_NAME, width=0.1, color=[18, 147, 154],
-                         time_field=gps_field.TIME_FIELD,
+                         time_field=gps_field.TIME_FIELD, set_avg_zoom=False,
                          tooltip_fields=[gps_field.AGENT_ID_FIELD, gps_field.POINT_SEQ_FIELD, gps_field.TIME_FIELD,
                                          net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                                          gps_field.LOC_TYPE])
     if node_gdf is not None:
-        kv.add_geo_layer(data=node_gdf, layer_id=kepler_config.BASE_NODE_NAME, width=0.2, color=[100, 100, 100])
+        kv.add_geo_layer(data=node_gdf, layer_id=kepler_config.BASE_NODE_NAME, width=0.2, color=[100, 100, 100],
+                         set_avg_zoom=False)
     if link_gdf is not None:
-        kv.add_geo_layer(data=link_gdf, layer_id=kepler_config.BASE_LINK_NAME, width=0.3, color=[65, 72, 88])
+        kv.add_geo_layer(data=link_gdf, layer_id=kepler_config.BASE_LINK_NAME, width=0.3, color=[65, 72, 88],
+                         set_avg_zoom=False)
     kv.export_html(height=600, out_fldr=out_fldr, file_name=file_name)
 
 
