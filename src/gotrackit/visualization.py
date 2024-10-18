@@ -43,7 +43,7 @@ class KeplerVis(object):
 
     def add_point_layer(self, data: pd.DataFrame, lng_field: str = 'lng', lat_field: str = 'lat',
                         altitude_field: str = None, layer_id: str = None, color: list or str = None, radius: float = 3,
-                        set_avg_zoom: bool = False, time_field: str = None, time_format: str = '%Y-%m-%d %H:%M:%S',
+                        set_avg_zoom: bool = True, time_field: str = None, time_format: str = '%Y-%m-%d %H:%M:%S',
                         time_unit: str = 's', speed: float = 0.3, tooltip_fields: list[str] = None) -> None:
 
         layer_config = self.get_base_layer()
@@ -79,7 +79,7 @@ class KeplerVis(object):
                       stroke_color: list or str = None,
                       width: float = 0.3, time_field: str = None,
                       time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                      speed: float = 0.3, set_avg_zoom: bool = False, tooltip_fields: list[str] = None):
+                      speed: float = 0.3, set_avg_zoom: bool = True, tooltip_fields: list[str] = None):
         layer_config = self.get_base_layer()
         layer_id = layer_id if layer_id is not None else rf'geo-{self.geo_count}'
         layer_config['id'] = layer_id
@@ -111,19 +111,24 @@ class KeplerVis(object):
     def add_trip_layer(self, data: pd.DataFrame, lng_field: str = 'lng', lat_field: str = 'lat',
                        altitude_field: str = None,
                        time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', layer_id: str = None,
-                       thickness: float = 8.0,
+                       thickness: float = 2.0, set_avg_zoom: bool = True,
                        opacity: float = 0.8, color: list or str = None,
-                       trail_length: float = 60.0, tooltip_fields: list[str] = None):
+                       trail_length: float = 120.0, tooltip_fields: list[str] = None):
 
         layer_config = self.get_base_layer()
         trip_data = generate_trip_layer(match_res_df=data, time_format=time_format, time_unit=time_unit,
                                         lng_field=lng_field, lat_field=lat_field, altitude_field=altitude_field)
+        if set_avg_zoom:
+            cen_x, cen_y = data[lng_field].mean(), data[lat_field].mean()
+            self.user_config["config"]["mapState"]["longitude"] = cen_x
+            self.user_config["config"]["mapState"]["latitude"] = cen_y
+        del data
         layer_id = layer_id if layer_id is not None else rf'trip-{self.trip_count}'
         layer_config['id'] = layer_id
         layer_config['type'] = 'trip'
         layer_config['config']['dataId'] = layer_id
         layer_config['config']['label'] = layer_id
-        layer_config['config']['color'] = self.get_rgb_by_name(color, default_rgb=[255, 215, 0])
+        layer_config['config']['color'] = self.get_rgb_by_name(color, default_rgb=[241, 225, 37])
         layer_config["config"]["columns"]["geojson"] = '_geojson'
         layer_config['config']["visConfig"]['thickness'] = thickness
         layer_config['config']["visConfig"]['opacity'] = opacity
