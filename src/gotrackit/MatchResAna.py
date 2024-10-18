@@ -64,9 +64,9 @@ def format_warn_info_to_geo(warn_info: pd.DataFrame = None,
 
 
 def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str = 'prj_lng',
-                           lat_field: str = 'prj_lat', dis_threshold: float = 1e-5,
+                           lat_field: str = 'prj_lat', dis_threshold: float = 3,
                            time_format: str = '%Y-%m-%d %H:%M:%S',
-                           time_unit: str = 's') -> pd.DataFrame:
+                           time_unit: str = 's', plain_crs: str = 'EPSG:3857') -> pd.DataFrame:
     if match_res_df is not None and not match_res_df.empty:
         build_time_col(df=match_res_df, time_format=time_format, time_unit=time_unit, time_field=gps_field.TIME_FIELD)
 
@@ -127,6 +127,7 @@ def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str 
         del interpolate_res_df
         dense_res.sort_values(by=['__group__', markov_field.DRIVING_L], inplace=True)
         dense_res.reset_index(inplace=True, drop=True)
+        dense_res = dense_res.to_crs(plain_crs)
         dense_res['__gap__'] = dense_res[gps_field.GEOMETRY_FIELD].shift(-1).fillna(
             dense_res[gps_field.GEOMETRY_FIELD]).distance(
             dense_res[gps_field.GEOMETRY_FIELD])
