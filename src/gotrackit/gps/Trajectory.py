@@ -37,7 +37,7 @@ class TrajectoryPoints(GpsPointsGdf):
                               plane_crs=plain_crs, already_plain=already_plain, multi_agents=True,
                               user_filed_list=user_field_list)
 
-    def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory'):
+    def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory', radius: float = 10.0):
         if self.already_plain:
             origin_tj_df = self.source_gps.to_crs(prj_const.PRJ_CRS)
             origin_tj_df = origin_tj_df[[agent_field, time_field, geometry_field]].copy()
@@ -61,12 +61,12 @@ class TrajectoryPoints(GpsPointsGdf):
         for agent_id, _df in df.groupby(agent_field):
             vis_df = pd.DataFrame(_df)
             vis_df.sort_values(by='type', ascending=False, inplace=True)
-            cen_x, cen_y = vis_df[gps_field.LNG_FIELD].mean(), vis_df[gps_field.LAT_FIELD].mean(),
+            cen_x, cen_y = vis_df[gps_field.LNG_FIELD].mean(), vis_df[gps_field.LAT_FIELD].mean()
             # vis_df[gps_field.TIME_FIELD] = vis_df[gps_field.TIME_FIELD].astype(str)
             try:
                 kv = KeplerVis(cen_loc=[cen_x, cen_y])
                 kv.add_point_layer(vis_df, lng_field=lng_field, lat_field=lat_field, time_format=self.time_format,
-                                   time_unit=self.time_unit, set_avg_zoom=False,
+                                   time_unit=self.time_unit, set_avg_zoom=False, radius=radius,
                                    time_field=time_field, layer_id='trajectory', color=[65, 72, 88])
                 kv.export_html(out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
             except Exception as e:
