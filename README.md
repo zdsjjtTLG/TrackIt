@@ -58,7 +58,7 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 - 轨迹生产模块：[增加指定OD、指定路径 的轨迹生成函数](https://gotrackit.readthedocs.io/en/latest/%E8%BD%A8%E8%BF%B9%E7%94%9F%E4%BA%A7.html#odtrip)
 - GIS工具模块：[坐标转换-代码矢量化改造、增加文件转化功能、新增对Z轴坐标的支持](https://gotrackit.readthedocs.io/en/latest/%E5%B8%B8%E7%94%A8GIS%E5%B7%A5%E5%85%B7.html#id2)
 - GIS工具模块：[新增直线转弧线功能](https://gotrackit.readthedocs.io/en/latest/%E5%B8%B8%E7%94%A8GIS%E5%B7%A5%E5%85%B7.html#id7)
-- 新增时空可视化模块：[支持对point/geo/trip的时空可视化模块](https://gotrackit.readthedocs.io/en/latest/%E6%97%B6%E7%A9%BA%E5%8F%AF%E8%A7%86%E5%8C%96.html)
+- 新增时空可视化模块：[支持point/geo/trip时空可视化](https://gotrackit.readthedocs.io/en/latest/%E6%97%B6%E7%A9%BA%E5%8F%AF%E8%A7%86%E5%8C%96.html)
 - 用户文档：段落组织优化
 
 

@@ -125,9 +125,6 @@ sampling_waypoints_od相关参数如下：
     整数，OD的途径点数目，必须≤10，默认5个途径点
 
 
-
-
-
 轨迹数据清洗
 -----------------------------
 
@@ -294,7 +291,7 @@ TrajectoryPoints提供了以下轨迹点清洗方法：
         process_df.to_csv(os.path.join(out_fldr, r'after_reprocess_gps.csv'), encoding='utf_8_sig', index=False)
 
         # 输出为html进行动态可视化
-        tp.export_html(out_fldr=out_fldr, file_name='sample')
+        tp.export_html(out_fldr=out_fldr, file_name='sample', radius=9.0)
 
 
 .. note::
