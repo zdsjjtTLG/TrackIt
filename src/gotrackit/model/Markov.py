@@ -863,10 +863,10 @@ class HiddenMarkov(object):
                             (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
                         self.warn_info['to_ft'].append(
                             (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
-                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                        _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
                                              range(0, len(node_seq) - 1)]
                     else:
-                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                        _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
                                              range(1, len(node_seq) - 1)]
                     omitted_gps_state_item.extend([
                         (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
@@ -875,7 +875,7 @@ class HiddenMarkov(object):
                 else:
                     try:
                         node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
-                        _single_link_list = [ft_node_link_mapping[(node_seq[i], node_seq[i + 1])] for i in
+                        _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
                                              range(0, len(node_seq) - 1)]
                         omitted_gps_state_item.extend([
                             (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
@@ -962,15 +962,22 @@ class HiddenMarkov(object):
                                           range(1, len(node_seq) - 1)]]
                 omitted_item_list.append(_single_link_list)
             else:
-                self.is_warn = True
-                warnings.warn(
-                    rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
-                    from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
-                # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
-                self.warn_info['from_ft'].append(
-                    (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
-                self.warn_info['to_ft'].append(
-                    (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                try:
+                    node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
+                    _single_link_list = [pre_seq, [j + 1 for j in range(len(node_seq) - 1)],
+                                         [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                          range(0, len(node_seq) - 1)]]
+                    omitted_item_list.append(_single_link_list)
+                except:
+                    self.is_warn = True
+                    warnings.warn(
+                        rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                        from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                    # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                    self.warn_info['from_ft'].append(
+                        (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    self.warn_info['to_ft'].append(
+                        (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
 
         omitted_gps_state_df = pd.DataFrame(omitted_item_list,
                                             columns=[gps_field.POINT_SEQ_FIELD, 'sub_seq',
