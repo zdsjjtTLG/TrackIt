@@ -61,8 +61,6 @@ get_grid_data函数参数解释：
 
 多点转换
 ````````````
-.. note::
-    v0.3.11推出
 
 使用loc_convert方法代码示例::
 
@@ -85,9 +83,6 @@ get_grid_data函数参数解释：
 GeoDataFrame转换
 ````````````````````
 
-.. note::
-    v0.3.11推出
-
 使用geo_convert方法代码示例::
 
     >>> from gotrackit.tools.coord_trans import LngLatTransfer
@@ -100,9 +95,6 @@ GeoDataFrame转换
 
 文件转换
 ````````````````````
-
-.. note::
-    v0.3.11推出
 
 使用file_convert方法代码示例::
 
