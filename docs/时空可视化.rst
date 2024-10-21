@@ -27,8 +27,8 @@ KeplerVis的初始化参数为：
     bool, 是否在底图上显示路网图层，默认False
 
 * map_style
-    str, 地图风格, 默认dark, 可选dark, light
-
+    str, 地图风格, 默认dark, 可选dark, light, muted, muted_night, satellite
+    其中satellite是卫星底图
 
 添加点图层
 --------------------------------------------
