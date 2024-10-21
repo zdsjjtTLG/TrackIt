@@ -19,7 +19,7 @@ copyright = '2024, Kai Tang'
 author = 'Kai Tang'
 
 release = '0.3'
-version = '0.3.8'
+version = '0.3.11'
 
 # -- General configuration
 

@@ -7,7 +7,7 @@ Read UserManual in ：`English <https://gotrackitdocs.readthedocs.io/en/latest/>
 
 邮箱：tangkai@zhechengdata.com、794568794@qq.com
 
-项目源码：`项目GitHub主页 <https://github.com/zdsjjtTLG/TrackIt>`_ --- 当前版本v0.3.10
+项目源码：`项目GitHub主页 <https://github.com/zdsjjtTLG/TrackIt>`_ --- 当前版本v0.3.11
 
 GoTrackIt 是一个基于隐马尔可夫模型实现的地图匹配包, 通过概率图建模的方式将车辆的GPS轨迹数据匹配到道路路网, 获取车辆的标准化时空轨迹, 可以有效支撑出行导航、交通监测、交通治理、碳排核算、交通建模等方向.
 
