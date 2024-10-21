@@ -61,7 +61,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 - 新增时空可视化模块：[支持point/geo/trip时空可视化](https://gotrackit.readthedocs.io/en/latest/%E6%97%B6%E7%A9%BA%E5%8F%AF%E8%A7%86%E5%8C%96.html)
 - 用户文档：段落组织优化
 
-
 <div align=center>
 ~ 稀疏轨迹匹配与路径补全 ~
 </div>
