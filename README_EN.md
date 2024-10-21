@@ -38,18 +38,16 @@
 <br>
 
 
-**💬version status：09.04 Updated: v0.3.10**
+**💬version status：10.20 Updated: v0.3.11**
 
 update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
-
-- fix bug for html export
 
 <div align=center>
 ~ Functional Architecture of GoTrackIt ~
 </div>
 
 <div align="center">
-    <img src="docs/_static/images/FunctionGraphEn.png" />
+    <img src="docs/_static/images/FunctionGraph-En.png" />
 </div>
 
 
@@ -84,12 +82,7 @@ Sparse trajectory gps point example：
 </div>
 
 <div align="center">
-    <img src="docs/_static/images/匹配动画样例2.gif" />
-</div>
-
-
-<div align="center">
-    <img src="docs/_static/images/匹配动画样例4.gif" />
+    <img src="docs/_static/images/kvs/hk_trip.gif" />
 </div>
 
 <div align="center">
