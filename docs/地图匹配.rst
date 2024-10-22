@@ -755,7 +755,7 @@ geojson矢量文件可视化
 
 由于GPS数据的走向并不会严格和匹配路段的走向一模一样，当我们使用匹配结果的投影点去构造路径动画时，路径动画不能严格贴合路段线型(参见下图-未进行路径增密)
 
-gotrackit提供了路径增密函数，依据匹配结果表中的agent_id、seq、sub_seq、link_id、from_node、to_node、prj_lng、prj_lat、time字段对匹配结果按照路段进行增密，增密后的数据所生成的轨迹和路段线型的贴合度大大提升，可以提升展示效果(参见下图-进行路径增密)
+gotrackit提供了路径增密函数，依据匹配结果表中的agent_id、seq、sub_seq、link_id、from_node、to_node、prj_lng、prj_lat、time、route_dis字段对匹配结果按照路段进行增密，增密后的数据所生成的轨迹和路段线型的贴合度大大提升，可以提升展示效果(参见下图-进行路径增密)
 
 
 .. image:: _static/images/path_dense.png
