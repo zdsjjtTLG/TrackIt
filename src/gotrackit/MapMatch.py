@@ -278,6 +278,7 @@ class MapMatch(object):
             _gps_df = gps_df[gps_df[gps_field.AGENT_ID_FIELD].isin(agent_id_list)]
             mmp = MapMatch(net=self.my_net, use_sub_net=self.use_sub_net, time_format=self.time_format,
                            time_unit=self.time_unit, gps_buffer=self.gps_buffer,
+                           use_node_restrict=self.use_node_restrict,
                            gps_route_buffer_gap=self.gps_route_buffer_gap,
                            beta=self.beta,
                            gps_sigma=self.gps_sigma, dis_para=self.dis_para, is_lower_f=self.is_lower_f,

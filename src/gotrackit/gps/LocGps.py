@@ -484,6 +484,9 @@ class GpsPointsGdf(object):
                 # del origin candidate
                 restrict_node = self.__user_gps_info[~self.__user_gps_info[node_id_field].isna()].copy()
                 if not restrict_node.empty:
+                    if set(restrict_node[gps_field.POINT_SEQ_FIELD]).isdisjoint(
+                            set(self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD])):
+                        return candidate_link
                     restrict_node[node_id_field] = restrict_node[node_id_field].astype(int)
                     restrict_candidate_list = \
                         [single_link_gdf[(single_link_gdf[net_field.FROM_NODE_FIELD] == n) |
@@ -492,13 +495,15 @@ class GpsPointsGdf(object):
 
                 if restrict_candidate_list:
                     restrict_candidate = pd.concat(restrict_candidate_list)
+                    if restrict_candidate.empty:
+                        return candidate_link
                     del restrict_candidate_list
                     restrict_candidate.reset_index(inplace=True, drop=True)
                     restrict_candidate['single_link_geo'] = restrict_candidate[geometry_field]
                     del restrict_candidate['geometry']
                     restrict_candidate = pd.merge(restrict_candidate,
                                                   self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, geometry_field]],
-                                                  how='left', on=gps_field.POINT_SEQ_FIELD)
+                                                  on=gps_field.POINT_SEQ_FIELD)
                     candidate_link.reset_index(inplace=True, drop=True)
                     candidate_link.drop(
                         index=candidate_link[candidate_link[gps_field.POINT_SEQ_FIELD].isin(
