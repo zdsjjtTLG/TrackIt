@@ -158,6 +158,11 @@
 
 其他node_id列值为空的定位点，其候选路段集合的确定基于gps_buffer和top_k两个参数
 
+.. note::
+
+    注意：若开启use_node_restrict=True，请确保参数is_lower_f=False、del_dwell=False
+
+
 
 发射概率、状态转移概率参数
 ::::::::::::::::::::::::::::::::::::::::::::::::
