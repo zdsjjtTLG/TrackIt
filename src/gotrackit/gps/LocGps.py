@@ -478,40 +478,37 @@ class GpsPointsGdf(object):
         return candidate_link, remain_gps_list
 
     def node_restrict(self, candidate_link:gpd.GeoDataFrame or pd.DataFrame, single_link_gdf:gpd.GeoDataFrame):
-        restrict_candidate_list = list()
         try:
             if node_id_field in self.__user_gps_info.columns:
                 # del origin candidate
                 restrict_node = self.__user_gps_info[~self.__user_gps_info[node_id_field].isna()].copy()
-                if not restrict_node.empty:
-                    if set(restrict_node[gps_field.POINT_SEQ_FIELD]).isdisjoint(
-                            set(self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD])):
-                        return candidate_link
-                    restrict_node[node_id_field] = restrict_node[node_id_field].astype(int)
-                    restrict_candidate_list = \
-                        [single_link_gdf[(single_link_gdf[net_field.FROM_NODE_FIELD] == n) |
-                                         (single_link_gdf[net_field.TO_NODE_FIELD] == n)].copy().assign(seq=seq)
-                         for seq, n in zip(restrict_node[gps_field.POINT_SEQ_FIELD], restrict_node[node_id_field])]
+                if set(restrict_node[gps_field.POINT_SEQ_FIELD]).isdisjoint(
+                        set(self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD])):
+                    return candidate_link
+                restrict_node[node_id_field] = restrict_node[node_id_field].astype(int)
+                restrict_candidate_list = \
+                    [single_link_gdf[(single_link_gdf[net_field.FROM_NODE_FIELD] == n) |
+                                     (single_link_gdf[net_field.TO_NODE_FIELD] == n)].copy().assign(seq=seq)
+                     for seq, n in zip(restrict_node[gps_field.POINT_SEQ_FIELD], restrict_node[node_id_field])]
 
-                if restrict_candidate_list:
-                    restrict_candidate = pd.concat(restrict_candidate_list)
-                    if restrict_candidate.empty:
-                        return candidate_link
-                    del restrict_candidate_list
-                    restrict_candidate.reset_index(inplace=True, drop=True)
-                    restrict_candidate['single_link_geo'] = restrict_candidate[geometry_field]
-                    del restrict_candidate['geometry']
-                    restrict_candidate = pd.merge(restrict_candidate,
-                                                  self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, geometry_field]],
-                                                  on=gps_field.POINT_SEQ_FIELD)
-                    candidate_link.reset_index(inplace=True, drop=True)
-                    candidate_link.drop(
-                        index=candidate_link[candidate_link[gps_field.POINT_SEQ_FIELD].isin(
-                            restrict_node[gps_field.POINT_SEQ_FIELD])].index,
-                        axis=0,
-                        inplace=True)
-                    candidate_link = pd.concat([candidate_link, restrict_candidate])
-                    candidate_link.reset_index(inplace=True, drop=True)
+                restrict_candidate = pd.concat(restrict_candidate_list)
+                if restrict_candidate.empty:
+                    return candidate_link
+                del restrict_candidate_list
+                restrict_candidate.reset_index(inplace=True, drop=True)
+                # restrict_candidate['single_link_geo'] = restrict_candidate[geometry_field]
+                del restrict_candidate['geometry']
+                restrict_candidate = pd.merge(restrict_candidate,
+                                              self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, geometry_field]],
+                                              on=gps_field.POINT_SEQ_FIELD)
+                candidate_link.reset_index(inplace=True, drop=True)
+                candidate_link.drop(
+                    index=candidate_link[candidate_link[gps_field.POINT_SEQ_FIELD].isin(
+                        restrict_node[gps_field.POINT_SEQ_FIELD])].index,
+                    axis=0,
+                    inplace=True)
+                candidate_link = pd.concat([candidate_link, restrict_candidate])
+                candidate_link.reset_index(inplace=True, drop=True)
             else:
                 print('no node_id field in data.')
         except Exception as e:
