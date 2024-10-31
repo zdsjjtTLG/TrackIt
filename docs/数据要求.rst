@@ -63,7 +63,7 @@ gotrackit所要求的GPS定位数据、标准路网数据的标准格式如下�
 
 .. note::
 
-   点层表的geometry字段中不允许出现MultiPoint类型，不支持三维坐标。
+   点层表的geometry字段中不允许出现MultiPoint类型，不支持三维坐标
 
 
 
@@ -120,7 +120,7 @@ gotrackit所要求的GPS定位数据、标准路网数据的标准格式如下�
 
 .. note::
 
-   线层表的geometry字段中不允许出现MultiLineString类型，只允许LineString类型，不支持三维坐标。
+   线层表的geometry字段中不允许出现MultiLineString类型，只允许LineString类型，不支持三维坐标
 
 
 
@@ -179,7 +179,7 @@ GPS数据字段要求如下：
 GPS数据表中不可出现以下内置字段：gv_dx、gv_dy、gvl，这些字段为gotrackit的内置计算字段
 
 .. note::
-    time列用于确定点的先后顺序，不允许有重复值，未来的版本会使用time列计算速度用于提供ST-MATCHING。
+    time列用于确定点的先后顺序，不允许有重复值，未来的版本会使用time列计算速度用于提供ST-Matching
 
 .. note::
     如果你的数据没有时间列，请自己赋予一个时间列且确保没有重复值
