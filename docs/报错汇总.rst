@@ -234,10 +234,11 @@ link geometry has overlapping points, please use the redivide_link_node function
 
 
     if __name__ == '__main__':
-        # 删除自相交对象和环路
+
         link_gdf = gpd.read_file(r'XXX')
         node_gdf = gpd.read_file(r'XXX')
 
+        # 删除自相交对象和环路
         link_gdf.reset_index(inplace=True, drop=True)
         link_gdf.drop(index=link_gdf[~link_gdf['geometry'].is_simple].index, inplace=True, axis=0)
         link_gdf.drop(index=link_gdf[link_gdf['from_node'] == link_gdf['to_node']].index, inplace=True, axis=0)
