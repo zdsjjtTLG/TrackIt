@@ -213,3 +213,32 @@ redivide_link_node函数报错
 1.先去除路网线层中相同起终点的link，然后reset_index()重设索引
 
 2.等待0.3.8版本更新
+
+
+报错：线层有重复点-overlapping points
+----------------------------------------------------------------------------------------------------------
+
+在使用路网相关处理函数是如果出现以下报错：
+
+link geometry has overlapping points, please use the redivide_link_node function to handle it
+
+.. image:: _static/images/loop_error.png
+    :align: center
+--------------------------------------------------------------------------------------
+
+
+这种情况是因为路网线层有环路或者自相交线段，请对线层和点层做以下清洗后再进行下一步工作：
+
+.. code-block:: python
+    :linenos:
+
+
+    if __name__ == '__main__':
+        link_gdf.drop(index=link_gdf[~link_gdf['geometry'].is_simple].index, inplace=True, axis=0)
+        link_gdf.drop(index=link_gdf[link_gdf['from_node_gdf'] == link_gdf['to_node_gdf']].index, inplace=True, axis=0)
+        link_gdf.reset_index(inplace=True, drop=True)
+
+        used_node_gdf = set(link_gdf['from_node_gdf']) | set(link_gdf['to_node_gdf'])
+        node_gdf = gpd.read_file(os.path.join(input_fldr, 'node_gdfAfterModify.shp'))
+        node_gdf.drop(index=node_gdf[~node_gdf['node_gdf_id'].isin(used_node_gdf)].index, inplace=True, axis=0)
+        node_gdf.reset_index(inplace=True, drop=True)
