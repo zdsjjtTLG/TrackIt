@@ -218,7 +218,7 @@ redivide_link_node函数报错
 报错：线层有重复点-overlapping points
 ----------------------------------------------------------------------------------------------------------
 
-在使用路网相关处理函数是如果出现以下报错：
+在使用路网相关处理函数时如果出现以下报错：
 
 link geometry has overlapping points, please use the redivide_link_node function to handle it
 
@@ -227,7 +227,7 @@ link geometry has overlapping points, please use the redivide_link_node function
 --------------------------------------------------------------------------------------
 
 
-这种情况是因为路网线层有环路或者自相交线段，请对线层和点层做以下清洗后再进行下一步工作：
+这种情况是因为路网线层有环路或者自相交线段，请对线层和点层做以下清洗后再进行下一步工作(该步操作在0.3.13版本中会整合到clean函数中)：
 
 .. code-block:: python
     :linenos:
