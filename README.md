@@ -106,7 +106,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 
 <br>
 
-
 <div align="center">
     <img src="docs/_static/images/tk.jpg" />
 </div>
