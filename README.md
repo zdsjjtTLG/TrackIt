@@ -101,14 +101,14 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 <br>
 
 <div align=center>
-~ 用户交流群， 遇到BUG无法解决请进群交流，别忘了给项目一颗star哦， 您的支持是我迭代的动力 ~
+~ 目前两个用户交流群人数均已超过200人， 请添加小助手微信后再入群，别忘了给项目一颗star哦， 您的支持是我迭代的动力 ~
 </div>
 
 <br>
 
 
 <div align="center">
-    <img src="docs/_static/images/wxq-2.jpg" />
+    <img src="docs/_static/images/tk.jpg" />
 </div>
 
 
