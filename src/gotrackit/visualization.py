@@ -79,7 +79,8 @@ class KeplerVis(object):
                       stroke_color: list or str = None,
                       width: float = 0.3, time_field: str = None,
                       time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
-                      speed: float = 0.3, set_avg_zoom: bool = True, tooltip_fields: list[str] = None):
+                      speed: float = 0.3, set_avg_zoom: bool = True, tooltip_fields: list[str] = None,
+                      color_field: str = None, color_list: list = None):
         layer_config = self.get_base_layer()
         layer_id = layer_id if layer_id is not None else rf'geo-{self.geo_count}'
         layer_config['id'] = layer_id
@@ -91,6 +92,13 @@ class KeplerVis(object):
         layer_config['config']["visConfig"]['strokeColor'] = self.get_rgb_by_name(color, default_rgb=[100, 100, 100])
         layer_config['config']["visConfig"]['strokeColor'] = stroke_color
         layer_config['config']["visConfig"]['thickness'] = width
+        if color_field is not None:
+            layer_config['visualChannels']['colorField'] = {'name': color_field,
+                                                            'type': 'string'}
+            layer_config['config']['visConfig']['colorRange'] = {'name': 'Custom Palette', 'type': 'custom',
+                                                                 'category': 'Custom', 'colors': color_list,
+                                                                 'reversed': False}
+
         self.user_config["config"]["visState"]["layers"].append(layer_config)
         if time_field is not None and time_field in data.columns:
             self.user_config['config']['visState']['filters'].append(
@@ -356,6 +364,7 @@ def generate_match_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, 
     :return:
     """
     mix_gdf.sort_values(by='type', ascending=True, inplace=True)
+    mix_gdf[gps_field.LOC_TYPE] = mix_gdf[gps_field.LOC_TYPE].fillna('l')
     cen_geo = mix_gdf.at[0, net_field.GEOMETRY_FIELD].centroid
     cen_x, cen_y = cen_geo.x, cen_geo.y
 
@@ -364,11 +373,20 @@ def generate_match_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, 
         kv.add_geo_layer(data=error_gdf, layer_id=kepler_config.ERROR_XFER, width=0.6, color=[245, 97, 129],
                          set_avg_zoom=False)
     if mix_gdf is not None and not mix_gdf.empty:
+        _color_map = dict()
+        loc_type_set = mix_gdf[gps_field.LOC_TYPE].unique()
+        if 'c' in loc_type_set:
+            _color_map['c'] = '#FFFFFF'
+            if 'd' in loc_type_set:
+                _color_map['d'] = '#0C9B20'
+        _color_map['l'] = '#438ECD'
+        _color_map['s'] = '#FFC300'
         kv.add_geo_layer(data=mix_gdf, layer_id=kepler_config.MIX_NAME, width=0.1, color=[18, 147, 154],
                          time_field=gps_field.TIME_FIELD, set_avg_zoom=False,
                          tooltip_fields=[gps_field.AGENT_ID_FIELD, gps_field.POINT_SEQ_FIELD, gps_field.TIME_FIELD,
                                          net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
-                                         gps_field.LOC_TYPE])
+                                         gps_field.LOC_TYPE], color_field=gps_field.LOC_TYPE,
+                         color_list=list(_color_map.values()))
     if node_gdf is not None:
         kv.add_geo_layer(data=node_gdf, layer_id=kepler_config.BASE_NODE_NAME, width=0.2, color=[100, 100, 100],
                          set_avg_zoom=False)
