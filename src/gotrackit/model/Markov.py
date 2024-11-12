@@ -650,6 +650,171 @@ class HiddenMarkov(object):
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
             seq_len_dict, transition_df
 
+    @function_time_cost
+    def generate_transition_st_alpha(self, single_link_ft_df: pd.DataFrame = None,
+                                     pre_seq_candidate: pd.DataFrame = None,
+                                     gps_adj_dis_map: dict = None,
+                                     g: nx.DiGraph = None,
+                                     method: str = None, weight_field: str = 'length',
+                                     cache_path: bool = True, not_conn_cost: float = 999.0,
+                                     done_stp_cost_df: pd.DataFrame = None,
+                                     is_sub_net: bool = True, fmm_cache: bool = False, cut_off: float = 600.0,
+                                     cache_prj_inf: dict = None,
+                                     add_single_ft: list[bool] = None, link_f_map: dict = None,
+                                     link_t_map: dict = None) -> \
+            tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
+        # K候选
+        seq_k_candidate_info = \
+            self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
+                                     top_k=self.top_k, cache_prj_inf=cache_prj_inf)
+        # print(rf'{len(seq_k_candidate_info)}个候选路段...')
+        seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
+        _ = seq_k_candidate_info.drop_duplicates(subset=[net_field.SINGLE_LINK_ID_FIELD], keep='first', inplace=False)
+        now_source_node = set(_[net_field.FROM_NODE_FIELD])
+        now_target_node = set(_[net_field.TO_NODE_FIELD])
+        del _
+
+        seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
+                                          net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
+
+        ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
+
+        del seq_k_candidate_info['idx']
+        del pre_seq_candidate
+        seq_k_candidate = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD).agg(
+            {net_field.SINGLE_LINK_ID_FIELD: list, gps_field.POINT_SEQ_FIELD: list,
+             'route_dis': list, net_field.FROM_NODE_FIELD: 'count'}).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g_s', net_field.FROM_NODE_FIELD: 'count'})
+        seq_len_dict = {s: l for s, l in zip(seq_k_candidate.index, seq_k_candidate['count'])}
+        seq_k_candidate.rename(columns={net_field.SINGLE_LINK_ID_FIELD: markov_field.FROM_STATE,
+                                        'route_dis': 'from_route_dis',
+                                        'g_s': gps_field.FROM_GPS_SEQ}, inplace=True)
+
+        seq_k_candidate[markov_field.TO_STATE] = seq_k_candidate[markov_field.FROM_STATE].shift(-1)
+        seq_k_candidate[gps_field.TO_GPS_SEQ] = seq_k_candidate[gps_field.FROM_GPS_SEQ].shift(-1)
+        seq_k_candidate['to_route_dis'] = seq_k_candidate['from_route_dis'].shift(-1)
+        seq_k_candidate.dropna(subset=[markov_field.TO_STATE], inplace=True)
+
+        from_state = seq_k_candidate[
+            [markov_field.FROM_STATE, gps_field.FROM_GPS_SEQ, 'from_route_dis']].reset_index(
+            drop=False).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g'}).explode(
+            column=[markov_field.FROM_STATE, gps_field.FROM_GPS_SEQ, 'from_route_dis'], ignore_index=True)
+        to_state = seq_k_candidate[
+            [markov_field.TO_STATE, gps_field.TO_GPS_SEQ, 'to_route_dis']].reset_index(drop=False).rename(
+            columns={gps_field.POINT_SEQ_FIELD: 'g'}).explode(
+            column=[markov_field.TO_STATE, gps_field.TO_GPS_SEQ, 'to_route_dis'],
+            ignore_index=True)
+        from_state['from_route_dis'] = from_state['from_route_dis'].astype(float)
+        # from_state[net_field.LENGTH_FIELD] = from_state[net_field.LENGTH_FIELD].astype(float)
+        to_state['to_route_dis'] = to_state['to_route_dis'].astype(float)
+
+        transition_df = pd.merge(from_state, to_state, on='g', how='outer')
+        del from_state, to_state
+        transition_df.reset_index(inplace=True, drop=True)
+        col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
+        transition_df[col] = transition_df[col].astype(int)
+        # print(rf'{len(transition_df)}次状态转移...')
+        if len(transition_df) >= 30000:
+            link_t_map = {k: v for k, v in link_t_map.items() if v in now_target_node}
+            link_f_map = {k: v for k, v in link_f_map.items() if v in now_source_node}
+            transition_df['from_link_f'] = transition_df[markov_field.FROM_STATE].map(link_f_map)
+            transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].map(link_t_map)
+            transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].map(link_f_map)
+            transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].map(link_t_map)
+        else:
+            transition_df['from_link_f'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_f_map[x])
+            transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
+            transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
+            transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
+
+        # now_source_node = set(transition_df['from_link_f'])
+        if not fmm_cache:
+            # 先计算所有要计算的path
+            if o_node_field in done_stp_cost_df.columns:
+                already_cache_node = set(done_stp_cost_df[o_node_field])
+            else:
+                already_cache_node = set()
+            gap = now_target_node - already_cache_node
+            del single_link_ft_df[net_field.SINGLE_LINK_ID_FIELD]
+            if gap:
+                if not cache_path:
+                    add_single_ft[0] = True
+                done_stp_cost_df = self.add_path_cache(done_stp_cost_df=done_stp_cost_df,
+                                                       source_node_list=gap, cut_off=cut_off,
+                                                       single_link_ft_path_df=single_link_ft_df,
+                                                       weight_field=weight_field, method=method, g=g,
+                                                       add_single_ft=add_single_ft)
+        del g
+
+        _done_stp_cost_df = done_stp_cost_df[done_stp_cost_df[o_node_field].isin(now_target_node) &
+                                             done_stp_cost_df[d_node_field].isin(now_source_node)].copy()
+        if not fmm_cache:
+            _done_stp_cost_df['2nd_node'] = -1
+            _done_stp_cost_df['-2nd_node'] = -1
+            normal_path_idx = _done_stp_cost_df[cost_field] > 0
+            if _done_stp_cost_df[normal_path_idx].empty:
+                pass
+            else:
+                try:
+                    _done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                        path_field].apply(
+                        lambda x: x[1])
+                    _done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = _done_stp_cost_df.loc[normal_path_idx, :][
+                        path_field].apply(
+                        lambda x: x[-2])
+                except:
+                    pass
+        transition_df = pd.merge(transition_df, _done_stp_cost_df, left_on=['from_link_t', 'to_link_f'],
+                                 right_on=[o_node_field, d_node_field], how='left')
+        del _done_stp_cost_df
+        del transition_df[o_node_field], transition_df[d_node_field]
+        # sub_net do not share path within different agents
+        if is_sub_net or fmm_cache or not cache_path:
+            del done_stp_cost_df
+            done_stp_cost_df = pd.DataFrame()
+
+        transition_df[cost_field] = transition_df[cost_field].fillna(0)
+        transition_df.reset_index(inplace=True, drop=True)
+        transition_df[markov_field.ROUTE_LENGTH] = not_conn_cost * 1.0
+
+        normal_path_idx_a = transition_df[cost_field] > 0
+        _ = transition_df[normal_path_idx_a]
+        adj_seq_path_dict = {(int(f_state), int(t_state)): node_path for f_state, t_state, node_path, c in
+                             zip(_[markov_field.FROM_STATE],
+                                 _[markov_field.TO_STATE],
+                                 _[path_field],
+                                 _[cost_field]) if c > 0}
+        s_l = {l: le for l, le in zip(single_link_ft_df['single_link_id'], single_link_ft_df[cost_field])}
+        transition_df['length'] = transition_df[markov_field.FROM_STATE].map(s_l)
+
+        # same
+        same_link_idx = transition_df[markov_field.FROM_STATE] == transition_df[markov_field.TO_STATE]
+        transition_df.loc[same_link_idx, markov_field.ROUTE_LENGTH] = \
+            np.abs(transition_df.loc[same_link_idx, :]['from_route_dis'] -
+                   transition_df.loc[same_link_idx, :]['to_route_dis'])
+
+        # normal
+        normal_path_idx_b = ((normal_path_idx_a & (transition_df['2nd_node'] != transition_df['from_link_f']) & (
+                transition_df['-2nd_node'] != transition_df['to_link_t'])) |
+                             (transition_df['from_link_t'] == transition_df['to_link_f'])) & ~same_link_idx
+        transition_df.loc[normal_path_idx_b, markov_field.ROUTE_LENGTH] = \
+            np.abs(transition_df.loc[normal_path_idx_b, :][cost_field] +
+                   transition_df.loc[normal_path_idx_b, :][net_field.LENGTH_FIELD] -
+                   transition_df.loc[normal_path_idx_b, :]['from_route_dis'] +
+                   transition_df.loc[normal_path_idx_b, :]['to_route_dis'])
+
+        transition_df[gps_field.ADJ_DIS] = transition_df[gps_field.FROM_GPS_SEQ].map(gps_adj_dis_map)
+        final_idx = same_link_idx | normal_path_idx_b
+        transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
+        transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
+            -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
+
+        s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
+                                     markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
+        return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
+            seq_len_dict, transition_df
+
     def add_path_cache(self, done_stp_cost_df: pd.DataFrame = None, source_node_list: list[int] or set[int] = None,
                        g: nx.DiGraph = None, method: str = 'dijkstra', single_link_ft_path_df: pd.DataFrame = None,
                        weight_field: str = None, cut_off: float = 600.0, add_single_ft: list[bool] = True) \
@@ -868,6 +1033,92 @@ class HiddenMarkov(object):
                     else:
                         _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
                                              range(1, len(node_seq) - 1)]
+                    omitted_gps_state_item.extend([
+                        (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
+                        for _single_link, sub_seq in zip(_single_link_list,
+                                                         range(1, len(_single_link_list) + 1))])
+                else:
+                    try:
+                        node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
+                        _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                             range(0, len(node_seq) - 1)]
+                        omitted_gps_state_item.extend([
+                            (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
+                            for _single_link, sub_seq in zip(_single_link_list,
+                                                             range(1, len(_single_link_list) + 1))])
+                    except:
+                        self.is_warn = True
+                        warnings.warn(
+                            rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                            from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                        # self.warn_info.append([(now_from_node, now_to_node), (next_from_node, next_to_node)])
+                        self.warn_info['from_ft'].append(
+                            (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                        self.warn_info['to_ft'].append(
+                            (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+
+        omitted_gps_state_df = pd.DataFrame(omitted_gps_state_item, columns=[gps_field.POINT_SEQ_FIELD,
+                                                                             net_field.SINGLE_LINK_ID_FIELD,
+                                                                             gps_field.SUB_SEQ_FIELD,
+                                                                             net_field.LINK_ID_FIELD,
+                                                                             net_field.DIRECTION_FIELD,
+                                                                             net_field.FROM_NODE_FIELD,
+                                                                             net_field.TO_NODE_FIELD])
+        del omitted_gps_state_item
+        omitted_gps_state_df = pd.merge(omitted_gps_state_df, self.net.get_link_data()[[net_field.FROM_NODE_FIELD,
+                                                                                        net_field.TO_NODE_FIELD,
+                                                                                        net_field.GEOMETRY_FIELD,
+                                                                                        net_field.LENGTH_FIELD]],
+                                        on=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], how='left')
+        omitted_gps_state_df[markov_field.DRIVING_L] = omitted_gps_state_df[net_field.LENGTH_FIELD] / 2
+        omitted_gps_state_df[markov_field.PRJ_GEO] = gpd.GeoSeries(
+            omitted_gps_state_df[net_field.GEOMETRY_FIELD]).interpolate(omitted_gps_state_df[markov_field.DRIVING_L])
+        del omitted_gps_state_df[net_field.LENGTH_FIELD], omitted_gps_state_df[net_field.GEOMETRY_FIELD]
+        return omitted_gps_state_df
+
+    def acquire_omitted_match_item_beta(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Calculate and complete the paths between discontinuous links
+        :param gps_link_state_df: preliminary matching results, there may be broken paths
+        :return:
+        """
+        bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
+
+        # 找出断掉的路径
+        gps_link_state_df.sort_values(by=gps_field.POINT_SEQ_FIELD, ascending=True, inplace=True)
+        gps_link_state_df.reset_index(inplace=True, drop=True)
+
+        ft_node_link_mapping = self.net.get_ft_node_link_mapping()
+        omitted_gps_state_item = []
+        used_observation_seq_list = self.gps_points.used_observation_seq_list
+        for i, used_o in enumerate(used_observation_seq_list[:-1]):
+            ft_state = (int(gps_link_state_df.at[i, net_field.SINGLE_LINK_ID_FIELD]),
+                        int(gps_link_state_df.at[i, gps_field.NEXT_SINGLE]))
+
+            now_from_node, now_to_node = int(gps_link_state_df.at[i, net_field.FROM_NODE_FIELD]), \
+                int(gps_link_state_df.at[i, net_field.TO_NODE_FIELD])
+
+            next_from_node, next_to_node = int(gps_link_state_df.at[i + 1, net_field.FROM_NODE_FIELD]), \
+                int(gps_link_state_df.at[i + 1, net_field.TO_NODE_FIELD])
+
+            if ((now_from_node, now_to_node) == (next_from_node, next_to_node)) or now_to_node == next_from_node:
+                pass
+            else:
+                pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
+                next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
+                if ft_state in self.__adj_seq_path_dict.keys():
+                    node_seq = self.__adj_seq_path_dict[ft_state]
+                    # if node_seq[1] == now_from_node:
+                    #     warnings.warn(
+                    #         rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
+                    #         from_link:{(now_from_node, now_to_node)} -> to_link:{(next_from_node, next_to_node)}''')
+                    #     self.warn_info['from_ft'].append(
+                    #         (ft_state[0], now_from_node, now_to_node, rf'seq:{pre_seq}-{next_seq}'))
+                    #     self.warn_info['to_ft'].append(
+                    #         (ft_state[1], next_from_node, next_to_node, rf'seq:{pre_seq}-{next_seq}'))
+
+                    _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                         range(0, len(node_seq) - 1)]
                     omitted_gps_state_item.extend([
                         (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
                         for _single_link, sub_seq in zip(_single_link_list,
