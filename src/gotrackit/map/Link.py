@@ -148,6 +148,10 @@ class Link(object):
                                       self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])}
         self.__link_f_mapping = {v: k[0] for k, v in self.__ft_link_mapping.items()}
         self.__link_t_mapping = {v: k[1] for k, v in self.__ft_link_mapping.items()}
+        # self.__link_length = {single_link_id: l for
+        #                       single_link_id, l in
+        #                       zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
+        #                           self.__single_link_gdf[net_field.LENGTH_FIELD])}
         # self.__link_geo_mapping = {single_link_id: geo for single_link_id, geo in
         #                            zip(self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD],
         #                                self.__single_link_gdf[net_field.GEOMETRY_FIELD])}
