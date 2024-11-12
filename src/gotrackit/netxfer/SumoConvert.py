@@ -8,13 +8,44 @@ import pyproj
 import numpy as np
 import pandas as pd
 import multiprocessing
+from pyproj import CRS
 import geopandas as gpd
 from shapely.ops import linemerge
 from shapely.ops import transform
 import xml.etree.cElementTree as ET
 from ..tools.group import cut_group
+from ..GlobalVal import NetField
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point, Polygon
+
+
+net_field = NetField()
+
+
+LW_INFO_FIELD = 'lane_width_info'
+LT_INFO_FIELD = 'lane_type_info'
+LM_INFO_FIELD = 'lane_mode_info'
+LINK_ID_FIELD = 'link_id'
+FROM_NODE_FIELD = 'from_node'
+TO_NODE_FIELD = 'to_node'
+LANE_NUM_FIELD = 'lane_num'
+SPEED_FIELD = 'speed'
+SPREAD_TYPE = 'spread_type'
+WIDTH_FIELD = 'lane_width'
+GEOMETRY_FIELD = 'geometry'
+
+EDGE_SPREAD_TYPE = 'spreadType'
+
+DEFAULT_LANE_NUM = 2
+DEFAULT_SPEED = 9.0
+
+link_id_field = net_field.LINK_ID_FIELD
+dir_field = net_field.DIRECTION_FIELD
+from_node_field = net_field.FROM_NODE_FIELD
+to_node_field = net_field.TO_NODE_FIELD
+length_field = net_field.LENGTH_FIELD
+geometry_field = net_field.GEOMETRY_FIELD
+node_id_field = net_field.NODE_ID_FIELD
 
 
 """SUMO路网转换的相关方法"""
@@ -54,8 +85,6 @@ CONN_TO_EDGE_KEY = 'to'
 CONN_FROM_LANE_KEY = 'fromLane'
 CONN_TO_LANE_KEY = 'toLane'
 CONN_VIA_KEY = 'via'
-
-geometry_field = 'geometry'
 
 class SumoConvert(object):
     def __init__(self):
@@ -502,6 +531,187 @@ class SumoConvert(object):
                 xfer_p1, xfer_p2 = prj_xfer(from_crs=from_crs, to_crs=to_crs, origin_p=p1), prj_xfer(
                     from_crs=from_crs, to_crs=to_crs, origin_p=p2)
                 child.set(NODE_COV_BOUND_KEY, ','.join(list(map(str, [xfer_p1.x, xfer_p1.y, xfer_p2.x, xfer_p2.y]))))
+
+    @staticmethod
+    def generate_net_from_plain(sumo_home_fldr: str = None, plain_edge_path: str = r'./',
+                                plain_node_path: str = r'./', plain_conn_path: str = None, x_offset: float = 0,
+                                y_offset: float = 0, out_fldr: str = r'./', out_file_name: str = 'net',
+                                join_dist: float = 10.0):
+        net_convert_fldr = r'bin/netconvert'
+        out_file_name = out_file_name + '.net.xml'
+        node_config, edge_config = rf'--node-files={plain_node_path}', rf'--edge-files={plain_edge_path}'
+        offset_config = rf'--offset.x {x_offset}  --offset.y {y_offset}'
+        output_config = rf'--output-file={os.path.join(out_fldr, out_file_name)}'
+        if plain_conn_path is None:
+            conn_config = r''
+        else:
+            conn_config = rf'--connection-files={plain_node_path}'
+
+        os.system(
+            rf'{os.path.join(sumo_home_fldr, net_convert_fldr)} {node_config} {edge_config} {conn_config} {offset_config} {output_config} --junctions.join-dist {join_dist}')
+
+    @staticmethod
+    def generate_plain_edge(link_gdf: gpd.GeoDataFrame = None, use_lane_ele: bool = False,
+                            lane_info_reverse: bool = True):
+        """
+        接收single形式的link
+        :param link_gdf: required_fields - link_id, from_node, to_node, spread_type, geometry
+        :param use_lane_ele: whether to use lane level description fields
+        :param lane_info_reverse: True
+        :return:
+        """
+
+        # 创建根节点
+        edges_root = ET.Element('edges')
+
+        # 以根节点创建文档树
+        tree = ET.ElementTree(edges_root)
+
+        # 设置根节点的属性
+        edges_root.set('version', "1.16")
+        edges_root.set('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
+        edges_root.set('xsi:noNamespaceSchemaLocation', "http://sumo.dlr.de/xsd/edges_file.xsd")
+        # new child node
+        for _, row in link_gdf.iterrows():
+            edge_ele = ET.Element('edge')
+            edge_ele.set(EDGE_ID_KEY, str(row[link_id_field]))
+            edge_ele.set(EDGE_FROM_KEY, str(row[from_node_field]))
+            edge_ele.set(EDGE_TO_KEY, str(row[to_node_field]))
+            edge_ele.set(EDGE_PRIORITY_KEY, '-1')
+            edge_ele.set(EDGE_SPREAD_TYPE, row[SPREAD_TYPE])
+            try:
+                edge_ele.set(EDGE_LANES_KEY, str(row[LANE_NUM_FIELD]))
+            except KeyError:
+                edge_ele.set(EDGE_LANES_KEY, rf'{DEFAULT_LANE_NUM}')
+
+            try:
+                edge_ele.set(EDGE_SPEED_KEY, str(row[SPEED_FIELD]))
+            except KeyError:
+                edge_ele.set(EDGE_SPEED_KEY, rf'{DEFAULT_SPEED}')
+
+            edge_ele.set(EDGE_SHAPE_KEY,
+                         ' '.join([','.join(list(map(str, item))) for item in list(row[GEOMETRY_FIELD].coords)]))
+
+            if not use_lane_ele:
+                try:
+                    edge_ele.set(LANE_WIDTH_KEY, str(row[WIDTH_FIELD]))
+                except KeyError:
+                    edge_ele.set(LANE_WIDTH_KEY, '3.6')
+
+            if use_lane_ele:
+                lane_width_info = row[LW_INFO_FIELD].split(',')
+                lane_mode_info = row[LM_INFO_FIELD].split(',')
+                if lane_info_reverse:
+                    lane_width_info = lane_width_info[::-1]
+                    lane_mode_info = lane_mode_info[::-1]
+                for i, lane_width in enumerate(lane_width_info):
+                    lane_ele = ET.Element('lane')
+                    lane_ele.set('index', str(i))
+                    lane_ele.set(LANE_WIDTH_KEY, str(lane_width_info[i]))
+                    # c: passenger, n: bicycle, g: green belt
+                    try:
+                        now_mode = lane_mode_info[i]
+                    except:
+                        now_mode = 'c'
+                    if now_mode == 'c':
+                        pass
+                    elif now_mode == 'n':
+                        lane_ele.set('allow', 'bicycle')
+                    elif now_mode == 'g':
+                        lane_ele.set('disallow', 'all')
+                    edge_ele.append(lane_ele)
+                    stop_ele = ET.Element('stopOffset')
+                    stop_ele.set('value', '2.0')
+                    lane_ele.append(stop_ele)
+            # 将子节点添加到根节点下
+            edges_root.append(edge_ele)
+        return tree
+
+    @staticmethod
+    def generate_plain_node(node_gdf: gpd.GeoDataFrame = None, junction_gdf: gpd.GeoDataFrame = None,
+                            x_offset: float = 0.0, y_offset: float = 0.0):
+        use_junction_shape = False
+        if junction_gdf is not None and not junction_gdf.empty:
+            junction_gdf.set_index('node_id', inplace=True)
+            use_junction_shape = True
+        node_gdf['_x_'], node_gdf['_y_'] = node_gdf['geometry'].x, node_gdf['geometry'].y
+        max_x, max_y, min_x, min_y = node_gdf['_x_'].max(), node_gdf['_y_'].max(), node_gdf['_x_'].min(), node_gdf[
+            '_y_'].min()
+
+        # create root node
+        nodes_root = ET.Element('nodes')
+        location_ele = ET.Element('location')
+        location_ele.set("netOffset", rf"{x_offset},{y_offset}")
+        location_ele.set("convBoundary", rf"{min_x},{min_y},{max_x},{max_y}")
+        location_ele.set("origBoundary", "-10000000000.00,-10000000000.00,10000000000.00,10000000000.00")
+        location_ele.set('projParameter', str(CRS.from_user_input(node_gdf.crs).to_proj4()))
+        print(str(CRS.from_user_input(node_gdf.crs).to_proj4()))
+        # 以根节点创建文档树
+        tree = ET.ElementTree(nodes_root)
+
+        # 设置根节点的属性
+        nodes_root.set('version', "1.16")
+        nodes_root.set('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
+        nodes_root.set('xsi:noNamespaceSchemaLocation', "http://sumo.dlr.de/xsd/nodes_file.xsd")
+
+        nodes_root.append(location_ele)
+        for _, row in node_gdf.iterrows():
+            node_ele = ET.Element('node')
+            node_id = str(row['node_id'])
+            node_ele.set(NODE_ID_KEY, node_id)
+            node_ele.set(NODE_X_KEY, str(row['_x_']))
+            node_ele.set(NODE_Y_KEY, str(row['_y_']))
+            node_ele.set('type', "priority")
+            if use_junction_shape:
+                try:
+                    shape_str = list(junction_gdf.at[node_id, 'geometry'].exterior.coords)
+                    shape_str = ' '.join([','.join(list(map(str, loc))) for loc in shape_str])
+                    node_ele.set('shape', shape_str)
+                except:
+                    pass
+            nodes_root.append(node_ele)
+        del node_gdf['_x_'], node_gdf['_y_']
+        return tree
+
+    def generate_hd_map(self, sumo_home_fldr: str, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None,
+                        use_lane_ele: bool = False, lane_info_reverse: bool = True,
+                        junction_gdf: gpd.GeoDataFrame = None, join_dist: float = 10.0,
+                        x_offset: float = 0.0, y_offset: float = 0.0, out_fldr: str = r'./',
+                        flag_name: str = 'prj', plain_crs: str = 'EPSG:3857'):
+        link_gdf['spread_type'] = 'right'
+
+        link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
+        neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
+        if neg_link.empty:
+            single_link_gdf = link_gdf.copy()
+        else:
+            neg_link[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]] = neg_link[
+                [net_field.TO_NODE_FIELD, net_field.FROM_NODE_FIELD]]
+            neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
+                lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+            single_link_gdf = pd.concat([link_gdf, neg_link])
+        single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
+        single_link_gdf.reset_index(inplace=True, drop=True)
+        del link_gdf
+
+        single_link_gdf = single_link_gdf.to_crs(plain_crs)
+        node_gdf = node_gdf.to_crs(plain_crs)
+        if x_offset == 0:
+            x_offset = -node_gdf[geometry_field].x.min()
+        if y_offset == 0:
+            y_offset = -node_gdf[geometry_field].y.min()
+        single_link_gdf[net_field.LINK_ID_FIELD] = [i for i in range(1, len(single_link_gdf) + 1)]
+        edge_tree = self.generate_plain_edge(link_gdf=single_link_gdf, use_lane_ele=use_lane_ele,
+                                             lane_info_reverse=lane_info_reverse)
+        node_tree = self.generate_plain_node(node_gdf=node_gdf, x_offset=x_offset, y_offset=y_offset,
+                                             junction_gdf=junction_gdf)
+        edge_tree.write(os.path.join(out_fldr, rf'{flag_name}.edg.xml'))
+        node_tree.write(os.path.join(out_fldr, rf'{flag_name}.nod.xml'))
+        self.generate_net_from_plain(sumo_home_fldr=sumo_home_fldr,
+                                     plain_edge_path=os.path.join(out_fldr, rf'{flag_name}.edg.xml'),
+                                     plain_node_path=os.path.join(out_fldr, rf'{flag_name}.nod.xml'), x_offset=x_offset,
+                                     y_offset=y_offset, join_dist=join_dist, out_fldr=out_fldr,
+                                     out_file_name=flag_name)
 
 
 def try_get_v(item_obj: ET.Element = None, k: str = None, default: str = None):
