@@ -904,3 +904,6 @@ class Net(object):
     def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2):
         g = self.__link.get_graph()
         return list(islice(nx.shortest_simple_paths(g, o, d, weight=self.weight_field), k))
+
+    def get_single_link(self):
+        return self.__link.get_link_data()
