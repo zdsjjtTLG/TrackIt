@@ -335,7 +335,7 @@ class SumoConvert(object):
 
         junction_item_list = list()
         for junction_ele in junction_ele_list:
-            junction_item = self.parse_net_junction(junction_obj=junction_ele)
+            junction_item = self.parse_net_junction(junction_obj=junction_ele, x_offset=x_offset, y_offset=y_offset)
             junction_item_list.append(junction_item)
 
         junction_df = pd.DataFrame(junction_item_list, columns=[JUNCTION_ID_KEY, JUNCTION_TYPE_KEY,
@@ -417,23 +417,27 @@ class SumoConvert(object):
         return lane_item_list, [edge_id, edge_from, edge_to, edge_function, avg_center_line, avg_speed]
 
     @staticmethod
-    def parse_net_junction(junction_obj: ET.Element = None) -> list[str, str, float, float, Polygon]:
+    def parse_net_junction(junction_obj: ET.Element = None, x_offset: float = 0.0,
+                           y_offset: float = 0.0) -> list[str, str, float, float, Polygon]:
         """
 
         :param junction_obj:
+        :param x_offset:
+        :param y_offset:
         :return:
         """
         junction_id, junction_type, junction_x, junction_y, junction_shape = \
             junction_obj.get(JUNCTION_ID_KEY), junction_obj.get(JUNCTION_TYPE_KEY), junction_obj.get(JUNCTION_X_KEY), \
             junction_obj.get(JUNCTION_Y_KEY), junction_obj.get(JUNCTION_SHAPE_KEY)
         try:
-            junction_x, junction_y = float(junction_x), float(junction_y)
+            junction_x, junction_y = float(junction_x) - x_offset, float(junction_y) - y_offset
         except TypeError:
             pass
         if junction_type == 'internal':
             junction_shape = Polygon(list(Point(junction_x, junction_y).buffer(1.5).exterior.coords))
         else:
-            junction_shape = [list(map(float, xy.split(','))) for xy in junction_shape.split(' ')]
+            junction_shape = [np.array(list(map(float, xy.split(',')))) -
+                              np.array([x_offset, y_offset]) for xy in junction_shape.split(' ')]
             _l = len(junction_shape)
             if _l >= 3:
                 junction_shape = Polygon(junction_shape)
