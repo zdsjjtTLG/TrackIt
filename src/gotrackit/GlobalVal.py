@@ -164,10 +164,9 @@ class KeplerConfig(object):
                         'type': 'custom',
                         'category': 'Custom',
                         'colors': [
-                            '#FFC300',
-                            '#438ecd'
+                            '#FFFFFF', '#B59494', '#438ECD', '#FFC300'
                         ],
-                        'reversed': True
+                        'reversed': False
                     },
                     'strokeColorRange': {
                         'name': 'Global Warming',
@@ -223,7 +222,7 @@ class KeplerConfig(object):
             },
             'visualChannels': {
                 'colorField': {
-                    'name': 'type',
+                    'name': 'loc_type',
                     'type': 'string'
                 },
                 'colorScale': 'ordinal',
