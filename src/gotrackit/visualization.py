@@ -44,7 +44,8 @@ class KeplerVis(object):
     def add_point_layer(self, data: pd.DataFrame, lng_field: str = 'lng', lat_field: str = 'lat',
                         altitude_field: str = None, layer_id: str = None, color: list or str = None, radius: float = 3,
                         set_avg_zoom: bool = True, time_field: str = None, time_format: str = '%Y-%m-%d %H:%M:%S',
-                        time_unit: str = 's', speed: float = 0.3, tooltip_fields: list[str] = None) -> None:
+                        time_unit: str = 's', speed: float = 0.3, tooltip_fields: list[str] = None,
+                        color_field: str = None, color_list: list = None) -> None:
 
         layer_config = self.get_base_layer()
         layer_id = layer_id if layer_id is not None else rf'point-{self.point_count}'
@@ -52,12 +53,20 @@ class KeplerVis(object):
         layer_config["type"] = 'point'
         layer_config['config']['dataId'] = layer_id
         layer_config['config']['label'] = layer_id
-        layer_config["config"]["columns"]["lat"] = lat_field
-        layer_config["config"]["columns"]["lng"] = lng_field
+        # layer_config["config"]["columns"]["lat"] = lat_field
+        # layer_config["config"]["columns"]["lng"] = lng_field
+        layer_config["config"]["columns"] = {"lat": lat_field, "lng": lng_field}
         if altitude_field is not None:
             layer_config["config"]["columns"]["altitude"] = altitude_field
         layer_config['config']['color'] = self.get_rgb_by_name(color, default_rgb=[65, 72, 88])
         layer_config["config"]["visConfig"]["radius"] = radius
+        if color_field is not None:
+            layer_config['visualChannels']['colorField'] = {'name': color_field,
+                                                            'type': 'string'}
+            layer_config['config']['visConfig']['colorRange'] = {'name': 'Custom Palette', 'type': 'custom',
+                                                                 'category': 'Custom', 'colors': color_list,
+                                                                 'reversed': False}
+
         self.user_config["config"]["visState"]["layers"].append(layer_config)
 
         if time_field is not None and time_field in data.columns:
@@ -87,7 +96,7 @@ class KeplerVis(object):
         layer_config['type'] = 'geojson'
         layer_config['config']['dataId'] = layer_id
         layer_config['config']['label'] = layer_id
-        layer_config["config"]["columns"]["geojson"] = 'geometry'
+        layer_config["config"]["columns"] = {"geojson": 'geometry'}
         layer_config['config']['color'] = self.get_rgb_by_name(color, default_rgb=[100, 100, 100])
         layer_config['config']["visConfig"]['strokeColor'] = self.get_rgb_by_name(color, default_rgb=[100, 100, 100])
         layer_config['config']["visConfig"]['strokeColor'] = stroke_color
@@ -137,7 +146,7 @@ class KeplerVis(object):
         layer_config['config']['dataId'] = layer_id
         layer_config['config']['label'] = layer_id
         layer_config['config']['color'] = self.get_rgb_by_name(color, default_rgb=[241, 225, 37])
-        layer_config["config"]["columns"]["geojson"] = '_geojson'
+        layer_config["config"]["columns"] = {"geojson": '_geojson'}
         layer_config['config']["visConfig"]['thickness'] = thickness
         layer_config['config']["visConfig"]['opacity'] = opacity
         layer_config['config']["visConfig"]['trailLength'] = int(trail_length)
@@ -378,7 +387,7 @@ def generate_match_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, 
         if 'c' in loc_type_set:
             _color_map['c'] = '#FFFFFF'
             if 'd' in loc_type_set:
-                _color_map['d'] = '#0C9B20'
+                _color_map['d'] = '#11BD2B'
         _color_map['l'] = '#438ECD'
         _color_map['s'] = '#FFC300'
         kv.add_geo_layer(data=mix_gdf, layer_id=kepler_config.MIX_NAME, width=0.1, color=[18, 147, 154],
