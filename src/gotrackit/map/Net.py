@@ -829,7 +829,7 @@ class Net(object):
         # sjoin between gps & grid
         gps_cor_grid_df = gpd.sjoin(gps_rou_buffer_gdf, self.region_grid)
         if gps_cor_grid_df.empty:
-            raise ValueError(r'gps数据关联不到任何路网数据')
+            raise ValueError(r'the GPS data cannot be associated with any road network data within the specified buffer range...')
         gps_cor_grid = set(gps_cor_grid_df[grid_id_field])
         pre_link = set(self.grid_cor_link[self.grid_cor_link[grid_id_field].isin(gps_cor_grid)][link_id_field])
         return pre_link
