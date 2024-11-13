@@ -159,15 +159,7 @@ class KeplerConfig(object):
                         178,
                         124
                     ],
-                    'colorRange': {
-                        'name': 'Custom Palette',
-                        'type': 'custom',
-                        'category': 'Custom',
-                        'colors': [
-                            '#FFFFFF', '#B59494', '#438ECD', '#FFC300'
-                        ],
-                        'reversed': False
-                    },
+                    'colorRange': {},
                     'strokeColorRange': {
                         'name': 'Global Warming',
                         'type': 'sequential',
@@ -221,10 +213,7 @@ class KeplerConfig(object):
                 ]
             },
             'visualChannels': {
-                'colorField': {
-                    'name': 'loc_type',
-                    'type': 'string'
-                },
+                'colorField': {},
                 'colorScale': 'ordinal',
                 'strokeColorField': None,
                 'strokeColorScale': 'quantile',
