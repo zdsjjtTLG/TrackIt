@@ -207,6 +207,11 @@ https://github.com/zdsjjtTLG/TrackIt
 - 万志杨，1115897470@qq.com，四川省交通运输发展战略和规划科学研究院-交通大数据工程师
 - 郭凯，rsroyceguo@gmail.com，独立开发者
 - 费怡瑄，2022224127@chd.edu.cn，长安大学信息工程学院-硕士研究生
+- 参考了知乎网友 @空之箱大战春日影 关于滤波的代码：[文章链接](https://zhuanlan.zhihu.com/p/710241984/)
+- 参考了CSDN网友 @瞌睡的代码仓库 关于贝塞尔曲线的代码：[文章链接](https://blog.csdn.net/qq_37643054/article/details/135938121)
+- 参考了某位大神网友关于坐标转换的文章，这个网上资料太多，不清楚是谁的原创，如有人知道可以告知作者，我们会将他列为贡献者
+- 参考了Paul Newson、John Krumm的论文：[Hidden Markov Map Matching Through Noise and Sparseness](https://dl.acm.org/doi/10.1145/1653771.1653818)
+- 参考了武汉大学[Yang Can](https://www.tandfonline.com/author/Yang%2C+Can>)的[FMM论文](https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548)
 
 ## 3. 地图匹配定义
 
