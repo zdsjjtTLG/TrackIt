@@ -3,7 +3,7 @@
 
 前置依赖库
 --------------------
-安装前确保python环境中有以下前置依赖库，括号中为作者使用版本(基于python3.11)，仅供参考
+gotrackit依赖于以下库，括号中为作者使用版本(基于python3.11)，仅供参考
 
 * geopy(2.4.1)
 
@@ -25,11 +25,7 @@
 
 * keplergl(0.3.2)
 
-
-.. note::
-
-   截至gotrackit-v0.3.5版本，暂不支持geopandas最新的v1.0.0版本，请升级至最新版本gotrackit 或者 使用geopandas-v0.14.3
-
+* pykalman
 
 安装上述依赖推荐使用Anaconda，使用python3.11版本
 
@@ -45,18 +41,21 @@ GDAL若安装失败，推荐直接安装whl文件，下载地址：https://githu
 windows系统安装gotrackit
 ----------------------------
 
-依赖库已经配置好
+一行命令快速安装
 ```````````````````````````````
 
 使用pip安装 ::
 
     pip install -i https://pypi.org/simple/ gotrackit
 
+一般情况下，使用上述命令后，pip会自动先安装gotrackit的前置依赖库，如果安装失败，请手动安装前置依赖库后(见 `从0开始配置新环境`_)，再安装gotrackit
 
-已经安装，可以升级已有版本 ::
+
+已经安装好gotrackit，升级版本可以使用以下命令 ::
 
     pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
+.. _从0开始配置新环境:
 
 从0开始配置新环境
 ```````````````````````````````
