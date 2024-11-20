@@ -20,6 +20,6 @@
 
 - 参考了某位大神网友关于坐标转换的文章，这个网上资料太多，不清楚是谁的原创，如有人知道可以告知作者，我们会将他列为贡献者
 
-- 参考了Paul Newson、John Krumm的论文：《Hidden Markov Map Matching Through Noise and Sparseness》
+- 参考了Paul Newson、John Krumm的论文：`《Hidden Markov Map Matching Through Noise and Sparseness》 <https://dl.acm.org/doi/10.1145/1653771.1653818>`_
 
 - 参考了武汉大学 `Yang Can <https://www.tandfonline.com/author/Yang%2C+Can>`_  的 `FMM论文 <https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548>`_

@@ -3,9 +3,7 @@ Welcome to GoTrackIt's documentation!
 
 Read UserManual in ：`English <https://gotrackitdocs.readthedocs.io/en/latest/>`_
 
-作者：唐铠
-
-邮箱：tangkai@zhechengdata.com、794568794@qq.com
+作者:  `唐铠 <https://github.com/zdsjjtTLG>`_ , 联系邮箱：tangkai@zhechengdata.com、794568794@qq.com
 
 项目源码：`项目GitHub主页 <https://github.com/zdsjjtTLG/TrackIt>`_ --- 当前版本v0.3.14
 
