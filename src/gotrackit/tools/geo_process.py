@@ -525,6 +525,12 @@ def calc_dis(o_loc=None, d_loc=None):
 
 
 def bezier(t, points: list or tuple or np.ndarray = None) -> float:
+    """
+
+    :param t:
+    :param points:
+    :return:
+    """
     n = len(points) - 1
     res = 0
     c = 1
