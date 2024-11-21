@@ -211,7 +211,7 @@ https://github.com/zdsjjtTLG/TrackIt
 - 参考了CSDN网友 @瞌睡的代码仓库 关于贝塞尔曲线的代码：[文章链接](https://blog.csdn.net/qq_37643054/article/details/135938121)
 - 参考了某位大神网友关于坐标转换的文章，这个网上资料太多，不清楚是谁的原创，如有人知道可以告知作者，我们会将他列为贡献者
 - 参考了Paul Newson、John Krumm的论文：[Hidden Markov Map Matching Through Noise and Sparseness](https://dl.acm.org/doi/10.1145/1653771.1653818)
-- 参考了武汉大学[Yang Can](https://github.com/cyang-kth)的论文：[Fast map matching, an algorithm integrating hidden Markov model with precomputation](https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548)
+- 参考了武汉大学YangCan的论文：[Fast map matching, an algorithm integrating hidden Markov model with precomputation](https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548)
 
 ## 3. 地图匹配定义
 
