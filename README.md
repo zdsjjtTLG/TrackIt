@@ -141,21 +141,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 
 ### 1.1. 如何安装gotrackit
 
-#### __所需前置依赖__
-
-- geopy(2.4.1)
-- gdal(3.4.3)
-- shapely(2.0.3)
-- fiona(1.9.5)
-- pyproj(3.6.1)
-- geopandas(0.14.3)
-- networkx(3.2.1)
-- pandas(2.0.3)
-- numpy(1.26.2)
-- keplergl(0.3.2)
-
-括号中为作者使用版本(基于python3.11), 仅供参考.
-
 #### __使用pip安装__
 
 安装：
@@ -168,6 +153,7 @@ pip install -i https://pypi.org/simple/ gotrackit
 ``` shell
 pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ```
+详细的安装教程见：[如何安装](https://gotrackit.readthedocs.io/en/latest/%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85.html)
 
 ### 1.2 如何使用gotrackit
 
