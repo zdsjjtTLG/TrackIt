@@ -22,4 +22,4 @@
 
 - 参考了Paul Newson、John Krumm的论文：`《Hidden Markov Map Matching Through Noise and Sparseness》 <https://dl.acm.org/doi/10.1145/1653771.1653818>`_
 
-- 参考了武汉大学 `Yang Can <https://github.com/cyang-kth>`_  的论文: `Fast map matching, an algorithm integrating hidden Markov model with precomputation <https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548>`_
+- 参考了武汉大学 `Yang Can <https://github.com/cyang-kth>`_  的论文：`Fast map matching, an algorithm integrating hidden Markov model with precomputation <https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548>`_
