@@ -199,7 +199,7 @@ add_geo_layer功能参数：
         kv = KeplerVis()
 
         # 添加点层
-        kv.add_trip_layer(trip_df, lng_field='lng', lat_field='lat')
+        kv.add_trip_layer(trip_df, lng_field='lng', lat_field='lat', time_format="%Y-%m-%d %H:%M:%S.%f")
 
         # 输出HTML到本地
         # 此函数也会返回一个map对象，可在jupyter环境下进行交互式操作
