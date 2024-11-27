@@ -3,6 +3,8 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
+"""SUMO路网转换的相关方法"""
+
 import os
 import pyproj
 import numpy as np
@@ -20,7 +22,13 @@ from shapely.geometry import LineString, Point, Polygon
 
 
 net_field = NetField()
-
+link_id_field = net_field.LINK_ID_FIELD
+dir_field = net_field.DIRECTION_FIELD
+from_node_field = net_field.FROM_NODE_FIELD
+to_node_field = net_field.TO_NODE_FIELD
+length_field = net_field.LENGTH_FIELD
+geometry_field = net_field.GEOMETRY_FIELD
+node_id_field = net_field.NODE_ID_FIELD
 
 LW_INFO_FIELD = 'lane_width_info'
 LT_INFO_FIELD = 'lane_type_info'
@@ -33,22 +41,10 @@ SPEED_FIELD = 'speed'
 SPREAD_TYPE = 'spread_type'
 WIDTH_FIELD = 'lane_width'
 GEOMETRY_FIELD = 'geometry'
-
 EDGE_SPREAD_TYPE = 'spreadType'
 
 DEFAULT_LANE_NUM = 2
 DEFAULT_SPEED = 9.0
-
-link_id_field = net_field.LINK_ID_FIELD
-dir_field = net_field.DIRECTION_FIELD
-from_node_field = net_field.FROM_NODE_FIELD
-to_node_field = net_field.TO_NODE_FIELD
-length_field = net_field.LENGTH_FIELD
-geometry_field = net_field.GEOMETRY_FIELD
-node_id_field = net_field.NODE_ID_FIELD
-
-
-"""SUMO路网转换的相关方法"""
 
 EDGE_ID_KEY = 'id'
 EDGE_FROM_KEY = 'from'
@@ -58,6 +54,7 @@ EDGE_LANES_KEY = 'numLanes'
 EDGE_PRIORITY_KEY = 'priority'
 EDGE_SHAPE_KEY = 'shape'
 EDGE_FUNCTION_KEY = 'function'
+ALLOW_MODE_KEY = 'allow'
 
 LANE_ID_KEY = 'id'
 LANE_SPEED_KEY = 'speed'
@@ -90,7 +87,6 @@ class SumoConvert(object):
     def __init__(self):
         pass
 
-    # 1.从解耦的node和edge文件生产shp层
     def get_plain_shp(self, plain_edge_path: str = None, plain_node_path: str = None, crs: str = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
@@ -169,7 +165,6 @@ class SumoConvert(object):
                                         EDGE_SPEED_KEY, EDGE_SHAPE_KEY])
         return edge_df
 
-    # 2.解析net.xml文件
     @function_time_cost
     def get_net_shp(self, net_path: str = None, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFrame]:
@@ -329,7 +324,7 @@ class SumoConvert(object):
                                         LANE_SHAPE_KEY, 'allow'])
         avg_edge_df = pd.DataFrame(avg_edge_item_list,
                                    columns=['edge_' + EDGE_ID_KEY, EDGE_FROM_KEY, EDGE_TO_KEY, EDGE_FUNCTION_KEY,
-                                            EDGE_SHAPE_KEY, EDGE_SPEED_KEY])
+                                            EDGE_SHAPE_KEY, EDGE_SPEED_KEY, LANE_NUM_FIELD])
         lane_df.rename(columns={EDGE_SHAPE_KEY: geometry_field}, inplace=True)
         avg_edge_df.rename(columns={EDGE_SHAPE_KEY: geometry_field}, inplace=True)
 
@@ -401,20 +396,21 @@ class SumoConvert(object):
 
         avg_center_line = LineString()
         avg_speed = DEFAULT_LANE_SPEED
+        lane_num = 0
         if edge_function == 'normal':
             try:
                 avg_center_line = LineString(
                     np.array(avg_line_shape_list).mean(axis=0))
             except Exception as e:
-                print(repr(e))
                 _l = len(avg_line_shape_list)
                 select_line = [avg_line_shape_list[int(_l / 2)]]
                 avg_center_line = LineString(
                     np.array(select_line).mean(axis=0))
 
             avg_speed = np.array(lane_speed_list).mean()
+            lane_num = len(avg_line_shape_list)
 
-        return lane_item_list, [edge_id, edge_from, edge_to, edge_function, avg_center_line, avg_speed]
+        return lane_item_list, [edge_id, edge_from, edge_to, edge_function, avg_center_line, avg_speed, lane_num]
 
     @staticmethod
     def parse_net_junction(junction_obj: ET.Element = None, x_offset: float = 0.0,
@@ -602,6 +598,12 @@ class SumoConvert(object):
                 except KeyError:
                     edge_ele.set(LANE_WIDTH_KEY, '3.6')
 
+            if not use_lane_ele:
+                try:
+                    edge_ele.set('allow', str(row[ALLOW_MODE_KEY]))
+                except KeyError:
+                    pass
+
             if use_lane_ele:
                 lane_width_info = row[LW_INFO_FIELD].split(',')
                 lane_mode_info = row[LM_INFO_FIELD].split(',')
@@ -678,25 +680,21 @@ class SumoConvert(object):
         return tree
 
     def generate_hd_map(self, sumo_home_fldr: str, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None,
-                        use_lane_ele: bool = False, lane_info_reverse: bool = True,
-                        junction_gdf: gpd.GeoDataFrame = None, join_dist: float = 10.0,
+                        junction_gdf: gpd.GeoDataFrame = None,
+                        use_lane_ele: bool = False, lane_info_reverse: bool = True, join_dist: float = 10.0,
                         x_offset: float = 0.0, y_offset: float = 0.0, out_fldr: str = r'./',
-                        flag_name: str = 'prj', plain_crs: str = 'EPSG:3857'):
-        link_gdf['spread_type'] = 'right'
-
-        link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
-        neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
-        if neg_link.empty:
-            single_link_gdf = link_gdf.copy()
+                        flag_name: str = 'prj', plain_crs: str = 'EPSG:3857', is_single_link: bool = False):
+        if not is_single_link:
+            if rf'{SPREAD_TYPE}_ab' not in link_gdf.columns and rf'{SPREAD_TYPE}_ba' not in link_gdf.columns:
+                link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 0, SPREAD_TYPE] = 'right'
+                link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 1, SPREAD_TYPE] = 'center'
+            single_link_gdf = dual2single(net_data=link_gdf)
+            single_link_gdf[link_id_field] = [i + 1 for i in range(len(single_link_gdf))]
         else:
-            neg_link[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]] = neg_link[
-                [net_field.TO_NODE_FIELD, net_field.FROM_NODE_FIELD]]
-            neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
-                lambda line_geo: LineString(list(line_geo.coords)[::-1]))
-            single_link_gdf = pd.concat([link_gdf, neg_link])
-        single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
-        single_link_gdf.reset_index(inplace=True, drop=True)
-        del link_gdf
+            single_link_gdf = link_gdf
+
+        if SPREAD_TYPE not in single_link_gdf.columns:
+            single_link_gdf[SPREAD_TYPE] = 'right'
 
         single_link_gdf = single_link_gdf.to_crs(plain_crs)
         node_gdf = node_gdf.to_crs(plain_crs)
@@ -745,4 +743,101 @@ def prj_xfer(from_crs: str = 'EPSG:32650', to_crs: str = 'EPSG:4326', origin_p: 
     project = pyproj.Transformer.from_crs(f, t, always_xy=True).transform
     xfer_point = transform(project, origin_p)
     return xfer_point
+
+def dual2single(net_data: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
+    """将具有方向字段的路网格式转化为单向的路网格式(没有方向字段, 仅靠from_node, to_node即可判别方向)
+    :param net_data: gpd.GeoDataFrame, 线层路网数据
+    :return: gpd.DatFrame or pd.DatFrame
+    """
+    # 避免重名, 这里使用了内置字段__temp__
+    built_in_col = '__temp__'
+    rename_dict = avoid_duplicate_cols(built_in_col_list=[built_in_col], df=net_data)
+    cols_field_name_list = [LANE_NUM_FIELD, SPEED_FIELD, WIDTH_FIELD, ALLOW_MODE_KEY, SPREAD_TYPE]
+    # 找出双向字段, 双向字段都应该以_ab或者_ba结尾
+    two_way_field_list = list()
+    for cols_name in cols_field_name_list:
+        if (cols_name + '_ab' in net_data.columns) or (cols_name + '_ba' in net_data.columns):
+            two_way_field_list.append(cols_name)
+    two_way_field_list = list(set(two_way_field_list))
+    ab_field_del = [x + '_ab' for x in two_way_field_list]
+    ba_field_del = [x + '_ba' for x in two_way_field_list]
+
+    for col in (ab_field_del + ba_field_del):
+        assert col in net_data.columns, f'缺少字段{col}!'
+
+    ab_rename_dict = {x: y for x, y in zip(ab_field_del, two_way_field_list)}
+    ba_rename_dict = {x: y for x, y in zip(ba_field_del, two_way_field_list)}
+
+    # 方向为拓扑反向的
+    net_negs = net_data[net_data[dir_field] == -1].copy()
+    net_negs.drop(ab_field_del, axis=1, inplace=True)
+    net_negs.rename(columns=ba_rename_dict, inplace=True)
+    if not net_negs.empty:
+        net_negs[[from_node_field, to_node_field]] = \
+            net_negs[[to_node_field, from_node_field]]
+        net_negs[geometry_field] = net_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+
+    # 方向为拓扑正向的
+    net_poss = net_data[net_data[dir_field] == 1].copy()
+    net_poss.drop(ba_field_del, axis=1, inplace=True)
+    net_poss.rename(columns=ab_rename_dict, inplace=True)
+
+    # 方向为拓扑双向的, 改为拓扑正向
+    net_zero_poss = net_data[net_data[dir_field] == 0].copy()
+    net_zero_poss[dir_field] = 1
+    net_zero_poss.drop(ba_field_del, axis=1, inplace=True)
+    net_zero_poss.rename(columns=ab_rename_dict, inplace=True)
+
+    # 方向为拓扑双向的, 改为拓扑反向
+    net_zero_negs = net_data[net_data[dir_field] == 0].copy()
+    net_zero_negs.drop(ab_field_del, axis=1, inplace=True)
+    net_zero_negs.rename(columns=ba_rename_dict, inplace=True)
+    if not net_zero_negs.empty:
+        net_zero_negs[dir_field] = 1
+        net_zero_negs[[from_node_field, to_node_field]] = \
+            net_zero_negs[[to_node_field, from_node_field]]
+        net_zero_negs[geometry_field] = net_zero_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+
+    net = pd.concat([net_poss, net_zero_poss, net_negs, net_zero_negs]).reset_index(drop=True)
+
+    # 恢复冲突字段
+    rename_dict_reverse = dict((v, k) for k, v in rename_dict.items())
+    if rename_dict:
+        net.rename(columns=rename_dict_reverse, inplace=True)
+
+    cols_list = list(net.columns)
+    for col in [from_node_field, to_node_field, length_field]:
+        cols_list.remove(col)
+    return net[[from_node_field, to_node_field, length_field] + cols_list]
+
+
+# 逻辑子模块, 避免重名
+def avoid_duplicate_cols(built_in_col_list=None, df=None):
+    """
+    重命名数据表中和内置名称冲突的字段
+    :param built_in_col_list: list, 要使用的内置名称字段列表
+    :param df: pd.DataFrame, 数据表
+    :return: dict
+    """
+
+    rename_dict = dict()
+
+    # 数据表的所有列名称
+    df_cols_list = list(df.columns)
+
+    # 遍历每一个在函数内部需要使用的内置字段, 检查其是否已经存在数据表字段中
+    for built_in_col in built_in_col_list:
+        if built_in_col in df_cols_list:
+            num = 1
+            while '_'.join([built_in_col, str(num)]) in df_cols_list:
+                num += 1
+            rename_col = '_'.join([built_in_col, str(num)])
+            rename_dict[built_in_col] = rename_col
+        else:
+            pass
+    if rename_dict:
+        df.rename(columns=rename_dict, inplace=True)
+    return rename_dict
+
+
 
