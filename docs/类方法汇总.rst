@@ -7,7 +7,7 @@
 1.1. NetReverse类初始化
 ```````````````````````````
 
-.. py:class:: NetReverse(flag_name: str = '深圳市', plain_prj: str = 'EPSG:32650', ignore_head_tail: bool = False, cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp', is_modify_conn: bool = True, conn_buffer: float = 0.8) -> None
+.. py:class:: NetReverse(flag_name: str = '深圳市', plain_crs: str = 'EPSG:32650', ignore_head_tail: bool = False, cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False, ignore_dir: bool = False,allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,save_preliminary: bool = False, is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8,dup_link_buffer_ratio: float = 60.0, net_out_fldr: str = None, net_file_type: str = 'shp', is_modify_conn: bool = True, conn_buffer: float = 0.8) -> None
 
 可以将参数分为5组：参数含义如下：
 
@@ -18,7 +18,7 @@
 * flag_name
     项目名称
 
-* plain_prj
+* plain_crs
     平面投影坐标系
 
 * net_out_fldr

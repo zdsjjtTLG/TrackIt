@@ -280,7 +280,7 @@
 启用多核并行逆向路网
 ````````````````````````````````````
 
-若需要获取大范围的路网，我们推荐使用多核并行请求，即在初始化NetReverse类时，指定multi_core_reverse=True，reverse_core_num=x
+若需要获取大范围的路网，我们推荐使用多核并行逆向，即在初始化NetReverse类时，指定multi_core_reverse=True，reverse_core_num=x
 
 程序会自动将路网划分为x个子区域，在每个子区域内进行并行计算，示例代码如下：
 
