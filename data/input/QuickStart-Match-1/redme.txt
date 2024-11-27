@@ -1,0 +1,4 @@
+modifiedConn_link.shp：link layer file of net
+modifiedConn_node.shp：node layer file of net
+example_gps.csv：general gps data
+example_sparse_gps.csv：sparse gps data
