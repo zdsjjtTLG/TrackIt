@@ -18,15 +18,18 @@ geometry_field = gps_field.GEOMETRY_FIELD
 
 
 class TrajectoryPoints(GpsPointsGdf):
-    def __init__(self, gps_points_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
+    def __init__(self, gps_points_df: pd.DataFrame, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plain_crs: str = 'EPSG:3857', already_plain: bool = False):
-        """
-        a class for trajectory process
-        :param gps_points_df: pd.DataFrame()
-        :param time_format: string
-        :param time_unit: string
-        :param plain_crs: string
-        :param already_plain: bool
+        """轨迹类
+
+        提供了定位数据的相关操作方法(滤波、降频、简化、滑动窗口平均、删除停留点、导出HTML动画)
+
+        Args:
+            gps_points_df: 定位数据表
+            time_format: 时间列字符串格式模板
+            time_unit: 时间单位
+            plain_crs: 平面投影坐标系
+
         """
         self.time_format = time_format
         self.time_unit = time_unit
@@ -38,6 +41,18 @@ class TrajectoryPoints(GpsPointsGdf):
                               user_filed_list=user_field_list)
 
     def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory', radius: float = 10.0):
+        """导出HTML
+
+        将处理后的轨迹导出为HTML，可动态展示处理前后的轨迹
+
+        Args:
+            out_fldr: 存储目录
+            file_name: 文件名称
+            radius: 点的半径大小
+
+        Returns:
+            None
+        """
         if self.already_plain:
             origin_tj_df = self.source_gps.to_crs(prj_const.PRJ_CRS)
             origin_tj_df = origin_tj_df[[agent_field, time_field, geometry_field]].copy()
