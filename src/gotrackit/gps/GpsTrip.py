@@ -32,6 +32,15 @@ dx_field, dy_field = od_field.DX_FIELD, od_field.DY_FIELD
 
 class GpsPreProcess(object):
     def __init__(self, gps_df: pd.DataFrame = None, use_multi_core: bool = False, used_core_num: int = 2):
+        """轨迹预处理类
+
+        提供了轨迹预处理的相关方法(行程划分、提取带途径点的OD)
+
+        Args:
+            gps_df: 定位数据
+            use_multi_core: 是否启用多核
+            used_core_num: 使用的核数
+        """
         self.gps_df = gps_df
         self.use_multi_core = use_multi_core
         self.used_core_num = used_core_num
@@ -46,6 +55,16 @@ class GpsPreProcess(object):
         return pool, fact_core_num, agent_group
 
     def sampling_waypoints_od(self, way_points_num: int = 5) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+        """提取带途径点的OD
+
+        从已经划分好行程的轨迹数据(且要求轨迹数据已经按照agent_id、time进行升序排列)中提取带途径点的OD
+
+        Args:
+            way_points_num: 途径点数目
+
+        Returns:
+            od数据表(DataFrame), od数据表(GeoDataFrame)
+        """
         if self.use_multi_core:
             od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
             result_list = []
@@ -73,6 +92,23 @@ class GpsPreProcess(object):
                            min_distance_threshold: float = 10.0,
                            dwell_accu_time: float = 60.0, way_points_num: int = 5) \
             -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
+        """提取带途径点的OD
+
+        对轨迹数据进行行程划分后再提取带途径点的OD
+
+        Args:
+            time_format: 时间列格式模板
+            time_unit: 时间列单位
+            plain_crs: 平面投影坐标系
+            group_gap_threshold: 时间阈值，主行程划分参数，单位秒，如果前后GPS点的定位时间超过该阈值，则在该点切分主行程
+            n: 子行程切分参数，如果超过连续n个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程
+            min_distance_threshold: 子行程切分距离阈值，单位米，如果你只想划分主行程，则指定min_distance_threshold为负数即可
+            dwell_accu_time: 子行程切分时间阈值，秒
+            way_points_num: 途径点数目
+
+        Returns:
+            od数据表(DataFrame), od数据表(GeoDataFrame)
+        """
         if self.use_multi_core:
             od_df, od_line = pd.DataFrame(), gpd.GeoDataFrame()
             result_list = []
@@ -109,6 +145,22 @@ class GpsPreProcess(object):
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 1800.0, n: int = 5,
                            min_distance_threshold: float = 10.0,
                            dwell_accu_time: float = 60.0) -> pd.DataFrame:
+        """行程划分
+
+        对轨迹数据进行行程划分
+
+        Args:
+            time_format: 时间列格式模板
+            time_unit: 时间列单位
+            plain_crs: 平面投影坐标系
+            group_gap_threshold: 时间阈值，主行程划分参数，单位秒，如果前后GPS点的定位时间超过该阈值，则在该点切分主行程
+            n: 子行程切分参数，如果超过连续n个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程
+            min_distance_threshold: 子行程切分距离阈值，单位米，如果你只想划分主行程，则指定min_distance_threshold为负数即可
+            dwell_accu_time: 子行程切分时间阈值，秒
+
+        Returns:
+            划分好行程的轨迹数据
+        """
         if self.use_multi_core:
             trip_df = pd.DataFrame()
             result_list = []
@@ -186,7 +238,7 @@ class GpsTrip(GpsArray):
                  plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 1800.0, n: int = 5,
                  min_distance_threshold: float = 10.0, way_points_num: int = 5, dwell_accu_time: float = 150.0):
         GpsArray.__init__(self, gps_points_df=gps_df, time_unit=time_unit, time_format=time_format,
-                          plane_crs=plain_crs, geo_crs='EPSG:4326')
+                          plain_crs=plain_crs, geo_crs='EPSG:4326')
 
         # 主行程时间阈值
         self.group_gap_threshold = group_gap_threshold  # s, 相邻GPS的时间超过这个阈值则被切分行程
