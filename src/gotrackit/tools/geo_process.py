@@ -12,6 +12,7 @@ from .grid import get_grid_data
 from ..GlobalVal import NetField
 from .coord_trans import LngLatTransfer
 from shapely.geometry import Point, LineString, Polygon
+from ..netreverse.RoadNet.Split.SplitPath import split_path
 
 net_field = NetField()
 geometry_field = net_field.GEOMETRY_FIELD
@@ -182,6 +183,15 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
 
     gdf[geometry_field] = gdf[geometry_field].apply(lambda geo: con.obj_convert(geo_obj=geo, con_type='None'))
     gdf = gdf.explode(ignore_index=True)
+
+    # Finding self-intersecting objects and loops
+    gdf.reset_index(inplace=True, drop=True)
+    problem_idx = (~gdf[geometry_field].is_simple) | gdf[geometry_field].is_closed
+    problem_gdf = gdf[problem_idx].copy()
+    if not problem_gdf.empty:
+        gdf.drop(index=gdf[problem_idx].index, inplace=True,axis=0)
+        split_gdf = split_path(path_gdf=problem_gdf).drop(columns=['ft_loc'], axis=1)
+        gdf = pd.concat([gdf, split_gdf]).reset_index(drop=True)
     gdf = gdf.to_crs(plain_crs)
     try:
         gdf[geometry_field] = gdf[geometry_field].remove_repeated_points(l_threshold)
