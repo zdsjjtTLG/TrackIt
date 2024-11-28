@@ -20,15 +20,20 @@ lat_field = 'lat'
 
 
 # 获取栅格预测点
-def get_grid_data(polygon_gdf: gpd.GeoDataFrame = None, meter_step: float = None, is_geo_coord: bool = True,
+def get_grid_data(polygon_gdf: gpd.GeoDataFrame, meter_step: float = None, is_geo_coord: bool = True,
                   generate_index: bool = True) -> gpd.GeoDataFrame:
-    """
-    切分面域，得到面域上结点的经纬度坐标
-    :param polygon_gdf: gdf.GeoDataFrame, 面域数据, 必须是经纬度数据
-    :param meter_step: float, 栅格区域大小, m
-    :param is_geo_coord:
-    :param generate_index:
-    :return: pd.Dataframe
+    """渔网(栅格)划分
+
+    对面域图层进行栅格划分
+
+    Args:
+        polygon_gdf: 面域GeoDataFrame
+        meter_step: 栅格边长(米)
+        is_geo_coord: 是否是地理坐标
+        generate_index: 是否生成行列索引
+
+    Returns:
+        栅格GeoDataFrame
     """
     crs = polygon_gdf.crs
     geo_list = polygon_gdf[geometry_field].to_list()
