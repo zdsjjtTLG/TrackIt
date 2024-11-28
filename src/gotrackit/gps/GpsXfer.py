@@ -30,11 +30,11 @@ class Route2Gps(object):
                  planar_crs: str = 'EPSG:3857'):
         """
 
-        :param path_gdf: path_id, seq, time_cost, geometry, crs must be: EPSG:4326
-        :param path_o_time_df: path_id, o_time(datetime format)
-        :return:
+        Args:
+            path_gdf: path_id, seq, time_cost, geometry, crs must be: EPSG:4326
+            path_o_time_df: path_id, o_time(datetime format)
+            planar_crs:
         """
-
         assert len(path_o_time_df) >= 1
         assert {path_id_field, seq_field, time_cost_field, geometry_field}.issubset(set(path_gdf.columns))
         assert {path_id_field, o_time_field}.issubset(set(path_o_time_df.columns))
