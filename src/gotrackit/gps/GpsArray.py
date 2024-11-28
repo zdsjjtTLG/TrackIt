@@ -25,16 +25,19 @@ class GpsArray(object):
 
     def __init__(self, gps_points_df: pd.DataFrame = None,
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', geo_crs: str = 'EPSG:4326',
-                 plane_crs: str = 'EPSG:3857'):
+                 plain_crs: str = 'EPSG:3857'):
         """
-        :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
-        :param time_format: 时间列的字符格式
-        :param geo_crs: 地理坐标系
-        :param plane_crs: 平面投影坐标系
+
+        Args:
+            gps_points_df:
+            time_format:
+            time_unit:
+            geo_crs:
+            plain_crs:
         """
         self.geo_crs = geo_crs
         self.__crs = self.geo_crs
-        self.plane_crs = plane_crs
+        self.plane_crs = plain_crs
         self.gps_point_dis_dict = dict()
         self.gps_points_gdf = gps_points_df
         self.check()
