@@ -24,57 +24,63 @@ node_id_field = net_field.NODE_ID_FIELD
 
 
 class MapMatch(object):
-    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = True,
-                 time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
-                 gps_buffer: float = 200.0, use_node_restrict: bool = False, gps_route_buffer_gap: float = 15.0,
+    def __init__(self, net: Net, flag_name: str = 'test', use_sub_net: bool = True, dup_threshold: float = 10.0,
+                 time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's', gps_buffer: float = 200.0,
+                 gps_route_buffer_gap: float = 15.0, top_k: int = 20, use_node_restrict: bool = False,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
+                 use_heading_inf: bool = True, heading_para_array: np.ndarray = None,  omitted_l: float = 6.0,
+                 del_dwell: bool = False, dwell_l_length: float = 5.0, dwell_n: int = 2,
                  is_lower_f: bool = False, lower_n: int = 2,
-                 use_heading_inf: bool = False, heading_para_array: np.ndarray = None,
-                 dense_gps: bool = True, dense_interval: float = 100.0,
-                 dwell_l_length: float = 5.0, dwell_n: int = 2, del_dwell: bool = True,
-                 dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
-                 export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
-                 export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
-                 link_width: float = 1.5, node_radius: float = 1.5,
-                 match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
-                 visualization_cache_times: int = 10, multi_core_save: bool = False, instant_output: bool = False,
-                 use_para_grid: bool = False, para_grid: ParaGrid = None, user_field_list: list[str] = None,
-                 heading_vec_len: float = 15.0):
-        """
-        :param flag_name: 标记字符名称, 会用于标记输出的可视化文件, 默认"test"
-        :param net: gotrackit路网对象, 必须指定
-        :param use_sub_net: 是否在子网络上进行计算, 默认True
-        :param time_format: GPS数据中时间列的格式, 默认"%Y-%m-%d %H:%M:%S"
-        :param time_unit: GPS数据中时间列的单位, 如果时间列是数值(秒或者毫秒), 默认's'
-        :param gps_buffer: GPS的搜索半径, 单位米, 意为只选取每个gps_buffer点附近100米范围内的路段作为候选路段, 默认100.0
-        :param gps_route_buffer_gap: 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络, 默认25.0
-        :param beta: 该值越大, 状态转移概率对于距离越不敏感, 默认20m
-        :param gps_sigma: 该值越大, 发射概率对距离越不敏感, 默认20m
-        :param dis_para: 距离的折减系数, 默认0.1
-        :param is_lower_f: 是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据, 默认False
-        :param lower_n: 频率倍率, 默认2
-        :param use_heading_inf: 是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数), 默认False
-        :param heading_para_array: 差分方向修正参数, 默认np.array([1.0, 1.0, 1.0, 0.1, 0.00001, 0.000001, 0.00001, 0.000001, 0.000001])
-        :param dense_gps: 是否对GPS数据进行加密, 默认False
-        :param dense_interval: 当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密, 默认25.0
-        :param dup_threshold: 利用GPS轨迹计算sub_net时, 先对GPS点原始轨迹做简化, 重复点检测阈值, 默认5m
-        :param is_rolling_average: 是否启用滑动窗口平均对GPS数据进行降噪, 默认False
-        :param window: 滑动窗口大小, 默认2
-        :param export_html: 是否输出网页可视化结果html文件, 默认True
-        :param use_gps_source: 是否在可视化结果中使用GPS源数据进行展示, 默认False
-        :param out_fldr: 保存匹配结果的文件目录, 默认当前目录
-        :param export_geo_res: 是否输出匹配结果的几何可视化文件, 默认False
-        :param omitted_l: 当某GPS点与前后GPS点的平均距离小于该距离(m)时, 该GPS点的方向限制作用被取消
-        :param gps_radius: HTML可视化中GPS点的半径大小，单位米，默认8米
-        :param export_all_agents: 是否将所有agent的可视化存储于一个html文件中
-        :param visualization_cache_times: 每匹配完几辆车再进行(html or geojson文件)结果的统一存储, 默认50
-        :param multi_core_save: 是否启用多进程进行结果存储
-        :param instant_output: 是否每匹配完一条轨迹就存储csv匹配结果
-        :param use_para_grid: 是否启用网格参数搜索
-        :param para_grid: 网格参数对象
-        :param heading_vec_len: 匹配航向向量的长度(控制geojson中的可视化)
-        :param user_field_list: gps数据中用户想要输出的额外字段
+                 dense_gps: bool = True, dense_interval: float = 120.0,
+                 out_fldr: str = r'./', instant_output: bool = False, user_field_list: list[str] = None,
+                 export_html: bool = False, use_gps_source: bool = False,
+                 gps_radius: float = 6.0, export_all_agents: bool = False, visualization_cache_times: int = 10,
+                 multi_core_save: bool = False,  export_geo_res: bool = False, heading_vec_len: float = 15.0,
+                 link_width: float = 1.5, node_radius: float = 1.5, match_link_width: float = 5.0,
+                 use_para_grid: bool = False, para_grid: ParaGrid = None):
+        """地图(路径)匹配类
+
+        轨迹数据匹配类, 提供了单核匹配、多核匹配、预计算匹配等方法
+
+        Args:
+            net: 路网Net对象
+            flag_name: 标记字符名称, 会用于标记输出的可视化文件
+            use_sub_net: 是否在子网络上进行计算
+            dup_threshold: 重复点检测阈值, 利用GPS轨迹计算sub_net时先对GPS点原始轨迹做简化
+            time_format: (1.时间列构建参数)GPS数据中时间列的格式化字符串模板
+            time_unit: (1.时间列构建参数)时间单位, gotrackit会先尝试使用time_format进行时间列构建, 如果失败会再次尝试使用time_unit进行时间列构建
+            gps_buffer: (2.候选规则参数)GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为初步候选路段
+            gps_route_buffer_gap: (2.候选规则参数)半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络
+            top_k: (2.候选规则参数)选取每个GPS点buffer范围内的最近的top_k个路段
+            use_node_restrict: (2.候选规则参数)是否开启节点限制，该参数用于限定指定GPS点的候选路段
+            beta: (3.概率参数)该值越大, 状态转移概率对于距离越不敏感
+            gps_sigma: (3.概率参数)该值越大, 发射概率对距离越不敏感
+            dis_para: (3.概率参数)距离的折减系数
+            use_heading_inf: (4.概率修正参数)是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数)
+            heading_para_array: (4.概率修正参数)差分方向修正参数数组
+            omitted_l: (4.概率修正参数)当某GPS点与前后GPS点的平均距离小于omitted_l(m)时, 该GPS点的方向限制作用被取消
+            del_dwell: (5.轨迹预处理参数-停留点处理)是否进行停留点识别并且删除停留点
+            dwell_l_length: (5.轨迹预处理参数-停留点处理)停留点识别距离阈值
+            dwell_n: (5.轨迹预处理参数-停留点处理)超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+            is_lower_f: (6.轨迹预处理参数-降频)是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据
+            lower_n: (6.轨迹预处理参数-降频)频率倍率
+            is_rolling_average: (7.轨迹预处理参数-滑动窗口平滑)是否启用滑动窗口平均对GPS数据进行降噪
+            window: (7.轨迹预处理参数-滑动窗口平)滑动窗口大小
+            dense_gps: (7.轨迹预处理参数-增密)是否对GPS数据进行加密
+            dense_interval: (7.轨迹预处理参数-增密)当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密
+            out_fldr: (8.输出设置)保存匹配结果的文件目录
+            instant_output: (8.输出设置)是否每匹配完一条轨迹就存储csv匹配结果
+            user_field_list: (8.输出设置)gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
+            export_html: (9.HTML输出设置)是否输出网页可视化结果html文件
+            use_gps_source: (9.HTML输出设置)是否在可视化结果中使用GPS源数据进行展示
+            gps_radius: (9.HTML输出设置)HTML可视化中GPS点的半径大小，单位米
+            export_all_agents: (9.HTML输出设置)是否将所有agent的可视化存储于一个html文件中
+            visualization_cache_times: (9.HTML输出设置)每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            export_geo_res: (10.GeoJSON输出设置)是否输出匹配结果的几何可视化文件
+            heading_vec_len: (10.GeoJSON输出设置)匹配航向向量的长度(控制geojson文件中的可视化)
+            use_para_grid: (11.网格参数搜索设置)是否启用网格参数搜索
+            para_grid: (11.网格参数搜索设置)网格参数对象
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -137,10 +143,17 @@ class MapMatch(object):
 
         self.user_field_list = user_field_list
 
-    def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None) -> tuple[pd.DataFrame, dict, list]:
-        """
-        :param gps_df:
-        :return:
+    def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame) -> tuple[pd.DataFrame, dict, list]:
+        """路径匹配
+
+        对输入的gps数据执行路径匹配并且输出匹配结果
+        
+        Args:
+            gps_df: gps数据表对象, 必需参数
+
+        Returns:
+            匹配结果表(pd.DataFrame), 警告信息(dict), 错误信息(list)
+
         """
         # check and format
         self.node_restrict_format(gps_df=gps_df)
@@ -198,7 +211,8 @@ class MapMatch(object):
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
                                                                   dup_threshold=self.dup_threshold),
-                    fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
+                    fmm_cache=self.my_net.fmm_cache, prj_cache=self.my_net.prj_cache,
+                    weight_field=self.my_net.weight_field,
                     cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
                     not_conn_cost=self.my_net.not_conn_cost)
                 if used_net is None:
@@ -257,8 +271,19 @@ class MapMatch(object):
                                  dup_threshold=self.dup_threshold)
         return match_res_df, may_error_list, error_list
 
-    def multi_core_execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None, core_num: int = 2) -> \
+    def multi_core_execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame, core_num: int = 2) -> \
             tuple[pd.DataFrame, dict, list]:
+        """并行匹配
+
+        对输入的gps数据进行分组后，执行并行路径匹配并且输出匹配结果
+
+        Args:
+            gps_df: gps数据表对象, 必需参数
+            core_num: 使用的CPU核数
+
+        Returns:
+            匹配结果表(pd.DataFrame), 警告信息(dict), 错误信息(list)
+        """
         assert gps_field.AGENT_ID_FIELD in set(gps_df.columns), 'gps data is missing agent_id field'
         agent_id_list = list(gps_df[gps_field.AGENT_ID_FIELD].unique())
         core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
@@ -380,18 +405,23 @@ class OnLineMapMatch(MapMatch):
         self.his_gps = dict()
         self.add_single_ft = [True]
 
-    def execute(self, gps_df: pd.DataFrame or gpd.GeoDataFrame = None,
+    def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame,
                 gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
                 dis_gap_threshold: float = 600.0,
                 overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
-        """
+        """路径匹配
 
-        :param gps_df:
-        :param gps_already_plain: gps数据的lng, lat列是否已经是平面投影坐标系
-        :param time_gap_threshold: 时间间隔阈值
-        :param dis_gap_threshold: 距离阈值
-        :param overlapping_window: 重叠窗口长度
-        :return:
+        对输入的gps数据执行实时路径匹配并且输出匹配结果
+
+        Args:
+            gps_df: gps数据表对象, 必需参数
+            gps_already_plain: 传入的GPS数据是否是平面投影坐标系
+            time_gap_threshold: 时间阈值，如果某agent的当前批GPS数据的最早定位时间，和上批次GPS数据的最晚定位时间的差值超过该值，则不参考历史概率链进行匹配计算
+            dis_gap_threshold: 距离阈值，如果某agent的当前批GPS数据的最早定位点，和上批次GPS数据的最晚定位点的距离超过该值，则不参考历史概率链进行匹配计算
+            overlapping_window: 重叠窗口长度，和历史GPS数据的重叠窗口
+
+        Returns:
+            匹配结果表(pd.DataFrame), 警告信息(dict), 错误信息(list)
         """
         # check and format
         self.is_rolling_average = False
@@ -470,7 +500,8 @@ class OnLineMapMatch(MapMatch):
                 used_net = self.my_net.create_computational_net(
                     gps_array_buffer=gps_obj.get_gps_array_buffer(buffer=self.sub_net_buffer,
                                                                   dup_threshold=self.dup_threshold),
-                    fmm_cache=self.my_net.fmm_cache, weight_field=self.my_net.weight_field,
+                    fmm_cache=self.my_net.fmm_cache, prj_cache=self.my_net.prj_cache,
+                    weight_field=self.my_net.weight_field,
                     cache_path=self.my_net.cache_path, cache_id=self.my_net.cache_id,
                     not_conn_cost=self.my_net.not_conn_cost)
                 if used_net is None:
