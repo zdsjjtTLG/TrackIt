@@ -50,15 +50,17 @@ class GpsPointsGdf(object):
                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plane_crs: str = 'EPSG:3857', user_filed_list: list[str] = None,
                  already_plain: bool = False, multi_agents: bool = False):
-        """
+        """定位数据类
 
-        :param gps_points_df: gps数据dataframe, agent_id, lng, lat, time
-        :param buffer: GPS点的buffer半径大小(用于生成候选路段), m
-        :param time_format: 时间列的字符格式
-        :param plane_crs: 平面投影坐标系
-        :param user_filed_list:
-        :param already_plain: 原始lng, lat是否 已经是平面投影坐标系
-        :param multi_agents: 是否包含多个agents
+        Args:
+            gps_points_df: gps数据
+            buffer: GPS点的buffer半径大小(用于生成候选路段), m
+            time_format: 时间列的字符格式
+            time_unit: 平面投影坐标系
+            plane_crs:
+            user_filed_list:
+            already_plain: 原始lng, lat是否已经是平面投影坐标系
+            multi_agents: 是否包含多个agents
         """
         self.geo_crs = geo_crs
         self.buffer = buffer
@@ -148,8 +150,11 @@ class GpsPointsGdf(object):
     def dense_alpha(self, dense_interval: float = 120.0):
         """
 
-        :param dense_interval:
-        :return:
+        Args:
+            dense_interval:
+
+        Returns:
+
         """
         if len(self.__gps_points_gdf) <= 1:
             return self
@@ -211,10 +216,15 @@ class GpsPointsGdf(object):
         return self
 
     def dense(self, dense_interval: float = 120.0):
-        """
+        """增密
 
-        :param dense_interval:
-        :return:
+        对定位点进行线性增密
+
+        Args:
+            dense_interval: 增密阈值(米), 当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1 等分加密
+
+        Returns:
+            self
         """
         if len(self.__gps_points_gdf) <= 1:
             return self
@@ -295,11 +305,16 @@ class GpsPointsGdf(object):
                                                                      res[gps_field.ADJ_DIS])}
 
     def lower_frequency(self, lower_n: int = 2, multi_agents: bool = True):
-        """
-        data downscaling, reduce the amount of data
-        :param lower_n: 降频倍数
-        :param multi_agents:
-        :return:
+        """降频
+
+        对定位数据进行降频采样
+
+        Args:
+            lower_n: 降频倍数
+            multi_agents:
+
+        Returns:
+            self
         """
         if multi_agents:
             self.__gps_points_gdf['label'] = self.__gps_points_gdf.groupby(agent_field).cumcount() % lower_n
@@ -311,12 +326,16 @@ class GpsPointsGdf(object):
         return self
 
     def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1):
-        """
-        use kalman filter to smooth the trajectory, fields: agent_id, time, lng, lat
-        :param p_deviation: standard deviation of process noise
-        :param o_deviation: standard deviation of observation noise
-        the smaller o_deviation is, the closer the smoothing result is to the observed trajectory
-        :return:
+        """滤波平滑
+
+        使用卡尔曼滤波对轨迹数据进行平滑
+
+        Args:
+            p_deviation: 过程噪声的标准差
+            o_deviation: 观测噪声的标准差, 该值越小, 平滑后的结果就越接近原轨迹
+
+        Returns:
+            self
         """
         tks = OffLineTrajectoryKF(trajectory_df=self.__gps_points_gdf,
                                   x_field=gps_field.PLAIN_X, y_field=gps_field.PLAIN_Y)
@@ -331,12 +350,16 @@ class GpsPointsGdf(object):
         return self
 
     def rolling_average(self, multi_agents: bool = True, rolling_window: int = 2):
-        """
-        sliding window noise reduction.
-        after performing this operation, the output of the matching result table for custom fields is not supported.
-        :param multi_agents:
-        :param rolling_window:
-        :return:
+        """滑动窗口
+
+        使用滑动窗口对定位数据进行平滑, 只要启用了该操作, 那么user_field_list自动失效
+
+        Args:
+            rolling_window: 滑动窗口大小
+            multi_agents:
+
+        Returns:
+            self
         """
         # 滑动窗口执行后会重置所有的gps的seq字段
         if len(self.__gps_points_gdf) <= rolling_window:
@@ -441,12 +464,15 @@ class GpsPointsGdf(object):
     def generate_candidate_link(self, net: Net = None, is_hierarchical: bool = False,
                                 use_node_restrict: bool = False) -> \
             tuple[pd.DataFrame, list[int]]:
-        """
-        计算GPS观测点的候选路段
-        :param net:
-        :param is_hierarchical:
-        :param use_node_restrict:
-        :return: GPS候选路段信息, 未匹配到候选路段的gps点id
+        """计算GPS观测点的候选路段
+
+        Args:
+            net:
+            is_hierarchical:
+            use_node_restrict:
+
+        Returns:
+
         """
         gps_buffer_gdf = self.__gps_points_gdf[[gps_field.POINT_SEQ_FIELD, gps_field.GEOMETRY_FIELD]].copy()
         gps_buffer_gdf['gps_buffer'] = gps_buffer_gdf[net_field.GEOMETRY_FIELD].buffer(self.buffer)
@@ -535,11 +561,16 @@ class GpsPointsGdf(object):
             return self.__source_gps_points_gdf.copy()
 
     def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float, float, float]:
-        """
-        计算当前gps点实例在指定线对象上的投影信息
-        :param line:
-        :param seq:
-        :return:
+        """投影信息计算
+
+        计算gps点在指定线对象上的投影信息
+
+        Args:
+            line:
+            seq:
+
+        Returns:
+
         """
         (prj_p, prj_dis, route_dis, l_length, dx, dy) = self._get_prj_inf(self.get_point(seq)[1], line)
         return prj_p, prj_dis, route_dis, l_length, dx, dy
@@ -570,7 +601,17 @@ class GpsPointsGdf(object):
         return self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
 
     def del_dwell_points(self, dwell_l_length: float = 5.0, dwell_n: int = 2):
-        """support multi agents"""
+        """停留点识别
+
+        基于距离阈值对停留点进行识别并且进行删除
+
+        Args:
+            dwell_l_length: 停留点识别距离阈值(米)
+            dwell_n: 超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+
+        Returns:
+            self
+        """
         # add field = dis_gap_field
         self.calc_adj_dis_gap()
         del self.__gps_points_gdf[next_p_field]
@@ -593,13 +634,16 @@ class GpsPointsGdf(object):
     def del_consecutive_zero(df: pd.DataFrame or gpd.GeoDataFrame = None,
                              col: str = None, n: int = 3,
                              del_all_dwell: bool = True) -> pd.DataFrame or gpd.GeoDataFrame:
-        """
-        标记超过连续n行为0的行, 并且只保留最后一行
-        :param df:
-        :param col:
-        :param n:
-        :param del_all_dwell
-        :return:
+        """标记超过连续n行为0的行, 并且只保留最后一行
+
+        Args:
+            df:
+            col:
+            n:
+            del_all_dwell:
+
+        Returns:
+
         """
         m = df[col].ne(0)
         df['__del__'] = (df.groupby(m.cumsum())[col]
@@ -681,12 +725,19 @@ class GpsPointsGdf(object):
         else:
             gps_points_gdf['-'] = [i for i in range(len(gps_points_gdf))]
             gps_points_gdf[gps_field.POINT_SEQ_FIELD] = \
-                gps_points_gdf.groupby(agent_field)['-'].rank(method='min').astype(int) - 1
+                gps_points_gdf.groupby(agent_field)['-'].rank(method='min').astype(np.int64) - 1
             del gps_points_gdf['-']
 
     def simplify_trajectory(self, l_threshold: float = 5.0):
-        """
-        simplify trajectories using Douglas Pecker's algorithm
+        """简化轨迹
+
+        利用道格拉斯-普克算法对轨迹进行抽稀简化
+
+        Args:
+            l_threshold: 抽稀阈值(米)
+
+        Returns:
+            self
         """
         agent_count = self.__gps_points_gdf.groupby(agent_field)[[time_field]].count().rename(columns={time_field: 'c'})
         one_agent = list(agent_count[agent_count['c'] <= 1].index)
@@ -722,7 +773,17 @@ class GpsPointsGdf(object):
         return self
 
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
-        """get the trajectory data"""
+        """获取轨迹
+
+        获取处理后的轨迹数据(支持DataFrame和GeoDataFrame)
+
+        Args:
+            export_crs: 输出结果的坐标系
+            _type: 输出结果的类型, gdf或者df
+
+        Returns:
+            轨迹数据
+        """
         export_trajectory = self.__gps_points_gdf.copy()
         try:
             del export_trajectory[gps_field.PLAIN_X], export_trajectory[gps_field.PLAIN_Y]
