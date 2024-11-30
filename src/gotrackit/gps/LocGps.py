@@ -210,7 +210,7 @@ class GpsPointsGdf(object):
                 [ori_seq_field, gps_field.POINT_SEQ_FIELD, agent_field]], on=[ori_seq_field, agent_field],
                                             how='left')
             self.__user_gps_info[gps_field.POINT_SEQ_FIELD] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD].fillna(
-                -1).astype(int)
+                -1).astype(np.int64)
             del self.__user_gps_info[ori_seq_field]
         del self.__gps_points_gdf[ori_seq_field]
         return self
@@ -252,7 +252,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf.sort_values(by=[agent_field, 'all_idx', n_seg_field], inplace=True)
         self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD] = \
-            self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].fillna(-1).astype(int)
+            self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].fillna(-1).astype(np.int64)
 
         self.__gps_points_gdf[[time_field, 'prj_x', 'prj_y']] = self.__gps_points_gdf[
             [time_field, 'prj_x', 'prj_y']].interpolate(method='linear')
@@ -278,7 +278,7 @@ class GpsPointsGdf(object):
                 [ori_seq_field, gps_field.POINT_SEQ_FIELD, agent_field]], on=[ori_seq_field, agent_field],
                                             how='left')
             self.__user_gps_info[gps_field.POINT_SEQ_FIELD] = self.__user_gps_info[gps_field.POINT_SEQ_FIELD].fillna(
-                -1).astype(int)
+                -1).astype(np.int64)
             del self.__user_gps_info[ori_seq_field]
         del self.__gps_points_gdf[ori_seq_field]
         return self
