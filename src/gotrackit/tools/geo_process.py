@@ -171,11 +171,14 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
 
 def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
     """
-    将geometry列中的Multi对象处理为single对象
-    :param gdf:
-    :param l_threshold:
-    :param plain_crs
-    :return:
+
+    Args:
+        gdf:
+        plain_crs:
+        l_threshold:
+
+    Returns:
+
     """
     assert geometry_field in gdf.columns
     origin_crs = gdf.crs
@@ -205,12 +208,15 @@ def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
                  node_gdf: gpd.GeoDataFrame or pd.DataFrame = None, start_link_id: int = 1,
                  start_node_id: int = 1) -> None:
     """
-    change link and node inplace
-    :param link_gdf:
-    :param node_gdf:
-    :param start_node_id
-    :param start_link_id
-    :return:
+
+    Args:
+        link_gdf:
+        node_gdf:
+        start_link_id:
+        start_node_id:
+
+    Returns:
+
     """
     origin_node = set(node_gdf[node_id_field])
     node_map = {origin_node: new_node for origin_node, new_node in
@@ -226,10 +232,13 @@ def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min:
         tuple[list[LineString], list[Point], int, list[int]]:
     """
 
-    :param line_geo:
-    :param divide_l:
-    :param l_min:
-    :return:
+    Args:
+        line_geo:
+        divide_l:
+        l_min:
+
+    Returns:
+
     """
     line_l = line_geo.length
     n = int(line_l / divide_l)
@@ -284,10 +293,14 @@ def vector_angle(v1: np.ndarray = None, v2: np.ndarray = None) -> float:
 def hmm_vector_angle(gps_diff_vec: np.ndarray = None, link_dir_vec: np.ndarray = None, omitted_l: float = 6.0) -> float:
     """
     计算GPS差分航向向量和候选路段切点方向向量的夹角
-    :param gps_diff_vec:
-    :param link_dir_vec:
-    :param omitted_l
-    :return:
+
+    Args:
+        gps_diff_vec:
+        link_dir_vec:
+        omitted_l:
+
+    Returns:
+
     """
     # 在GPS点密集处, gps_diff_vec不准确, 往往gps_diff_vec的模会很小, 为了不干扰匹配, 返回0
     if np.sqrt(gps_diff_vec[0] ** 2 + gps_diff_vec[1] ** 2) <= omitted_l:
@@ -312,15 +325,18 @@ def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'g
               val_field: str = 'gvl',
               vb_dx_field: str = 'lv_dx', vb_dy_field: str = 'lv_dy', vbl_field: str = 'lvl'):
     """
-    change inplace
-    :param df:
-    :param va_dx_field:
-    :param va_dy_field:
-    :param val_field:
-    :param vb_dx_field:
-    :param vb_dy_field:
-    :param vbl_field:
-    :return:
+
+    Args:
+        df:
+        va_dx_field:
+        va_dy_field:
+        val_field:
+        vb_dx_field:
+        vb_dy_field:
+        vbl_field:
+
+    Returns:
+
     """
     df['cos'] = (df[va_dx_field] * df[vb_dx_field] + df[va_dy_field] * df[vb_dy_field]) / (
                 df[val_field] * df[vbl_field])
@@ -334,7 +350,16 @@ def vec_angle(df: pd.DataFrame or gpd.GeoDataFrame = None, va_dx_field: str = 'g
 
 def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDataFrame = None,
                  cpu_restrict: bool = True) -> gpd.GeoDataFrame:
-    """传入面域, 对路网进行切块(依据region_gdf), 行不变, 加上新的一列region_id"""
+    """传入面域, 对路网进行切块(依据region_gdf), 行不变, 加上新的一列region_id
+
+    Args:
+        region_gdf:
+        split_path_gdf:
+        cpu_restrict:
+
+    Returns:
+
+    """
     n = len(region_gdf)
     if cpu_restrict:
         assert n <= os.cpu_count(), \
@@ -354,7 +379,16 @@ def rn_partition(region_gdf: gpd.GeoDataFrame = None, split_path_gdf: gpd.GeoDat
 
 def rn_partition_alpha(split_path_gdf: gpd.GeoDataFrame = None, partition_num: int = 3,
                        is_geo_coord: bool = True):
-    """传入面域, 对路网进行切块, 行不变, 加上新的一列region_id"""
+    """传入面域, 对路网进行切块, 行不变, 加上新的一列region_id
+
+    Args:
+        split_path_gdf:
+        partition_num:
+        is_geo_coord:
+
+    Returns:
+
+    """
     link_num = len(split_path_gdf)
     c_num = os.cpu_count()
     partition_num = c_num if partition_num > c_num else partition_num
@@ -389,12 +423,16 @@ class StraightLineToArc(object):
     def arc_curve_line(straight_line_obj: LineString, r: float = 1.0, sample_num: int = 30) \
             -> LineString:
 
-        """generate arc curve line objects based on a straight line objects
-        :param straight_line_obj: LineString
-        :param r: float, must be greater than 0.72, controls the degree of curvature,
-        The larger the value, the smaller the curvature.
-        :param sample_num: the number of sampling points. The larger the number, the smoother the curve.
-        :return:
+        """计算圆弧对象
+        基于直线对象生成圆弧线对象
+
+        Args:
+            straight_line_obj: 直线对象
+            r: 曲度系数, 必须大于0.72, 值越小, 曲度越大
+            sample_num: 采样点数目
+
+        Returns:
+            圆弧曲线对象
         """
         o_coord, d_coord = straight_line_obj.coords[0], straight_line_obj.coords[-1]
         arc_line_cor = get_arrow(o_loc=o_coord, d_loc=d_coord, ratio=r, sample_num=sample_num)
@@ -403,9 +441,17 @@ class StraightLineToArc(object):
     @staticmethod
     def arc_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
                       sample_num: int = 30) -> list:
-        """
-        generate arc curve coords based on (o_loc, d_loc)
-        :return:
+        """计算圆弧坐标
+        基于起终点坐标生成圆弧坐标
+
+        Args:
+            o_loc: 起点坐标
+            d_loc: 终点坐标
+            r: 曲度系数, 必须大于0.72, 值越小, 曲度越大
+            sample_num: 采样点数目
+
+        Returns:
+            圆弧曲线坐标点
         """
         arc_line_cor = get_arrow(o_loc=o_loc, d_loc=d_loc, ratio=r, sample_num=sample_num)
         return list(arc_line_cor)
@@ -413,12 +459,17 @@ class StraightLineToArc(object):
     @staticmethod
     def bezier_curve_line(straight_line_obj: LineString, r: float = 5.0, sample_num: int = 30,
                           right_side: bool = True) -> LineString:
-        """ generate bezier curve line objects based on a straight line objects
-        :param straight_line_obj: LineString
-        :param r: float, controls the degree of curvature. The larger the value, the more severe the bending
-        :param sample_num: the number of sampling points. The larger the number, the smoother the curve.
-        :param right_side: bool, if True, the curve is generated on the right side of the ray direction
-        :return:
+        """计算贝塞尔曲线对象
+        基于直线对象计算得到贝塞尔曲线对象
+
+        Args:
+            straight_line_obj: 直线对象
+            r: 曲度系数, 值越大, 曲度越大
+            sample_num: 采样点数目
+            right_side: 是否在拓扑前进方向的右侧生成曲线
+
+        Returns:
+            贝塞尔曲线对象
         """
         o_coord, d_coord = straight_line_obj.coords[0], straight_line_obj.coords[-1]
         arc_line_cor = calc_bezier(o_loc=o_coord, d_loc=d_coord, sample_num=sample_num, r=r, right_side=right_side)
@@ -427,9 +478,18 @@ class StraightLineToArc(object):
     @staticmethod
     def bezier_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
                          sample_num: int = 30, right_side: bool = True) -> list:
-        """
-        generate bezier curve coords based on (o_loc, d_loc)
-        :return:
+        """计算贝塞尔曲线对象
+        基于直线对象计算得到贝塞尔曲线对象
+
+        Args:
+            o_loc: 起点坐标
+            d_loc: 终点坐标
+            r: 曲度系数, 值越大, 曲度越大
+            sample_num: 采样点数目
+            right_side: 是否在拓扑前进方向的右侧生成曲线
+
+        Returns:
+            贝塞尔曲线的坐标点
         """
         arc_line_cor = calc_bezier(o_loc=o_loc, d_loc=d_loc, r=r, sample_num=sample_num, right_side=right_side)
         return list(arc_line_cor)
@@ -437,12 +497,15 @@ class StraightLineToArc(object):
 def get_arrow(o_loc: list or tuple = None, d_loc: list or tuple = None, ratio: float = 1.5, sample_num: int = 30) -> \
         tuple[list[float], list[float]]:
     """
-    create an arc between two points
-    :param o_loc:
-    :param d_loc:
-    :param ratio:
-    :param sample_num:
-    :return:
+
+    Args:
+        o_loc:
+        d_loc:
+        ratio:
+        sample_num:
+
+    Returns:
+
     """
     d = calc_dis(o_loc=o_loc, d_loc=d_loc)
     ratio = 0.8 if ratio <= 0.72 else ratio
@@ -465,6 +528,14 @@ def get_arrow(o_loc: list or tuple = None, d_loc: list or tuple = None, ratio: f
 def get_cen_loc(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = None) -> list[float]:
     """
     calculate the center coordinates based on the given start and end coordinates and radius value
+
+    Args:
+        o_loc:
+        d_loc:
+        r:
+
+    Returns:
+
     """
     if d_loc[0] == o_loc[0]:
         y0 = y1 = (o_loc[1] + d_loc[1]) / 2
@@ -495,12 +566,15 @@ def get_cen_loc(o_loc: list or tuple = None, d_loc: list or tuple = None, r: flo
 def get_rad_loc(x: float = 1.1, y: float = 2.1, x_r: float = 0.1, y_r: float = 0.1, r: float = 1.2):
     """
 
-    :param x:
-    :param y:
-    :param x_r:
-    :param y_r:
-    :param r:
-    :return:
+    Args:
+        x:
+        y:
+        x_r:
+        y_r:
+        r:
+
+    Returns:
+
     """
     vec = np.array([x - x_r, y - y_r])
     if vec[0] >= 0 and vec[1] >= 0:
@@ -519,13 +593,13 @@ def get_rad_loc(x: float = 1.1, y: float = 2.1, x_r: float = 0.1, y_r: float = 0
 
 def calc_dis(o_loc=None, d_loc=None):
     """
-    for this distance calculation, you can pass in longitude and latitude coordinates to calculate directly
-    If the longitude and latitude between two points span a large distance,
-    if the plane projection coordinates are passed in, and then converted to geographic coordinates after calculation,
-    the arc will be deformed
-    :param o_loc:
-    :param d_loc:
-    :return:
+
+    Args:
+        o_loc:
+        d_loc:
+
+    Returns:
+
     """
     d = ((d_loc[0] - o_loc[0]) ** 2 + (d_loc[1] - o_loc[1]) ** 2) ** 0.5
     if d <= 0.00000000001:
@@ -537,9 +611,12 @@ def calc_dis(o_loc=None, d_loc=None):
 def bezier(t, points: list or tuple or np.ndarray = None) -> float:
     """
 
-    :param t:
-    :param points:
-    :return:
+    Args:
+        t:
+        points:
+
+    Returns:
+
     """
     n = len(points) - 1
     res = 0
@@ -556,6 +633,16 @@ def bezier(t, points: list or tuple or np.ndarray = None) -> float:
 def bezier_coords(control_x: list or tuple or np.ndarray = None,
                   control_y: list or tuple or np.ndarray = None,
                   sample_num: int = 100) -> tuple:
+    """
+
+    Args:
+        control_x:
+        control_y:
+        sample_num:
+
+    Returns:
+
+    """
     x, y = list(), list()
     _ = [[x.append(bezier(u, points=control_x)), y.append(bezier(u, points=control_y))] for u in
          np.linspace(0, 1, num=sample_num)]
@@ -566,12 +653,15 @@ def calc_bezier(o_loc: list or tuple = None, d_loc: list or tuple = None, r: flo
                 right_side: bool = True) -> tuple:
     """
 
-    :param o_loc:
-    :param d_loc:
-    :param r:
-    :param sample_num:
-    :param right_side:
-    :return:
+    Args:
+        o_loc:
+        d_loc:
+        r:
+        sample_num:
+        right_side:
+
+    Returns:
+
     """
     left_p_x, left_p_y, right_p_x, right_p_y = point_in_perpendicular_bisector(ox=o_loc[0], oy=o_loc[1], dx=d_loc[0],
                                                                                dy=d_loc[1], r=r)
@@ -584,6 +674,18 @@ def calc_bezier(o_loc: list or tuple = None, d_loc: list or tuple = None, r: flo
 
 
 def point_in_perpendicular_bisector(ox: float, oy: float, dx: float, dy: float, r: float = 5.0):
+    """
+
+    Args:
+        ox:
+        oy:
+        dx:
+        dy:
+        r:
+
+    Returns:
+
+    """
     mpx, mpy = (ox + dx) / 2, (oy + dy) / 2
     vec_x = -(dy - oy) * r
     vec_y = (dx - ox) * r
