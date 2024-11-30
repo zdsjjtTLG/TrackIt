@@ -28,6 +28,16 @@ class KeplerVis(object):
     def __init__(self, zoom: int = 15,
                  cen_loc: list[float, float] or tuple[float, float] = None, show_roads: bool = True,
                  map_style: str = 'dark'):
+        """可视化类
+        开普勒可视化类，提供了几何对象和路径的可视化方法
+
+        Args:
+            zoom: 缩放层级, 默认15
+            cen_loc: 地图中心点经纬度坐标(WGS-84坐标系)
+            show_roads: 是否在底图上显示路网图层
+            map_style: 地图风格, 可选dark, light, muted, muted_night, satellite
+
+        """
         self.user_config = kepler_config.get_glb_map_config()
         if cen_loc is not None:
             self.user_config["config"]["mapState"]["longitude"] = cen_loc[0]
@@ -46,15 +56,34 @@ class KeplerVis(object):
                         set_avg_zoom: bool = True, time_field: str = None, time_format: str = '%Y-%m-%d %H:%M:%S',
                         time_unit: str = 's', speed: float = 0.3, tooltip_fields: list[str] = None,
                         color_field: str = None, color_list: list = None) -> None:
+        """添加点层
+        可为底图加上一个点层
 
+        Args:
+            data: 点层图层数据
+            lng_field: 经度字段
+            lat_field: 纬度字段
+            altitude_field: 高度字段
+            layer_id: 图层ID
+            color: 点颜色, RGB数值, 如[125, 241, 33]
+            radius: 点的半径大小
+            set_avg_zoom: 是否自动定位中心点
+            time_field: 时间列字段名称
+            time_format: 时间列的格式化字符串模板
+            time_unit: 时间列的时间单位
+            speed: 动画播放速度
+            tooltip_fields: 参数未启用
+            color_field: 参数未启用
+            color_list: 参数未启用
+
+        Returns:
+        """
         layer_config = self.get_base_layer()
         layer_id = layer_id if layer_id is not None else rf'point-{self.point_count}'
         layer_config['id'] = layer_id
         layer_config["type"] = 'point'
         layer_config['config']['dataId'] = layer_id
         layer_config['config']['label'] = layer_id
-        # layer_config["config"]["columns"]["lat"] = lat_field
-        # layer_config["config"]["columns"]["lng"] = lng_field
         layer_config["config"]["columns"] = {"lat": lat_field, "lng": lng_field}
         if altitude_field is not None:
             layer_config["config"]["columns"]["altitude"] = altitude_field
@@ -75,7 +104,7 @@ class KeplerVis(object):
                                           time_format=time_format, time_unit=time_unit,
                                           layer_id=layer_id, speed=speed))
         if set_avg_zoom:
-            cen_x, cen_y = data[lng_field].iloc[0], data[lat_field].iloc[0]
+            cen_x, cen_y = get_avg_loc(df=data, x_field=lng_field, y_field=lat_field)
             self.user_config["config"]["mapState"]["longitude"] = cen_x
             self.user_config["config"]["mapState"]["latitude"] = cen_y
         self.data_dict[layer_id] = data
@@ -90,6 +119,26 @@ class KeplerVis(object):
                       time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                       speed: float = 0.3, set_avg_zoom: bool = True, tooltip_fields: list[str] = None,
                       color_field: str = None, color_list: list = None):
+        """添加几何图层
+        可为底图加上一个几何图层(即含有geometry几何列)
+
+        Args:
+            data: 几何图层数据
+            layer_id: 图层ID
+            color: 填充颜色(RGB色值), 默认[65, 72, 88]
+            stroke_color: 边缘填充颜色(RGB色值), 默认[65, 72, 88]
+            width: 是否自动定位中心点
+            time_field: 时间列字段名称
+            time_format: 时间列的格式化字符串模板
+            time_unit: 时间列的时间单位
+            speed: 动画播放速度
+            set_avg_zoom: 是否自动定位中心点
+            tooltip_fields: 参数未启用
+            color_field: 参数未启用
+            color_list: 参数未启用
+
+        Returns:
+        """
         layer_config = self.get_base_layer()
         layer_id = layer_id if layer_id is not None else rf'geo-{self.geo_count}'
         layer_config['id'] = layer_id
@@ -115,7 +164,7 @@ class KeplerVis(object):
                                           time_format=time_format, time_unit=time_unit,
                                           layer_id=layer_id, speed=speed))
         if set_avg_zoom:
-            geo = data['geometry'].iloc[0]
+            geo = data['geometry'].iloc[int(len(data) / 2)]
             _ = geo.buffer(0.0001).centroid
             self.user_config["config"]["mapState"]["longitude"] = _.x
             self.user_config["config"]["mapState"]["latitude"] = _.y
@@ -131,12 +180,31 @@ class KeplerVis(object):
                        thickness: float = 2.0, set_avg_zoom: bool = True,
                        opacity: float = 0.8, color: list or str = None,
                        trail_length: float = 120.0, tooltip_fields: list[str] = None):
+        """添加路径动画图层
+        可为底图加上一个路径动画图层(带时间字段的轨迹数据)
 
+        Args:
+            data: 轨迹数据
+            lng_field: 经度字段
+            lat_field: 纬度字段
+            altitude_field: 高度字段
+            time_format: 时间列的格式化字符串模板
+            time_unit: 时间列的时间单位
+            layer_id: 图层ID
+            set_avg_zoom: 是否自动定位中心点
+            thickness: 轨迹的显示宽度
+            trail_length: 路径拖尾长度
+            opacity: 轨迹的透明度
+            color: 轨迹的颜色(RGB色值), 默认[241, 225, 37]
+            tooltip_fields: 参数未启用
+
+        Returns:
+        """
         layer_config = self.get_base_layer()
         trip_data = generate_trip_layer(match_res_df=data, time_format=time_format, time_unit=time_unit,
                                         lng_field=lng_field, lat_field=lat_field, altitude_field=altitude_field)
         if set_avg_zoom:
-            cen_x, cen_y = data[lng_field].iloc[0], data[lat_field].iloc[0]
+            cen_x, cen_y = get_avg_loc(df=data, x_field=lng_field, y_field=lat_field)
             self.user_config["config"]["mapState"]["longitude"] = cen_x
             self.user_config["config"]["mapState"]["latitude"] = cen_y
         del data
@@ -159,6 +227,17 @@ class KeplerVis(object):
         self.trip_count += 1
 
     def export_html(self, height: float = 600, out_fldr: str = None, file_name: str = 'map'):
+        """HTML输出
+        将可视化HTML存储到磁盘且返回Map对象
+
+        Args:
+            height: 地图对象的高度
+            out_fldr: 存储HTML的目录
+            file_name: HTML文件的名称
+
+        Returns:
+            Kepler Map
+        """
         try:
             user_map = KeplerGl(height=height, data=self.data_dict)  # data以图层名为键，对应的矢量数据为值
         except:
@@ -454,3 +533,11 @@ def generate_trip_layer_alpha(net: Net = Net, match_res_df: pd.DataFrame = None)
     single_link_gdf = net.get_link_data()
     com_idx = match_res_df['prj_lng'].isna()
     com_df = match_res_df[com_idx]
+
+
+def get_avg_loc(df: pd.DataFrame = None, x_field: str = 'lng', y_field: str = 'lat') -> tuple[float, float]:
+    if len(df) <= 100:
+        return df[x_field].mean(), df[y_field].mean()
+    else:
+        sample_df = df.sample(n=100)
+        return sample_df[x_field].mean(), sample_df[y_field].mean()
