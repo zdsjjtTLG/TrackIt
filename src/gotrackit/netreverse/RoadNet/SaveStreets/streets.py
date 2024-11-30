@@ -120,8 +120,9 @@ def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False
 
         to_node_gdf = used_link_geo[[net_field.TO_NODE_FIELD, 'to_point']].rename(
             columns={net_field.TO_NODE_FIELD: net_field.NODE_ID_FIELD, 'to_point': net_field.GEOMETRY_FIELD})
-
+        del used_link_geo
         node_gdf = pd.concat([from_node_gdf, to_node_gdf]).reset_index(drop=True)
+        del from_node_gdf, to_node_gdf
         node_gdf.drop_duplicates(subset=[net_field.NODE_ID_FIELD], keep='first', inplace=True)
         node_gdf.reset_index(inplace=True, drop=True)
         node_gdf = gpd.GeoDataFrame(node_gdf, geometry=net_field.GEOMETRY_FIELD, crs=origin_crs)
@@ -133,6 +134,7 @@ def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False
         used_link_geo['f_coords'] = used_link_geo[net_field.GEOMETRY_FIELD].apply(lambda geo: list(geo.coords)[0])
         used_link_geo['t_coords'] = used_link_geo[net_field.GEOMETRY_FIELD].apply(lambda geo: list(geo.coords)[-1])
         non_dup_coords_list = used_link_geo['f_coords'].to_list() + used_link_geo['t_coords'].to_list()
+        del used_link_geo
         node_coords_list = list(set(non_dup_coords_list))
         node_gdf = gpd.GeoDataFrame({net_field.NODE_ID_FIELD: [x for x in range(1, len(node_coords_list) + 1)]},
                                     geometry=[Point(cor) for cor in node_coords_list], crs=origin_crs)
@@ -174,6 +176,7 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     from_to_point_gdf.set_geometry('__TopologyToCoord___', inplace=True)
     from_to_point_gdf.crs = origin_crs
     join_data = gpd.sjoin(from_to_point_gdf, node_gdf, how='left', predicate='intersects')
+    del from_to_point_gdf
     join_data.drop_duplicates(subset=['___idx'], keep='first', inplace=True)
     join_data.reset_index(inplace=True, drop=True)
     link_gdf[net_field.TO_NODE_FIELD] = join_data[net_field.NODE_ID_FIELD].values
