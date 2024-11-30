@@ -63,12 +63,15 @@ class TrajectoryKalmanFilter(object):
             tuple[np.ndarray, np.ndarray]:
         """
 
-        :param kf: KalmanFilter Object
-        :param dt: float, time difference, unit: seconds
-        :param previous_state: [x, y, vx, vy]
-        :param previous_covariance: 4 * 4 matrix
-        :param now_state: [x, y, vx, vy]
-        :return:
+        Args:
+            kf: KalmanFilter Object
+            dt: time difference, unit: seconds
+            previous_state: [x, y, vx, vy]
+            previous_covariance: 4 * 4 matrix
+            now_state: [x, y, vx, vy]
+
+        Returns:
+
         """
         # Update the state transition matrix
         kf.transition_matrices = np.array([[1, 0, dt, 0],
@@ -146,6 +149,17 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 class OnLineTrajectoryKF(TrajectoryKalmanFilter):
     def __init__(self, trajectory_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  x_field: str = 'lng', y_field: str = 'lat'):
+        """实时卡尔曼滤波类
+
+        提供实时平滑功能
+
+        Args:
+            trajectory_df: 轨迹数据
+            time_format: GPS轨迹数据中时间列的格式化字符串模板
+            time_unit: 轨迹数据中时间列的时间单位
+            x_field: 轨迹数据表中表示经度的字段名称
+            y_field: 轨迹数据表中表示纬度的字段名称
+        """
 
         TrajectoryKalmanFilter.__init__(self, trajectory_df)
 
@@ -160,11 +174,16 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
     def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1,
                   time_gap_threshold: float = 1800.0) -> \
             pd.DataFrame or gpd.GeoDataFrame:
-        """
-        :param p_deviation: the smaller p_deviation is, the closer the trajectory is to the estimated trajectory.
-        :param o_deviation: the smaller o_deviation is, the closer the trajectory is to the observed trajectory.
-        :param time_gap_threshold:
-        :return:
+        """平滑
+        实时滤波平滑
+
+        Args:
+            p_deviation: 过程噪声的标准差
+            o_deviation: 观测噪声的标准差, 该值越小, 平滑后的结果就越接近原轨迹
+            time_gap_threshold: 时间阈值，如果某agent的当前批GPS数据的最早定位时间和上批GPS数据的最晚定位时间的差值超过该值，则不参考历史概率链进行匹配计算
+
+        Returns:
+            平滑后的轨迹表
         """
         res_df = pd.DataFrame()
 
@@ -213,5 +232,13 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
         return res_df
 
     def renew_trajectory(self, trajectory_df: pd.DataFrame = None):
+        """更新数据
+        更新待处理的轨迹点数据
+
+        Args:
+            trajectory_df: 轨迹数据
+
+        Returns:
+        """
         self.trajectory_df = trajectory_df
         build_time_col(df=self.trajectory_df, time_format=self.time_format, time_unit=self.time_unit)
