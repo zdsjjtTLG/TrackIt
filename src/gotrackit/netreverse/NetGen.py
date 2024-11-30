@@ -4,7 +4,7 @@
 # @Team    : ZheChengData
 
 
-"""生产路网的相关方法"""
+"""生产/优化 路网的类和方法"""
 
 import os.path
 import pandas as pd
@@ -33,6 +33,14 @@ gps_field = GpsField()
 class Reverse(object):
     def __init__(self, flag_name: str = 'NetGen', plain_crs: str = None, net_out_fldr: str = r'./',
                  net_file_type: str = 'shp'):
+        """
+
+        Args:
+            flag_name:
+            plain_crs:
+            net_out_fldr:
+            net_file_type:
+        """
         # overall
         self.flag_name = flag_name
         self.plain_crs = plain_crs
@@ -57,11 +65,48 @@ class NetReverse(Reverse):
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
                  multi_core_parse: bool = False, parse_core_num: int = 2,
                  multi_core_reverse: bool = False, reverse_core_num: int = 2):
-        """
-        :param flag_name: 标志字符(项目名称)
-        :param plain_crs: 平面投影坐标系
-        :param net_out_fldr: 输出路网的存储目录
-        :return:
+        """路网逆向类
+
+        定义路网逆向类的相关参数
+
+        Args:
+            flag_name: [1]总体参数 - 项目名称
+            net_out_fldr: [1]总体参数 - 输出路网的存储目录
+            plain_crs: [1]总体参数 - 平面投影坐标系
+            net_file_type: [1]总体参数 - 路网的输出文件类型，shp 或者 geojson
+            multi_core_parse: [2]路径解析、拆分参数 - 是否启用多核对二进制路径文件进行解析
+            parse_core_num: [2]路径解析、拆分参数 - 多核解析时使用的核数
+            ignore_head_tail: [2]路径解析、拆分参数 - 是否忽略路径首尾的无名道路, 这种一般是小区内部道路
+            cut_slice: [2]路径解析、拆分参数 - 拆分路段时，是否分片处理，内存不够时可以指定为True
+            slice_num: [2]路径解析、拆分参数 - 拆分路段时，拆分为几个slice处理
+            generate_rod: [2]路径解析、拆分参数 - 是否生成连杆, 只有当参数ignore_head_tail为false时该参数才生效
+            min_rod_length: [2]路径解析、拆分参数 - 最小连杆长度，米
+            restrict_region_gdf: [2]路径解析、拆分参数 - 限制区域gdf，若传入此区域，那么仅仅只对在区域范围内的路网进行逆向
+            save_split_link: [2]路径解析、拆分参数 - 是否保存拆分路径后的link层文件
+            modify_minimum_buffer: [3]拓扑生成参数 - 是极小间隔节点优化的buffer, m
+            save_streets_before_modify_minimum: [3]拓扑生成参数 - 是否保存优化前的结果
+            save_streets_after_modify_minimum: [3]拓扑生成参数 - 是否保存优化后的结果
+            save_tpr_link: [3]拓扑生成参数 - 是否保存优化后且进行方向处理的文件
+            limit_col_name: [4]拓扑优化参数 - 路段合并时，用于限制路段合并的线层属性字段，默认road_name，如果你要使用其他字段来限制合并，请自定义该参数
+            ignore_dir: [4]拓扑优化参数 - 路段合并时，是否忽略行车方向
+            allow_ring: [4]拓扑优化参数 - 是否允许路段合并后出现环
+            restrict_angle: [4]拓扑优化参数 - 是否启用最大转角限制来约束路段合并
+            restrict_length: [4]拓扑优化参数 - 是否启用最大路段长度限制来约束路段合并
+            accu_l_threshold: [4]拓扑优化参数 - 允许的最长的路段长度，米
+            angle_threshold: [4]拓扑优化参数 - 允许的最大的路段内转角，度
+            min_length: [4]拓扑优化参数 - 允许的最小的路段长度，米
+            save_preliminary: [4]拓扑优化参数 - 是否保留重复路段处理前的文件
+            multi_core_merge: [4]拓扑优化参数 - 是否启用多进程进行路段合并
+            merge_core_num: [4]拓扑优化参数 - 启用几个核进行路段合并
+            save_done_topo: [4]拓扑优化参数 - 是否保存拓扑优化后的路网
+            is_process_dup_link: [5]重叠路段处理参数 - 是否处理重复路
+            process_dup_link_buffer: [5]重叠路段处理参数 - 处理重复路段所使用的buffer长度，米
+            dup_link_buffer_ratio: [5]重叠路段处理参数 - dup_link_buffer_ratio
+            is_modify_conn: [6]联通性修复参数 - 是否检查潜在的联通性问题并且进行修复
+            conn_buffer: [6]联通性修复参数 - 检查联通性问题时使用的检测半径大小,单位米
+            conn_period: [6]联通性修复参数 - 取值final或者start, final表示在拓扑优化之后修复联通性, start表示在拓扑优化之前修复联通性
+            multi_core_reverse: [7]分区逆向参数 - 是否启用多进程对路网进行并行逆向计算
+            reverse_core_num: [7]分区逆向参数 - 逆向并行计算要启用的核数
         """
         # overall
         super().__init__(flag_name, plain_crs, net_out_fldr, net_file_type)
@@ -119,7 +164,7 @@ class NetReverse(Reverse):
         self.multi_core_reverse = multi_core_reverse
         self.reverse_core_num = reverse_core_num
 
-    def generate_net_from_request(self, key_list: list[str] = None, binary_path_fldr: str = r'./',
+    def generate_net_from_request(self, key_list: list[str], binary_path_fldr: str = r'./',
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
                                   region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
@@ -128,7 +173,37 @@ class NetReverse(Reverse):
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
                                   wait_until_recovery: bool = False,
                                   is_rnd_strategy: bool = False, strategy: str = '32') -> None:
-        """构造OD -> 请求 -> 二进制存储 -> 路网生产"""
+        """类方法：向开放平台请求路径后分析计算得到路网
+
+        构造OD -> 请求 -> 二进制存储 -> 路网生产
+
+        Args:
+            binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
+            key_list: [1]请求设置参数 - 开发者key值列表，必需参数
+            wait_until_recovery: [1]请求设置参数 - 如果配额超限，是否一直等待直至配额恢复
+            is_rnd_strategy: [1]请求设置参数 - 是否启用随机策略
+            strategy: [1]请求设置参数 - 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
+            cache_times: [1]请求设置参数 - 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
+            ignore_hh: [1]请求设置参数 - 是否忽略时段限制进行请求
+            remove_his: [1]请求设置参数 - 是否对已经请求的OD重复(指的是在请求被意外中断的情况下，od_id为判断依据)请求
+            save_log_file: [1]请求设置参数 - 是否保存日志文件
+            log_fldr: [1]请求设置参数 - 日志文件的存储目录
+            od_file_path: [2]OD构造参数 - 用于请求的od文件路径，可选参数
+            od_df: [2]OD构造参数 - 用于请求的od数据，该参数和od_file_path任意指定一个即可，可选参数
+            region_gdf: [2]OD构造参数 - 用于构造od的面域数据
+            od_type: [2]OD构造参数 - 用于构造od的方法，rand_od、region_od、diy_od
+            min_lng: [2]OD构造参数 - 矩形区域的左下角经度
+            min_lat: [2]OD构造参数 - 矩形区域的左下角纬度
+            w: [2]OD构造参数 - 矩形区域的宽度，米
+            h: [2]OD构造参数 - 矩形区域的高度，米
+            od_num: [2]OD构造参数 - 请求的od数，od数越多，请求的路径就越多，路网覆盖率就越完整，只有od_type为rand_od时起效
+            gap_n: [2]OD构造参数 - 横纵向网格个数，只有od_type为rand_od时起效
+            min_od_length: [2]OD构造参数 - od之间最短直线距离，只有od_type为rand_od时起效
+            boundary_buffer: [2]OD构造参数 - 区域边界buffer，米，
+
+        Returns:
+            直接在net_out_fldr下生成路网
+        """
         self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
                           od_file_path=od_file_path,
                           od_df=od_df, region_gdf=region_gdf, od_type=od_type,
@@ -144,12 +219,17 @@ class NetReverse(Reverse):
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
 
-    def generate_net_from_pickle(self, binary_path_fldr: str = None, pickle_file_name_list: list[str] = None) -> None:
-        """
-        从二进制路径文件进行读取, 然后生产路网
-        :param binary_path_fldr:
-        :param pickle_file_name_list:
-        :return:
+    def generate_net_from_pickle(self, binary_path_fldr: str, pickle_file_name_list: list[str] = None) -> None:
+        """类方法：依据二进制路径文件计算得到路网
+
+        解析二进制路径文件, 然后生产路网
+        
+        Args:
+            binary_path_fldr: 路径源文件的存储目录，必须参数
+            pickle_file_name_list: 需要解析的路径文件名称列表，如果不传入则默认解析所有文件
+
+        Returns:
+            None, 直接在net_out_fldr下生成路网
         """
         attr_name_list = ['road_name']
         if pickle_file_name_list is None or not pickle_file_name_list:
@@ -170,17 +250,21 @@ class NetReverse(Reverse):
         split_path_gdf = pgd.parse_path_main_multi()
         self._generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
-    def generate_net_from_path_gdf(self, path_gdf: gpd.GeoDataFrame = None,
+    def generate_net_from_path_gdf(self, path_gdf: gpd.GeoDataFrame,
                                    slice_num: int = 1, attr_name_list: list = None,
                                    cut_slice: bool = False):
-        """
-        input crs: EPSG:4326
-        从路径gdf创建路网
-        :param path_gdf:
-        :param slice_num:
-        :param attr_name_list:
-        :param cut_slice:
-        :return:
+        """类方法：从线层文件计算得到路网
+
+        从线层文件计算得到路网
+
+        Args:
+            path_gdf: 线层gdf数据，必须参数, 坐标系必须为EPSG:4326
+            slice_num: 拆分路段时，拆分为几个slice处理
+            attr_name_list: 限定字段列表
+            cut_slice: 拆分路段时，是否分片处理，内存不够时可以指定为True
+
+        Returns:
+            None, 直接在net_out_fldr下生成路网
         """
         print(rf'##########   {self.flag_name} - Split Path')
         if 'road_name' not in path_gdf.columns:
@@ -193,13 +277,36 @@ class NetReverse(Reverse):
         self._generate_net_from_split_path(split_path_gdf=split_path_gdf)
 
     @staticmethod
-    def create_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field_list: list[str] = None,
+    def create_node_from_link(link_gdf: gpd.GeoDataFrame, update_link_field_list: list[str] = None,
                               using_from_to: bool = False, fill_dir: int = 0, plain_crs: str = 'EPSG:32650',
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
                               out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
                               save_streets_after_modify_minimum: bool = True, net_file_type: str = 'shp') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """类静态方法：创建点层
+
+        生产点线拓扑关联, 更新线层信息, 同时生产点层
+
+        Args:
+            link_gdf: 路网线层gdf数据，必需数据
+            out_fldr: 输出文件的存储目录
+            update_link_field_list: 需要更新的字段列表, 生产拓扑关联后需要更新的线层基本字段，从(link_id, from_node, to_node, dir, length)中选取
+            using_from_to: 是否使用输入线层中的from_node字段和to_node字段
+            fill_dir: 用于填充dir方向字段的值，如果update_link_field_list中包含dir字段，那么该参数需要传入值，允许的值为1或者0
+            plain_crs: 所使用的平面投影坐标系
+            ignore_merge_rule: 是否忽略极小间隔优化的规则
+            execute_modify: 是否执行极小间隔节点优化
+            modify_minimum_buffer: 极小间隔节点优化的buffer, 米
+            auxiliary_judge_field: 用于判断是否可以合并的线层字段, 只有当ignore_merge_rule为False才起效
+            save_streets_before_modify_minimum: 是否存储极小间隔优化前的数据
+            save_streets_after_modify_minimum: 是否存储极小间隔优化后的数据
+            net_file_type: 输出路网文件的存储类型，shp或者geojson
+
+        Returns:
+            线层gdf, 点层gdf
+
+        """
         assert net_file_type in ['shp', 'geojson']
         link_gdf, node_gdf, node_group_status_gdf = \
             generate_node_from_link(link_gdf=link_gdf,
@@ -216,14 +323,19 @@ class NetReverse(Reverse):
                                     save_streets_before_modify_minimum=save_streets_before_modify_minimum)
         return link_gdf, node_gdf, node_group_status_gdf
 
-    def topology_optimization(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
+    def topology_optimization(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                               out_fldr: str = r'./') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
-        """
+        """类方法：拓扑优化
 
-        :param link_gdf: EPSG:4326
-        :param node_gdf: EPSG:4326
-        :param out_fldr:
-        :return: crs - EPSG:4326
+        对标准路网进行路段合并、重复路段消除
+
+        Args:
+            link_gdf: 线层gdf, 坐标系必须为EPSG:4326
+            node_gdf: 点层gdf, 坐标系必须为EPSG:4326
+            out_fldr: 输出路网的存储目录
+
+        Returns:
+            线层gdf, 点层gdf, 修复点位空间信息
         """
         if self.limit_col_name not in link_gdf.columns:
             self.limit_col_name = None
@@ -264,21 +376,24 @@ class NetReverse(Reverse):
                               save_new_split_link: bool = True, pickle_file_name_list: list = None,
                               check_path: bool = True, overlap_buffer_size: float = 0.3) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """
-        依据路径源文件进行增量修改, 输入crs:EPSG:4326, 输出crs:EPSG:4326
-        :param link_gdf: 路网线层
-        :param node_gdf: 路网点层
-        :param save_times: 请求路径文件时单个文件的缓存数目
-        :param binary_path_fldr: 二进制路径文件目录
-        :param pickle_file_name_list: 二进制路径文件名称列表
-        :param increment_out_fldr: 更新后的路网输出目录
-        :param ignore_head_tail: 是否忽略路径首尾的无名道路, 这种一般是小区内部道路
-        :param save_new_split_link: 是否保存新路径拆分后的文件
-        :param check_path: 是否检查新路径
-        :param overlap_buffer_size: 用于判断路段是否重合的buffer_size
-        :param cover_ratio_threshold: 用重合率超过cover_ratio_threshold%就认为是重合(条件较为宽松), 宁愿少加也不多加
-        :param cover_angle_threshold: 角度小于cover_angle_threshold度认为是重合(条件较为宽松), 宁愿少加也不多加
-        :return:
+        """依据路径源文件进行增量修改, 输入crs:EPSG:4326, 输出crs:EPSG:4326
+
+        Args:
+            link_gdf: 路网线层
+            node_gdf: 路网点层
+            save_times: 请求路径文件时单个文件的缓存数目
+            binary_path_fldr: 二进制路径文件目录
+            pickle_file_name_list: 二进制路径文件名称列表
+            increment_out_fldr: 更新后的路网输出目录
+            ignore_head_tail: 是否忽略路径首尾的无名道路, 这种一般是小区内部道路
+            save_new_split_link: 是否保存新路径拆分后的文件
+            check_path: 是否检查新路径
+            overlap_buffer_size: 用于判断路段是否重合的buffer_size
+            cover_ratio_threshold: 用重合率超过cover_ratio_threshold%就认为是重合(条件较为宽松), 宁愿少加也不多加
+            cover_angle_threshold: 角度小于cover_angle_threshold度认为是重合(条件较为宽松), 宁愿少加也不多加
+
+        Returns:
+
         """
         # 将新的轨迹都解析好存储到字段
         pgd = ParseGdPath(binary_path_fldr=binary_path_fldr,
@@ -299,7 +414,7 @@ class NetReverse(Reverse):
                                                    limit_col_name=self.limit_col_name)
         return increment_link, increment_node
 
-    def request_path(self, key_list: list[str] = None, binary_path_fldr: str = r'./',
+    def request_path(self, key_list: list[str], binary_path_fldr: str = r'./',
                      od_file_path: str = None, od_df: pd.DataFrame = None,
                      region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
@@ -308,7 +423,37 @@ class NetReverse(Reverse):
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
                      is_rnd_strategy: bool = False, strategy: str = '32', wait_until_recovery: bool = False) \
             -> tuple[bool, list[str]]:
-        """构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326"""
+        """类方法：请求路径存储为二进制文件
+
+        构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326
+
+        Args:
+            binary_path_fldr: 存储请求路径源文件的目录
+            key_list: 开发者key值列表，必需参数
+            wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
+            is_rnd_strategy: 是否启用随机策略
+            strategy: 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
+            cache_times: 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
+            ignore_hh: 是否忽略时段限制进行请求
+            remove_his: 是否对已经请求的OD重复(指的是在请求被意外中断的情况下，od_id为判断依据)请求
+            save_log_file: 是否保存日志文件
+            log_fldr: 日志文件的存储目录
+            od_file_path: (2.OD构造参数)用于请求的od文件路径，可选参数
+            od_df: (2.OD构造参数)用于请求的od数据，该参数和od_file_path任意指定一个即可，可选参数
+            region_gdf: (2.OD构造参数)用于构造od的面域数据
+            od_type: (2.OD构造参数)用于构造od的方法，rand_od、region_od、diy_od
+            min_lng: (2.OD构造参数)矩形区域的左下角经度
+            min_lat: (2.OD构造参数)矩形区域的左下角纬度
+            w: (2.OD构造参数)矩形区域的宽度，米
+            h: (2.OD构造参数)矩形区域的高度，米
+            od_num: (2.OD构造参数)请求的od数，od数越多，请求的路径就越多，路网覆盖率就越完整，只有od_type为rand_od时起效
+            gap_n: (2.OD构造参数)横纵向网格个数，只有od_type为rand_od时起效
+            min_od_length: (2.OD构造参数)od之间最短直线距离，只有od_type为rand_od时起效
+            boundary_buffer: (2.OD构造参数)区域边界buffer，米，
+
+        Returns:
+            if_end_request, new_file_list
+        """
         assert od_type in ['rand_od', 'region_od', 'diy_od']
         fmod = FormatOD(plain_crs=self.plain_crs)
         if od_type == 'rand_od':
@@ -422,17 +567,20 @@ class NetReverse(Reverse):
         pool.close()
         pool.join()
 
-    def modify_conn(self, link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None,
+    def modify_conn(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """
-        要求输入必须为EPSG:4326
-        :param link_gdf:
-        :param node_gdf:
-        :param book_mark_name:
-        :param link_name_field:
-        :param generate_mark
-        :return:
+        """类方法：联通性修复
+        
+        Args:
+            link_gdf: 线层gdf, 要求输入必须为EPSG:4326
+            node_gdf: 点层gdf, 要求输入必须为EPSG:4326
+            book_mark_name: 空间书签名称
+            generate_mark: 是否生成空间书签，在net_out_fldr下生成
+            link_name_field: 参数暂未启用
+
+        Returns:
+            线层gdf, 点层gdf, 修复点位空间信息
         """
         link_gdf, node_gdf = self.fix_minimum_gap(node_gdf=node_gdf, link_gdf=link_gdf)
         net = Net(link_gdf=link_gdf, node_gdf=node_gdf, create_single=False, plane_crs=self.plain_crs,
@@ -456,30 +604,52 @@ class NetReverse(Reverse):
         return link_gdf, node_gdf
 
     @staticmethod
-    def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650',
-                       l_threshold: float = 0.5) -> gpd.GeoDataFrame:
+    def clean_link_geo(gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
+        """类静态方法：清洗线层
+
+        去除Z坐标、去除multi类型、拆分自相交对象、去除线层重叠折点
+        
+        Args:
+            gdf: 线层gdf
+            plain_crs: 平面投影坐标系
+            l_threshold: 重叠折点检测阈值, 米
+
+        Returns:
+            线层gdf
+        """
         return clean_link_geo(gdf=gdf, plain_crs=plain_crs, l_threshold=l_threshold)
 
     @staticmethod
     def remapping_link_node_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame, node_gdf: gpd.GeoDataFrame or pd.DataFrame):
-        """
-        :param link_gdf:
-        :param node_gdf:
-        :return:
+        """类静态方法：id重映射
+
+        为link、node层映射新的ID编号, 在原对象上直接修改
+
+        Args:
+            link_gdf: 线层gdf
+            node_gdf: 线层gdf
+
+        Returns:
+            None
         """
         remapping_id(link_gdf=link_gdf, node_gdf=node_gdf)
 
     @staticmethod
-    def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None, plain_crs: str = None,
+    def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:3857',
                      divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """
+        """类静态方法：对标准路网执行划分(打断)路段
 
-        :param link_gdf: EPSG:4326
-        :param node_gdf: EPSG:4326
-        :param divide_l:
-        :param min_l:
-        :param plain_crs
-        :return:
+        将长度大于divide_l的路段进行切分，同时更新点层
+
+        Args:
+            link_gdf: 线层gdf, 要求输入必须为EPSG:4326
+            node_gdf: 点层gdf, 要求输入必须为EPSG:4326
+            plain_crs: 平面投影坐标系
+            divide_l: 所有长度(米)大于divide_l的路段都将被打断
+            min_l: 某次打断后如果剩下的路段长度小于min_l, 那么此次打断将不被允许
+
+        Returns:
+            线层gdf, 点层gdf
         """
         link_gdf = merge_double_link(link_gdf=link_gdf)
         my_net = Net(link_gdf=link_gdf,
@@ -497,13 +667,19 @@ class NetReverse(Reverse):
         return link, node
 
     @staticmethod
-    def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None, plain_crs: str = None) -> \
+    def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:3857') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """
-        :param link_gdf: EPSG:4326
-        :param node_gdf: EPSG:4326
-        :param plain_crs
-        :return:
+        """类静态方法：处理标准路网里面的环路
+
+        将环路进行打断
+
+        Args:
+            link_gdf: 线层gdf, 要求输入必须为EPSG:4326
+            node_gdf: 点层gdf, 要求输入必须为EPSG:4326
+            plain_crs: 平面投影坐标系
+
+        Returns:
+            线层gdf, 点层gdf
         """
         my_net = Net(link_gdf=link_gdf,
                      node_gdf=node_gdf, create_single=False, delete_circle=False, plane_crs=plain_crs)
@@ -514,10 +690,16 @@ class NetReverse(Reverse):
         node = node.to_crs('EPSG:4326')
         return link, node
 
-    def redivide_link_node(self, link_gdf: gpd.GeoDataFrame = None):
-        """
-        对link进行线层和点层的重新划分
-        :param link_gdf: gpd.GeoDataFrame, 要求至少有geometry字段
+    def redivide_link_node(self, link_gdf: gpd.GeoDataFrame):
+        """类方法：路网重塑
+
+        对线层文件进行重塑(折点拆分 -> 拓扑优化 -> 重叠路段处理 -> 联通性修复)
+
+        Args:
+            link_gdf: 线层gdf
+
+        Returns:
+            None, 直接在net_out_fldr下生成路网
         """
         link_gdf = link_gdf.to_crs('EPSG:4326')
         link_gdf.dropna(axis=1, how='all', inplace=True)
@@ -550,15 +732,21 @@ class NetReverse(Reverse):
         self._generate_net_from_split_path(split_path_gdf=single_link_gdf)
 
     @staticmethod
-    def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]] = None,
-                  conn_buffer: float = 0.5, out_fldr=r'./', plain_crs: str = None):
-        """
-        路网合并
-        :param net_list: must EPSG:4326
-        :param conn_buffer:
-        :param out_fldr:
-        :param plain_crs:
-        :return:
+    def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]],
+                  conn_buffer: float = 0.5, out_fldr=r'./', plain_crs: str = 'EPSG:3857') -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """类静态方法：合并标准路网
+
+        对多个标准路网进行合并
+        
+        Args:
+            net_list: 待合并的路网, crs必须为: EPSG:4326
+            conn_buffer: 合并检测阈值(米)
+            out_fldr: 存储文件目录
+            plain_crs: 平面投影坐标系
+
+        Returns:
+            线层gdf, 点层gdf
         """
         max_link, max_node = 0, 0
         link_gdf, node_gdf = gpd.GeoDataFrame(), gpd.GeoDataFrame()
