@@ -48,39 +48,39 @@ class MapMatch(object):
             flag_name: 标记字符名称, 会用于标记输出的可视化文件
             use_sub_net: 是否在子网络上进行计算
             dup_threshold: 重复点检测阈值, 利用GPS轨迹计算sub_net时先对GPS点原始轨迹做简化
-            time_format: (1.时间列构建参数)GPS数据中时间列的格式化字符串模板
-            time_unit: (1.时间列构建参数)时间单位, gotrackit会先尝试使用time_format进行时间列构建, 如果失败会再次尝试使用time_unit进行时间列构建
-            gps_buffer: (2.候选规则参数)GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为初步候选路段
-            gps_route_buffer_gap: (2.候选规则参数)半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络
-            top_k: (2.候选规则参数)选取每个GPS点buffer范围内的最近的top_k个路段
-            use_node_restrict: (2.候选规则参数)是否开启节点限制，该参数用于限定指定GPS点的候选路段
-            beta: (3.概率参数)该值越大, 状态转移概率对于距离越不敏感
-            gps_sigma: (3.概率参数)该值越大, 发射概率对距离越不敏感
-            dis_para: (3.概率参数)距离的折减系数
-            use_heading_inf: (4.概率修正参数)是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数)
-            heading_para_array: (4.概率修正参数)差分方向修正参数数组
-            omitted_l: (4.概率修正参数)当某GPS点与前后GPS点的平均距离小于omitted_l(m)时, 该GPS点的方向限制作用被取消
-            del_dwell: (5.轨迹预处理参数-停留点处理)是否进行停留点识别并且删除停留点
-            dwell_l_length: (5.轨迹预处理参数-停留点处理)停留点识别距离阈值
-            dwell_n: (5.轨迹预处理参数-停留点处理)超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
-            is_lower_f: (6.轨迹预处理参数-降频)是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据
-            lower_n: (6.轨迹预处理参数-降频)频率倍率
-            is_rolling_average: (7.轨迹预处理参数-滑动窗口平滑)是否启用滑动窗口平均对GPS数据进行降噪
-            window: (7.轨迹预处理参数-滑动窗口平)滑动窗口大小
-            dense_gps: (7.轨迹预处理参数-增密)是否对GPS数据进行加密
-            dense_interval: (7.轨迹预处理参数-增密)当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密
-            out_fldr: (8.输出设置)保存匹配结果的文件目录
-            instant_output: (8.输出设置)是否每匹配完一条轨迹就存储csv匹配结果
-            user_field_list: (8.输出设置)gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
-            export_html: (9.HTML输出设置)是否输出网页可视化结果html文件
-            use_gps_source: (9.HTML输出设置)是否在可视化结果中使用GPS源数据进行展示
-            gps_radius: (9.HTML输出设置)HTML可视化中GPS点的半径大小，单位米
-            export_all_agents: (9.HTML输出设置)是否将所有agent的可视化存储于一个html文件中
-            visualization_cache_times: (9.HTML输出设置)每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
-            export_geo_res: (10.GeoJSON输出设置)是否输出匹配结果的几何可视化文件
-            heading_vec_len: (10.GeoJSON输出设置)匹配航向向量的长度(控制geojson文件中的可视化)
-            use_para_grid: (11.网格参数搜索设置)是否启用网格参数搜索
-            para_grid: (11.网格参数搜索设置)网格参数对象
+            time_format: [1]时间列构建参数 - GPS数据中时间列的格式化字符串模板
+            time_unit: [1]时间列构建参数 - 时间单位, gotrackit会先尝试使用time_format进行时间列构建, 如果失败会再次尝试使用time_unit进行时间列构建
+            gps_buffer: [2]候选规则参数 - GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为初步候选路段
+            gps_route_buffer_gap: [2]候选规则参数 - 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络
+            top_k: [2]候选规则参数 - 选取每个GPS点buffer范围内的最近的top_k个路段
+            use_node_restrict: [2]候选规则参数 - 是否开启节点限制，该参数用于限定指定GPS点的候选路段
+            beta: [3]概率参数 - 该值越大, 状态转移概率对于距离越不敏感
+            gps_sigma: [3]概率参数 - 该值越大, 发射概率对距离越不敏感
+            dis_para: [3]概率参数 - 距离的折减系数
+            use_heading_inf: [4]概率修正参数 - 是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数)
+            heading_para_array: [4]概率修正参数 - 差分方向修正参数数组
+            omitted_l: [4]概率修正参数 - 当某GPS点与前后GPS点的平均距离小于omitted_l(m)时, 该GPS点的方向限制作用被取消
+            del_dwell: [5]停留点处理 - 是否进行停留点识别并且删除停留点
+            dwell_l_length: [5]停留点处理 - 停留点识别距离阈值
+            dwell_n: [5]停留点处理 - 超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+            is_lower_f: [6]轨迹降频 - 是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据
+            lower_n: [6]轨迹降频 - 频率倍率
+            is_rolling_average: [7]滑动窗口平滑 - 是否启用滑动窗口平均对GPS数据进行降噪
+            window: [7]滑动窗口平滑 - 滑动窗口大小
+            dense_gps: [7]滑动窗口平滑 - 是否对GPS数据进行加密
+            dense_interval: [8]轨迹增密 - 当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密
+            out_fldr: [9]输出设置 - 保存匹配结果的文件目录
+            instant_output: [9]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
+            user_field_list: [9]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
+            export_html: [10]HTML输出设置 - 是否输出网页可视化结果html文件
+            use_gps_source: [10]HTML输出设置 - 是否在可视化结果中使用GPS源数据进行展示
+            gps_radius: [10]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
+            export_all_agents: [10]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
+            visualization_cache_times: [10]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            export_geo_res: [11]GeoJSON输出设置 - 是否输出匹配结果的几何可视化文件
+            heading_vec_len: [11]GeoJSON输出设置 - 匹配航向向量的长度(控制geojson文件中的可视化)
+            use_para_grid: [12]网格参数搜索设置 - 是否启用网格参数搜索
+            para_grid: [12]网格参数搜索设置 - 网格参数对象
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -372,7 +372,7 @@ class MapMatch(object):
                 self.user_field_list.append(node_id_field)
 
 class OnLineMapMatch(MapMatch):
-    def __init__(self, flag_name: str = 'test', net: Net = None, use_sub_net: bool = False,
+    def __init__(self, net: Net, flag_name: str = 'test', use_sub_net: bool = False,
                  time_format: str = "%Y-%m-%d %H:%M:%S", time_unit: str = 's',
                  gps_buffer: float = 200.0, gps_route_buffer_gap: float = 15.0,
                  beta: float = 6.0, gps_sigma: float = 30.0, dis_para: float = 0.1,
@@ -388,6 +388,45 @@ class OnLineMapMatch(MapMatch):
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 5, multi_core_save: bool = False, instant_output: bool = False,
                  user_field_list: list[str] = None, heading_vec_len: float = 15.0):
+        """实时路径(地图)匹配类
+        轨迹数据实时匹配类, 提供了单核匹配方法
+
+        Args:
+            net: 路网Net对象
+            flag_name: 标记字符名称, 会用于标记输出的可视化文件
+            use_sub_net: 是否在子网络上进行计算
+            dup_threshold: 重复点检测阈值, 利用GPS轨迹计算sub_net时先对GPS点原始轨迹做简化
+            time_format: [1]时间列构建参数 - GPS数据中时间列的格式化字符串模板
+            time_unit: [1]时间列构建参数 - 时间单位, gotrackit会先尝试使用time_format进行时间列构建, 如果失败会再次尝试使用time_unit进行时间列构建
+            gps_buffer: [2]候选规则参数 - GPS的搜索半径, 单位米, 意为只选取每个gps点附近gps_buffer米范围内的路段作为初步候选路段
+            gps_route_buffer_gap: [2]候选规则参数 - 半径增量, gps_buffer + gps_route_buffer_gap 的半径范围用于计算子网络
+            top_k: [2]候选规则参数 - 选取每个GPS点buffer范围内的最近的top_k个路段
+            beta: [3]概率参数 - 该值越大, 状态转移概率对于距离越不敏感
+            gps_sigma: [3]概率参数 - 该值越大, 发射概率对距离越不敏感
+            dis_para: [3]概率参数 - 距离的折减系数
+            use_heading_inf: [4]概率修正参数 - 是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数)
+            heading_para_array: [4]概率修正参数 - 差分方向修正参数数组
+            omitted_l: [4]概率修正参数 - 当某GPS点与前后GPS点的平均距离小于omitted_l(m)时, 该GPS点的方向限制作用被取消
+            del_dwell: [5]停留点处理 - 是否进行停留点识别并且删除停留点
+            dwell_l_length: [5]停留点处理 - 停留点识别距离阈值
+            dwell_n: [5]停留点处理 - 超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+            is_lower_f: [6]轨迹降频 - 是否对GPS数据进行数据降频率, 适用于: 高频-高定位误差 GPS数据
+            lower_n: [6]轨迹降频 - 频率倍率
+            is_rolling_average: [7]滑动窗口平滑 - 是否启用滑动窗口平均对GPS数据进行降噪
+            window: [7]滑动窗口平滑 - 滑动窗口大小
+            dense_gps: [7]滑动窗口平滑 - 是否对GPS数据进行加密
+            dense_interval: [8]轨迹增密 - 当前后GPS点的直线距离l超过dense_interval即进行加密, 进行 int(l / dense_interval) + 1 等分加密
+            out_fldr: [9]输出设置 - 保存匹配结果的文件目录
+            instant_output: [9]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
+            user_field_list: [9]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
+            export_html: [10]HTML输出设置 - 是否输出网页可视化结果html文件
+            use_gps_source: [10]HTML输出设置 - 是否在可视化结果中使用GPS源数据进行展示
+            gps_radius: [10]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
+            export_all_agents: [10]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
+            visualization_cache_times: [10]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            export_geo_res: [11]GeoJSON输出设置 - 是否输出匹配结果的几何可视化文件
+            heading_vec_len: [11]GeoJSON输出设置 - 匹配航向向量的长度(控制geojson文件中的可视化)
+        """
         MapMatch.__init__(self, flag_name=flag_name, net=net, use_sub_net=use_sub_net, time_format=time_format,
                           time_unit=time_unit, gps_buffer=gps_buffer, gps_route_buffer_gap=gps_route_buffer_gap,
                           beta=beta, gps_sigma=gps_sigma, dis_para=dis_para, is_lower_f=is_lower_f,
