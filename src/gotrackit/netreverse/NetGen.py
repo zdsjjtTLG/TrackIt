@@ -65,9 +65,9 @@ class NetReverse(Reverse):
                  is_modify_conn: bool = True, conn_buffer: float = 0.8, conn_period: str = 'final',
                  multi_core_parse: bool = False, parse_core_num: int = 2,
                  multi_core_reverse: bool = False, reverse_core_num: int = 2):
-        """路网逆向类
+        """路网逆向类初始化
 
-        定义路网逆向类的相关参数
+        :定义路网逆向类的相关参数
 
         Args:
             flag_name: [1]总体参数 - 项目名称
@@ -173,9 +173,9 @@ class NetReverse(Reverse):
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
                                   wait_until_recovery: bool = False,
                                   is_rnd_strategy: bool = False, strategy: str = '32') -> None:
-        """类方法：向开放平台请求路径后分析计算得到路网
+        """类方法generate_net_from_request - 向开放平台请求路径后分析计算得到路网
 
-        构造OD -> 请求 -> 二进制存储 -> 路网生产
+        :构造OD -> 请求路径 -> 二进制存储 -> 路网生产
 
         Args:
             binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
@@ -220,7 +220,7 @@ class NetReverse(Reverse):
                                       pickle_file_name_list=pickle_file_name_list)
 
     def generate_net_from_pickle(self, binary_path_fldr: str, pickle_file_name_list: list[str] = None) -> None:
-        """类方法：依据二进制路径文件计算得到路网
+        """类方法generate_net_from_pickle：依据二进制路径文件计算得到路网
 
         解析二进制路径文件, 然后生产路网
         
@@ -253,7 +253,7 @@ class NetReverse(Reverse):
     def generate_net_from_path_gdf(self, path_gdf: gpd.GeoDataFrame,
                                    slice_num: int = 1, attr_name_list: list = None,
                                    cut_slice: bool = False):
-        """类方法：从线层文件计算得到路网
+        """类方法generate_net_from_path_gdf：从线层文件计算得到路网
 
         从线层文件计算得到路网
 
@@ -284,7 +284,7 @@ class NetReverse(Reverse):
                               out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
                               save_streets_after_modify_minimum: bool = True, net_file_type: str = 'shp') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """类静态方法：创建点层
+        """类静态方法create_node_from_link：创建点层
 
         生产点线拓扑关联, 更新线层信息, 同时生产点层
 
@@ -325,7 +325,7 @@ class NetReverse(Reverse):
 
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                               out_fldr: str = r'./') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
-        """类方法：拓扑优化
+        """类方法topology_optimization：拓扑优化
 
         对标准路网进行路段合并、重复路段消除
 
@@ -423,9 +423,9 @@ class NetReverse(Reverse):
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
                      is_rnd_strategy: bool = False, strategy: str = '32', wait_until_recovery: bool = False) \
             -> tuple[bool, list[str]]:
-        """类方法：请求路径存储为二进制文件
+        """类方法request_path：请求路径存储为二进制文件
 
-        构造OD -> 请求 -> 二进制存储, 要求输入的面域必须为EPSG:4326
+        构造OD -> 请求 -> 二进制存储
 
         Args:
             binary_path_fldr: 存储请求路径源文件的目录
@@ -440,7 +440,7 @@ class NetReverse(Reverse):
             log_fldr: 日志文件的存储目录
             od_file_path: (2.OD构造参数)用于请求的od文件路径，可选参数
             od_df: (2.OD构造参数)用于请求的od数据，该参数和od_file_path任意指定一个即可，可选参数
-            region_gdf: (2.OD构造参数)用于构造od的面域数据
+            region_gdf: (2.OD构造参数)用于构造od的面域数据, EPSG:4326
             od_type: (2.OD构造参数)用于构造od的方法，rand_od、region_od、diy_od
             min_lng: (2.OD构造参数)矩形区域的左下角经度
             min_lat: (2.OD构造参数)矩形区域的左下角纬度
@@ -570,7 +570,7 @@ class NetReverse(Reverse):
     def modify_conn(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """类方法：联通性修复
+        """类方法modify_conn：联通性修复
         
         Args:
             link_gdf: 线层gdf, 要求输入必须为EPSG:4326
@@ -605,7 +605,7 @@ class NetReverse(Reverse):
 
     @staticmethod
     def clean_link_geo(gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
-        """类静态方法：清洗线层
+        """类静态方法clean_link_geo：清洗线层
 
         去除Z坐标、去除multi类型、拆分自相交对象、去除线层重叠折点
         
@@ -621,7 +621,7 @@ class NetReverse(Reverse):
 
     @staticmethod
     def remapping_link_node_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame, node_gdf: gpd.GeoDataFrame or pd.DataFrame):
-        """类静态方法：id重映射
+        """类静态方法remapping_link_node_id：id重映射
 
         为link、node层映射新的ID编号, 在原对象上直接修改
 
@@ -637,7 +637,7 @@ class NetReverse(Reverse):
     @staticmethod
     def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:3857',
                      divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """类静态方法：对标准路网执行划分(打断)路段
+        """类静态方法divide_links：对标准路网执行划分(打断)路段
 
         将长度大于divide_l的路段进行切分，同时更新点层
 
@@ -669,7 +669,7 @@ class NetReverse(Reverse):
     @staticmethod
     def circle_process(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:3857') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """类静态方法：处理标准路网里面的环路
+        """类静态方法circle_process：处理标准路网里面的环路
 
         将环路进行打断
 
@@ -691,7 +691,7 @@ class NetReverse(Reverse):
         return link, node
 
     def redivide_link_node(self, link_gdf: gpd.GeoDataFrame):
-        """类方法：路网重塑
+        """类方法redivide_link_node：路网重塑
 
         对线层文件进行重塑(折点拆分 -> 拓扑优化 -> 重叠路段处理 -> 联通性修复)
 
@@ -735,7 +735,7 @@ class NetReverse(Reverse):
     def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]],
                   conn_buffer: float = 0.5, out_fldr=r'./', plain_crs: str = 'EPSG:3857') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """类静态方法：合并标准路网
+        """类静态方法merge_net：合并标准路网
 
         对多个标准路网进行合并
         
