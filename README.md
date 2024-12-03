@@ -18,6 +18,7 @@
 ![Static Badge](https://img.shields.io/badge/Optimization-MultiCoreParallelism-9EC231)
 ![Github Created At](https://img.shields.io/github/created-at/zdsjjtTLG/Trackit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/zdsjjtTLG/Trackit)
+
 ![GitHub User's stars](https://img.shields.io/github/stars/zdsjjtTLG)
 ![GitHub forks](https://img.shields.io/github/forks/zdsjjtTLG/Trackit)
 
