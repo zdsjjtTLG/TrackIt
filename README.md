@@ -2,7 +2,7 @@
 
 
 <div align="center">
-    <img src="docs/_static/images/gotrackit.svg" />
+    <img src="docs/_static/images/gotrackit.svg"  width="320" alt="GoTrackIt"/>
 </div>
 
 
