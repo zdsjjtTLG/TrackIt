@@ -12,10 +12,12 @@ from .GpsGen import Car, RouteInfoCollector
 
 
 class TripGeneration(object):
-    def __init__(self, net: Net = None, time_step: float = 0.1, speed_miu: float = 12.0,
+    def __init__(self, net: Net, time_step: float = 0.1, speed_miu: float = 12.0,
                  speed_sigma: float = 3.6, save_gap: int = 1, loc_frequency: float = 2.0,
                  loc_error_sigma: float = 40.0, loc_error_miu: float = 0.0):
-        """TripGeneration类初始化
+        """轨迹生产类TripGeneration：
+
+        - 初始化
 
         Args:
             net: 路网对象
@@ -41,7 +43,8 @@ class TripGeneration(object):
                             start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
                             start_minute: int = 20, start_second: int = 12,
                             file_type: str = 'geojson'):
-        """TripGeneration的类方法：generate_rand_trips函数
+        """TripGeneration类方法 - generate_rand_trips：
+
         - 生成随机路径的trip
 
         Args:
@@ -72,7 +75,8 @@ class TripGeneration(object):
                           start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
                           start_minute: int = 20, start_second: int = 12,
                           file_type: str = 'geojson'):
-        """TripGeneration的类方法：generate_od_trips函数
+        """TripGeneration类方法 - generate_od_trips：
+
         - 生成指定OD路径的trip
 
         Args:
@@ -105,7 +109,8 @@ class TripGeneration(object):
                                 start_year: int = 2022, start_month: int = 5, start_day: int = 15, start_hour: int = 10,
                                 start_minute: int = 20, start_second: int = 12,
                                 file_type: str = 'geojson'):
-        """TripGeneration的类方法：generate_destined_trips函数
+        """TripGeneration类方法 - generate_destined_trips：
+
         - 生成指定路径的trip
 
         Args:

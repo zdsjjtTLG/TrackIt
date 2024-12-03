@@ -149,9 +149,9 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 class OnLineTrajectoryKF(TrajectoryKalmanFilter):
     def __init__(self, trajectory_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  x_field: str = 'lng', y_field: str = 'lat'):
-        """实时卡尔曼滤波类
+        """实时卡尔曼滤波类OnLineTrajectoryKF：
 
-        提供实时平滑功能
+        - 初始化
 
         Args:
             trajectory_df: 轨迹数据
@@ -174,8 +174,9 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
     def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1,
                   time_gap_threshold: float = 1800.0) -> \
             pd.DataFrame or gpd.GeoDataFrame:
-        """平滑
-        实时滤波平滑
+        """OnLineTrajectoryKF类方法 - kf_smooth：
+
+        - 平滑：实时滤波平滑
 
         Args:
             p_deviation: 过程噪声的标准差
@@ -232,13 +233,15 @@ class OnLineTrajectoryKF(TrajectoryKalmanFilter):
         return res_df
 
     def renew_trajectory(self, trajectory_df: pd.DataFrame = None):
-        """更新数据
-        更新待处理的轨迹点数据
+        """OnLineTrajectoryKF类方法 - renew_trajectory
+
+        - 更新数据：更新待处理的轨迹点数据
 
         Args:
             trajectory_df: 轨迹数据
 
         Returns:
+            None
         """
         self.trajectory_df = trajectory_df
         build_time_col(df=self.trajectory_df, time_format=self.time_format, time_unit=self.time_unit)

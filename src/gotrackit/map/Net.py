@@ -44,7 +44,9 @@ o_node_field, d_node_field = net_field.S_NODE, net_field.T_NODE
 
 
 class Net(object):
+    """
 
+    """
     @function_time_cost
     def __init__(self, link_path: str = None, node_path: str = None, link_gdf: gpd.GeoDataFrame = None,
                  node_gdf: gpd.GeoDataFrame = None, weight_field: str = 'length', init_from_existing: bool = False,
@@ -53,38 +55,39 @@ class Net(object):
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
-                 fmm_cache_fldr: str = None, grid_len: float = 2000.0, is_hierarchical: bool = False,
+                 fmm_cache_fldr: str = r'./', prj_cache: bool = True, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
                  cut_off: float = 1200.0, delete_circle: bool = True, plane_crs: str = None):
-        """
-        创建Net类
-        :param link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net线层
-        :param node_path: node层的路网文件路径, 若指定了该参数, 则直接从磁盘IO创建Net点层
-        :param link_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net线层
-        :param node_gdf: 若指定了该参数, 则直接从内存中的gdf创建Net点层
-        :param weight_field: 搜路权重字段
-        :param create_single: 是否在初始化的时候创建single层
-        :param search_method: 路径搜索方法, 'dijkstra'
-        :param init_from_existing: 是否直接从内存中的gdf创建single_link_gdf, 该参数用于类内部创建子net, 用户不用关心该参数, 使用默认值即可
-        :param double_single_mapping:
-        :param link_ft_mapping:
-        :param link_f_mapping:
-        :param link_t_mapping:
-        :param link_geo_mapping:
-        :param ft_link_mapping:
-        :param not_conn_cost: 不连通路径的阻抗(m), 默认999.0米
-        :param is_sub_net: 是否是子网络, 默认False
-        :param fmm_cache: 是否启用路径预存储, 默认False
-        :param cache_cn: 使用几个核进行路径预计算, 默认2
-        :param fmm_cache_fldr: 存储路径预处理结果的文件目录, 默认./
-        :param recalc_cache: 是否重新计算FMM路径缓存, 默认True
-        :param grid_len: 栅格边长, m
-        :param is_hierarchical: 是否启用空间分层
-        :param cache_slice: 对于缓存切片转换存储(防止大规模路网导致内存溢出)
-        :param cut_off: 路径搜索截断长度, 米, 默认1000m
-        :param cache_name: 路径预存储的标志名称, 默认cache
-        :param plane_crs
-
+        """Net类初始化
+        
+        Args:
+            link_gdf: gpd.GeoDataFrame, 线层数据, 必需参数
+            node_gdf: gpd.GeoDataFrame, 点层数据, 必需参数
+            link_path: str, link层的路网文件路径, 若指定了该参数, 则直接从磁盘读取线层, 可选参数
+            node_path: str, node层的路网文件路径, 若指定了该参数, 则直接从磁盘读取点层, 可选参数
+            cut_off: 路径搜索截断长度, 米, 可选参数
+            not_conn_cost: float, 不连通路径的阻抗(m), 可选参数
+            fmm_cache: bool, 是否启用路径预计算, 可选参数
+            cache_cn: int, 使用几个核进行路径预计算, 可选参数
+            cache_slice: int, 大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
+            fmm_cache_fldr: str, 存储路径预计算结果的文件目录, 可选参数
+            recalc_cache: bool, 是否重新进行路径预计算, 取值False时, 程序会去fmm_cache_fldr下读取缓存, 若读取失败则会重新进行路径预计算, 可选参数
+            prj_cache: bool, 是否启用投影缓存, 可选参数
+            is_hierarchical: bool, 是否启用空间分层, 可选参数
+            grid_len: float, 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格, 可选参数
+            cache_name: 路径预存储的标志名称, 默认cache
+            plane_crs: str, 要使用的平面投影坐标系, 用户若不指定, 程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
+            weight_field: str, 搜路权重字段, 目前只能为length
+            create_single: bool, 是否在初始化的时候创建单项路网, 可选参数
+            search_method: str, 路径搜索方法, 目前只能为dijkstra
+            is_sub_net: bool, 用户不可指定
+            init_from_existing: bool, 用户不可指定
+            double_single_mapping: dict, 用户不可指定
+            link_ft_mapping: dict, 用户不可指定
+            link_f_mapping: dict, 用户不可指定
+            link_t_mapping: dict, 用户不可指定
+            link_geo_mapping: dict, 用户不可指定
+            ft_link_mapping: dict, 用户不可指定
         """
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
@@ -105,6 +108,7 @@ class Net(object):
         self.cache_cn = cache_cn
         self.cache_name = cache_name
         self.fmm_cache_fldr = fmm_cache_fldr
+        self.prj_cache = prj_cache
         self.recalc_cache = recalc_cache
         self.cache_slice = cache_slice
         self.delete_circle = delete_circle
@@ -188,7 +192,7 @@ class Net(object):
         node_set = set(self.__node.get_node_data().index)
         link_node_set = set(self.__link.get_bilateral_link_data()[net_field.FROM_NODE_FIELD]) | \
                         set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
-        assert link_node_set.issubset(node_set), 'Link层中部分节点在Node层中没有记录'
+        assert link_node_set.issubset(node_set), 'some nodes in the link layer are not recorded in the node layer'
 
     def init_net(self, stp_cost_cache_df: pd.DataFrame = None, cache_prj_inf: dict = None) -> None:
         self.__link.create_graph(weight_field=self.weight_field)
@@ -197,13 +201,20 @@ class Net(object):
                 self.cal_sjoin_cache()
             except Exception as e:
                 print(fr'spatial layered association failure: {repr(e)}')
+        if self.is_sub_net:
+            self.set_prj_cache(cache_prj_inf)
+        else:
+            if self.prj_cache:
+                try:
+                    self.cache_prj_info()
+                except Exception as e:
+                    print(repr(e))
+
         if self.fmm_cache:
             if self.is_sub_net:
                 self.set_path_cache(stp_cost_cache_df)
-                self.set_prj_cache(cache_prj_inf)
             else:
                 self.fmm_path_cache()
-                self.cache_prj_info()
 
     def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
         """
@@ -360,17 +371,21 @@ class Net(object):
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
                                  cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
-                                 fmm_cache: bool = False, must_contain_link: list[int] = None):
+                                 fmm_cache: bool = False, prj_cache: bool = True, must_contain_link: list[int] = None):
         """
 
-        :param gps_array_buffer:
-        :param weight_field:
-        :param cache_path:
-        :param cache_id:
-        :param not_conn_cost:
-        :param fmm_cache:
-        :param must_contain_link:
-        :return:
+        Args:
+            gps_array_buffer:
+            weight_field:
+            cache_path:
+            cache_id:
+            not_conn_cost:
+            fmm_cache:
+            prj_cache:
+            must_contain_link:
+
+        Returns:
+
         """
         if gps_array_buffer is None:
             return None
@@ -405,7 +420,7 @@ class Net(object):
                       node_gdf=sub_node_gdf,
                       weight_field=weight_field,
                       init_from_existing=True, is_check=False, cache_path=cache_path, cache_id=cache_id,
-                      not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache,
+                      not_conn_cost=not_conn_cost, is_sub_net=True, fmm_cache=fmm_cache, prj_cache=prj_cache,
                       ft_link_mapping=self.get_ft_node_link_mapping(),
                       link_ft_mapping=self.link_ft_map, link_f_mapping=self.link_f_map, link_t_mapping=self.link_t_map,
                       double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off,
@@ -456,6 +471,17 @@ class Net(object):
 
     def export_net(self, export_crs: str = 'EPSG:4326', out_fldr: str = None, flag_name: str = None,
                    file_type: str = 'geojson') -> None:
+        """
+
+        Args:
+            export_crs:
+            out_fldr:
+            flag_name:
+            file_type:
+
+        Returns:
+
+        """
         link_file_name = '_'.join([flag_name, 'link']) if flag_name is not None and flag_name != '' else 'link'
         node_file_name = '_'.join([flag_name, 'node']) if flag_name is not None and flag_name != '' else 'node'
 
@@ -538,6 +564,17 @@ class Net(object):
 
     def divide_links(self, divide_l: float = 70.0, min_l: float = 1.0, is_init_link: bool = True,
                      method: str = 'alpha') -> None:
+        """
+
+        Args:
+            divide_l:
+            min_l:
+            is_init_link:
+            method:
+
+        Returns:
+
+        """
         if method == 'alpha':
             self.divide_links_alpha(divide_l=divide_l, min_l=min_l, is_init_link=is_init_link)
         else:
@@ -785,23 +822,8 @@ class Net(object):
         _.rename(columns={self.weight_field: 'cost'}, inplace=True)
         return _
 
+    @function_time_cost
     def cache_prj_info(self):
-        if self.fmm_cache_fldr is None:
-            self.fmm_cache_fldr = r'./'
-        if not self.recalc_cache:
-            with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'rb') as f:
-                cache_prj_inf = pickle.load(f)
-
-            if 1 in cache_prj_inf.keys():
-                if net_field.X_DIFF not in cache_prj_inf[1].columns:
-                    raise ValueError('检测到是0.2.4版本之前的缓存数据, 请在>=0.2.5版本下重新计算路径缓存')
-            if 2 in cache_prj_inf.keys():
-                if net_field.X_DIFF not in cache_prj_inf[2].columns:
-                    raise ValueError('检测到是0.2.4版本之前的缓存数据, 请在>=0.2.5版本下重新计算路径缓存')
-            self.set_prj_cache(cache_prj_inf)
-
-            return None
-
         single_link_gdf = self.__link.get_link_data()
         single_link_gdf = single_link_gdf[
             [net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.GEOMETRY_FIELD, net_field.LENGTH_FIELD]].copy()
@@ -822,8 +844,6 @@ class Net(object):
                          2: cache_prj_gdf[cache_prj_gdf[net_field.SEG_COUNT] > 1].copy().reset_index(drop=True)}
         del cache_prj_gdf
         self.set_prj_cache(cache_prj_inf)
-        with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_prj'), 'wb') as f:
-            pickle.dump(cache_prj_inf, f)
 
     def calc_pre_filter(self, gps_rou_buffer_gdf: gpd.GeoDataFrame = None) -> set[int]:
         # sjoin between gps & grid
@@ -901,7 +921,19 @@ class Net(object):
         # del path_gdf['__l__']
         return path_gdf
 
-    def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2):
+    def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2) -> list:
+        """Net类方法 - shortest_k_paths：
+
+        - 计算两个节点之间的K条最短路
+
+        Args:
+            o: 起点节点
+            d: 终点节点
+            k: 路径数目
+
+        Returns:
+            list
+        """
         g = self.__link.get_graph()
         return list(islice(nx.shortest_simple_paths(g, o, d, weight=self.weight_field), k))
 

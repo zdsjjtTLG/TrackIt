@@ -22,9 +22,9 @@ lat_field = 'lat'
 # 获取栅格预测点
 def get_grid_data(polygon_gdf: gpd.GeoDataFrame, meter_step: float = None, is_geo_coord: bool = True,
                   generate_index: bool = True) -> gpd.GeoDataFrame:
-    """渔网(栅格)划分
+    """渔网(栅格)划分函数 - get_grid_data：
 
-    对面域图层进行栅格划分
+    - 对面域图层进行栅格划分
 
     Args:
         polygon_gdf: 面域GeoDataFrame

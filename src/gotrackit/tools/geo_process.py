@@ -423,8 +423,9 @@ class StraightLineToArc(object):
     def arc_curve_line(straight_line_obj: LineString, r: float = 1.0, sample_num: int = 30) \
             -> LineString:
 
-        """计算圆弧对象
-        基于直线对象生成圆弧线对象
+        """StraightLineToArc类静态方法 - arc_curve_line：
+
+        - 基于直线对象生成圆弧线对象
 
         Args:
             straight_line_obj: 直线对象
@@ -441,8 +442,9 @@ class StraightLineToArc(object):
     @staticmethod
     def arc_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
                       sample_num: int = 30) -> list:
-        """计算圆弧坐标
-        基于起终点坐标生成圆弧坐标
+        """StraightLineToArc类静态方法 - arc_curve_cor：
+
+        - 计算圆弧坐标：基于起终点坐标生成圆弧坐标
 
         Args:
             o_loc: 起点坐标
@@ -459,8 +461,9 @@ class StraightLineToArc(object):
     @staticmethod
     def bezier_curve_line(straight_line_obj: LineString, r: float = 5.0, sample_num: int = 30,
                           right_side: bool = True) -> LineString:
-        """计算贝塞尔曲线对象
-        基于直线对象计算得到贝塞尔曲线对象
+        """StraightLineToArc类静态方法 - bezier_curve_line：
+
+        - 基于直线对象计算得到贝塞尔曲线对象
 
         Args:
             straight_line_obj: 直线对象
@@ -478,8 +481,9 @@ class StraightLineToArc(object):
     @staticmethod
     def bezier_curve_cor(o_loc: list or tuple = None, d_loc: list or tuple = None, r: float = 1.0,
                          sample_num: int = 30, right_side: bool = True) -> list:
-        """计算贝塞尔曲线对象
-        基于直线对象计算得到贝塞尔曲线对象
+        """StraightLineToArc类静态方法 - bezier_curve_cor：
+
+        - 基于起终点坐标计算得到贝塞尔曲线坐标
 
         Args:
             o_loc: 起点坐标

@@ -166,15 +166,18 @@ class SumoConvert(object):
         return edge_df
 
     @function_time_cost
-    def get_net_shp(self, net_path: str = None, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
+    def get_net_shp(self, net_path: str, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFrame]:
-        """
-        从net.xml解析微观车道级路网
-        :param net_path:
-        :param crs:
-        :param core_num
-        :param l_threshold
-        :return:
+        """SumoConvert类静态方法 - get_net_shp
+        - 解析net.xml路网获取GeoDataFrame
+
+        Args:
+            net_path: net.xml路网文件位置
+            crs: 坐标系，一般net.xml文件会带有该信息，不用指定
+            l_threshold: 线型简化阈值(米)
+
+        Returns:
+            车道骨架gdf、路口面域gdf、车道面域gdf、路段中心线gdf、路口连接器gdf
         """
         core_num = os.cpu_count() if core_num > os.cpu_count() else core_num
         net_tree = ET.parse(net_path)

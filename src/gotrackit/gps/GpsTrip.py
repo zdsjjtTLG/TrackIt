@@ -32,9 +32,9 @@ dx_field, dy_field = od_field.DX_FIELD, od_field.DY_FIELD
 
 class GpsPreProcess(object):
     def __init__(self, gps_df: pd.DataFrame = None, use_multi_core: bool = False, used_core_num: int = 2):
-        """轨迹预处理类
+        """轨迹预处理类GpsPreProcess：
 
-        提供了轨迹预处理的相关方法(行程划分、提取带途径点的OD)
+        - 初始化
 
         Args:
             gps_df: 定位数据
@@ -55,9 +55,9 @@ class GpsPreProcess(object):
         return pool, fact_core_num, agent_group
 
     def sampling_waypoints_od(self, way_points_num: int = 5) -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
-        """提取带途径点的OD
+        """GpsPreProcess类方法 - sampling_waypoints_od：
 
-        从已经划分好行程的轨迹数据(且要求轨迹数据已经按照agent_id、time进行升序排列)中提取带途径点的OD
+        - 从已经划分好行程的轨迹数据(且要求轨迹数据已经按照agent_id、time进行升序排列)中提取带途径点的OD
 
         Args:
             way_points_num: 途径点数目
@@ -92,9 +92,9 @@ class GpsPreProcess(object):
                            min_distance_threshold: float = 10.0,
                            dwell_accu_time: float = 60.0, way_points_num: int = 5) \
             -> tuple[pd.DataFrame, gpd.GeoDataFrame]:
-        """提取带途径点的OD
+        """GpsPreProcess类方法 - generate_od_by_gps：
 
-        对轨迹数据进行行程划分后再提取带途径点的OD
+        - 提取带途径点的OD：对轨迹数据进行行程划分后再提取带途径点的OD
 
         Args:
             time_format: 时间列格式模板
@@ -145,9 +145,9 @@ class GpsPreProcess(object):
                            plain_crs: str = 'EPSG:32650', group_gap_threshold: float = 1800.0, n: int = 5,
                            min_distance_threshold: float = 10.0,
                            dwell_accu_time: float = 60.0) -> pd.DataFrame:
-        """行程划分
+        """GpsPreProcess类方法 - trip_segmentations：
 
-        对轨迹数据进行行程划分
+        - 对轨迹数据进行行程划分
 
         Args:
             time_format: 时间列格式模板

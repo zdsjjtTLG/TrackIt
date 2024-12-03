@@ -39,9 +39,9 @@ class MapMatch(object):
                  multi_core_save: bool = False,  export_geo_res: bool = False, heading_vec_len: float = 15.0,
                  link_width: float = 1.5, node_radius: float = 1.5, match_link_width: float = 5.0,
                  use_para_grid: bool = False, para_grid: ParaGrid = None):
-        """地图(路径)匹配类
+        """地图(路径)匹配类MapMatch - 初始化：
 
-        轨迹数据匹配类, 提供了单核匹配、多核匹配、预计算匹配等方法
+         - 提供了单核匹配、多核匹配、预计算匹配等方法
 
         Args:
             net: 路网Net对象
@@ -144,9 +144,9 @@ class MapMatch(object):
         self.user_field_list = user_field_list
 
     def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame) -> tuple[pd.DataFrame, dict, list]:
-        """路径匹配
+        """MapMatch类方法 - execute：
 
-        对输入的gps数据执行路径匹配并且输出匹配结果
+        - 对输入的gps数据执行路径匹配并且输出匹配结果
         
         Args:
             gps_df: gps数据表对象, 必需参数
@@ -273,9 +273,9 @@ class MapMatch(object):
 
     def multi_core_execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame, core_num: int = 2) -> \
             tuple[pd.DataFrame, dict, list]:
-        """并行匹配
+        """MapMatch类方法 - multi_core_execute：
 
-        对输入的gps数据进行分组后，执行并行路径匹配并且输出匹配结果
+        - 对输入的gps数据进行分组后，执行并行路径匹配并且输出匹配结果
 
         Args:
             gps_df: gps数据表对象, 必需参数
@@ -388,8 +388,9 @@ class OnLineMapMatch(MapMatch):
                  match_link_width: float = 5.0, gps_radius: float = 6.0, export_all_agents: bool = False,
                  visualization_cache_times: int = 5, multi_core_save: bool = False, instant_output: bool = False,
                  user_field_list: list[str] = None, heading_vec_len: float = 15.0):
-        """实时路径(地图)匹配类
-        轨迹数据实时匹配类, 提供了单核匹配方法
+        """实时路径(地图)匹配类OnLineMapMatch - 初始化：
+
+        - 轨迹数据实时匹配类, 提供了单核匹配方法
 
         Args:
             net: 路网Net对象
@@ -448,9 +449,9 @@ class OnLineMapMatch(MapMatch):
                 gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
                 dis_gap_threshold: float = 600.0,
                 overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
-        """路径匹配
+        """OnLineMapMatch类方法 - execute：
 
-        对输入的gps数据执行实时路径匹配并且输出匹配结果
+        - 对输入的gps数据执行实时路径匹配并且输出匹配结果
 
         Args:
             gps_df: gps数据表对象, 必需参数

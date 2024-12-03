@@ -1,0 +1,140 @@
+site_name: GoTrackIt
+site_url: https://gotrackit
+repo_url: https://github.com/zdsjjtTLG/TrackIt
+repo_name: GoTrackIt
+site_description: >-
+  在python中轻松进行路径匹配
+
+theme:
+#  logo: assets/images/road.svg
+  favicon: assets/images/gti-black.svg
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  name: material
+  custom_dir: diy/
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+  logo: assets/images/gti.svg
+  icon:
+    annotation: material/arrow-right-circle
+    repo: fontawesome/brands/git-alt
+
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.path
+    - navigation.sections
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.prune
+#    - toc.integrate
+
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - 项目主页: index.md
+  - 快速开始: 快速开始.md
+  - 用户手册:
+      - 概览: UserGuide/GoTrackIt简介.md
+      - 如何下载: UserGuide/如何下载.md
+      - 数据要求: UserGuide/数据要求.md
+      - 路网生产: UserGuide/路网生产.md
+      - 路网优化: UserGuide/路网优化.md
+      - 轨迹生产: UserGuide/轨迹生产.md
+      - 轨迹处理: UserGuide/轨迹处理.md
+      - 路径匹配: UserGuide/路径匹配.md
+      - 实时路径匹配: UserGuide/实时路径匹配.md
+      - 时空可视化: UserGuide/时空可视化.md
+      - GIS工具: UserGuide/GIS工具.md
+#  - 应用案例:
+#      - 生成微观仿真: ExampleGallery/生成微观仿真.md
+#      - 计算路况: ExampleGallery/计算路况.md
+#      - 路径流量溯源: ExampleGallery/路径流量溯源.md
+#      - 推算红绿灯倒计时: ExampleGallery/推算红绿灯倒计时.md
+  - 社区讨论:
+      - 贡献名单: CommunityDiscussion/贡献名单.md
+      - 用户交流: CommunityDiscussion/用户交流.md
+  - 函数接口:
+      - Net: Func&API/Net.md
+      - NetReverse: Func&API/NetReverse.md
+      - GpsPreProcess: Func&API/GpsPreProcess.md
+      - SampleTrip: Func&API/SampleTrip.md
+      - Trajectory: Func&API/Trajectory.md
+      - MapMatch: Func&API/MapMatch.md
+      - OnLineMapMatch: Func&API/OnLineMapMatch.md
+      - OnLineTrajectoryKF: Func&API/OnLineTrajectoryKF.md
+      - KeplerVis: Func&API/KeplerVis.md
+      - Grid: Func&API/grid.md
+      - LngLatTransfer: Func&API/LngLatTransfer.md
+      - StraightLineToArc: Func&API/StraightLineToArc.md
+
+
+plugins:
+  - search
+  - mkdocstrings
+
+markdown_extensions:
+  - def_list
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+#extra_javascript:
+#  - javascripts/mathjax.js
+#  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+#  - javascripts/katex.js
+#  - https://unpkg.com/katex@0/dist/katex.min.js
+#  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+
+extra:
+  version:
+    provider: mike
+
+copyright: Copyright &copy; 2024 Kai Tang

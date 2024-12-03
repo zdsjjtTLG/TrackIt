@@ -216,9 +216,9 @@ class GpsPointsGdf(object):
         return self
 
     def dense(self, dense_interval: float = 120.0):
-        """增密
+        """类方法 - dense
 
-        对定位点进行线性增密
+        - 增密：对定位点进行线性增密
 
         Args:
             dense_interval: 增密阈值(米), 当相邻GPS点的球面距离L超过dense_interval即进行增密, 进行 int(L / dense_interval) + 1 等分加密
@@ -305,9 +305,9 @@ class GpsPointsGdf(object):
                                                                      res[gps_field.ADJ_DIS])}
 
     def lower_frequency(self, lower_n: int = 2, multi_agents: bool = True):
-        """降频
+        """类方法 - lower_frequency
 
-        对定位数据进行降频采样
+        - 降频：对定位数据进行降频采样
 
         Args:
             lower_n: 降频倍数
@@ -326,9 +326,9 @@ class GpsPointsGdf(object):
         return self
 
     def kf_smooth(self, p_deviation: list or float = 0.01, o_deviation: list or float = 0.1):
-        """滤波平滑
+        """类方法 - kf_smooth：
 
-        使用卡尔曼滤波对轨迹数据进行平滑
+        - 使用卡尔曼滤波对轨迹数据进行平滑
 
         Args:
             p_deviation: 过程噪声的标准差
@@ -350,9 +350,9 @@ class GpsPointsGdf(object):
         return self
 
     def rolling_average(self, multi_agents: bool = True, rolling_window: int = 2):
-        """滑动窗口
+        """类方法 - rolling_average：
 
-        使用滑动窗口对定位数据进行平滑, 只要启用了该操作, 那么user_field_list自动失效
+        - 滑动窗口：使用滑动窗口对定位数据进行平滑, 只要启用了该操作, 那么user_field_list自动失效
 
         Args:
             rolling_window: 滑动窗口大小
@@ -601,9 +601,9 @@ class GpsPointsGdf(object):
         return self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].to_list()
 
     def del_dwell_points(self, dwell_l_length: float = 5.0, dwell_n: int = 2):
-        """停留点识别
+        """类方法 - del_dwell_points：
 
-        基于距离阈值对停留点进行识别并且进行删除
+        - 停留点识别：基于距离阈值对停留点进行识别并且进行删除
 
         Args:
             dwell_l_length: 停留点识别距离阈值(米)
@@ -729,9 +729,9 @@ class GpsPointsGdf(object):
             del gps_points_gdf['-']
 
     def simplify_trajectory(self, l_threshold: float = 5.0):
-        """简化轨迹
+        """类方法 - simplify_trajectory：
 
-        利用道格拉斯-普克算法对轨迹进行抽稀简化
+        - 简化轨迹：利用道格拉斯-普克算法对轨迹进行抽稀简化
 
         Args:
             l_threshold: 抽稀阈值(米)
@@ -773,9 +773,9 @@ class GpsPointsGdf(object):
         return self
 
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
-        """获取轨迹
+        """类方法 - trajectory_data
 
-        获取处理后的轨迹数据(支持DataFrame和GeoDataFrame)
+        - 获取轨迹：获取处理后的轨迹数据(支持DataFrame和GeoDataFrame)
 
         Args:
             export_crs: 输出结果的坐标系

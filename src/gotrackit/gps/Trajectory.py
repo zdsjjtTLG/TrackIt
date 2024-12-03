@@ -20,9 +20,9 @@ geometry_field = gps_field.GEOMETRY_FIELD
 class TrajectoryPoints(GpsPointsGdf):
     def __init__(self, gps_points_df: pd.DataFrame, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  plain_crs: str = 'EPSG:3857', already_plain: bool = False):
-        """轨迹类
+        """轨迹类TrajectoryPoints：
 
-        提供了定位数据的相关操作方法(滤波、降频、简化、滑动窗口平均、删除停留点、导出HTML动画)
+        - 初始化
 
         Args:
             gps_points_df: 定位数据表
@@ -41,9 +41,9 @@ class TrajectoryPoints(GpsPointsGdf):
                               user_filed_list=user_field_list)
 
     def export_html(self, out_fldr: str = r'./', file_name: str = 'trajectory', radius: float = 10.0):
-        """导出HTML
+        """TrajectoryPoints类方法 - export_html
 
-        将处理后的轨迹导出为HTML，可动态展示处理前后的轨迹
+        导出HTML：将处理后的轨迹导出为HTML，可动态展示处理前后的轨迹
 
         Args:
             out_fldr: 存储目录

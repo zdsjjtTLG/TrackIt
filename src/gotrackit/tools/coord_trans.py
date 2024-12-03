@@ -15,6 +15,10 @@ from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Pol
 geometry_field = 'geometry'
 
 class LngLatTransfer(object):
+    """坐标转换类LngLatTransfer：
+
+    - 初始化
+    """
 
     def __init__(self):
         self.x_pi = 3.14159265358979324 * 3000.0 / 180.0
@@ -130,8 +134,9 @@ class LngLatTransfer(object):
 
     def loc_convert(self, lng: float or np.ndarray, lat: float or np.ndarray,
                     con_type: str = 'gc-bd') -> tuple[float, float]:
-        """地理坐标坐标转换
-        支持百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        """LngLatTransfer类方法 - loc_convert：
+
+        - 单点地理坐标坐标转换：支持百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
 
         Args:
             lng: 经度
@@ -157,8 +162,9 @@ class LngLatTransfer(object):
             return lng, lat
 
     def obj_convert(self, geo_obj: shapely.geometry, con_type: str = None, ignore_z: bool = True) -> shapely.geometry:
-        """几何对象的地理坐标坐标转换
-        支持几何对象在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        """LngLatTransfer类方法 - obj_convert：
+
+        - 几何对象的地理坐标坐标转换：支持几何对象在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
 
         Args:
             geo_obj: 几何对象(点, 线, 面)
@@ -228,8 +234,9 @@ class LngLatTransfer(object):
             raise ValueError('Only LineString or LinearRing or Polygon are allowed.')
 
     def gdf_convert(self, gdf: gpd.GeoDataFrame, con_type: str = 'gc-84', ignore_z: bool = True) -> gpd.GeoDataFrame:
-        """GeoDataFrame地理坐标转换
-        支持GeoDataFrame在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        """LngLatTransfer类方法 - gdf_convert：
+
+        - GeoDataFrame地理坐标转换：支持GeoDataFrame在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
 
         Args:
             gdf: GeoDataFrame
@@ -237,7 +244,7 @@ class LngLatTransfer(object):
             ignore_z: 是否忽略Z坐标
 
         Returns:
-
+            gdf
         """
         if gdf is None or gdf.empty:
             return gpd.GeoDataFrame()
@@ -265,8 +272,9 @@ class LngLatTransfer(object):
     def file_convert(self, file_path: str = None, con_type: str = 'gc-84',
                      out_fldr: str = r'./', out_file_name: str = 'transfer', file_type: str = 'shp',
                      ignore_z: bool = True):
-        """文件-地理坐标转换
-        支持地理文件在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        """LngLatTransfer类方法 - file_convert：
+
+        - 文件-地理坐标转换：支持地理文件在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
 
         Args:
             file_path: 文件路径(能够被geopandas读取的文件)
