@@ -1,7 +1,7 @@
 **Read this in other languages: [Chinese](README.md) or [English](README_EN.md).**
 
 <div align="center">
-    <img src="docs/_static/images/gotrackit.svg"  width="320" alt="GoTrackIt"/>
+    <img src="docs/assets/images/gti-black.svg"  width="320" alt="GoTrackIt"/>
 </div>
 
 
