@@ -1,0 +1,27 @@
+{#-
+  This file was automatically generated - do not edit
+-#}
+{% extends "base.html" %}
+{% block extrahead %}
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/custom.7c86dd97.min.css' | url }}">
+{% endblock %}
+{% block announce %}
+  获取更新信息请关注
+  <a rel="me" href="https://github.com/zdsjjtTLG">
+    <span class="twemoji mastodon">
+      {% include ".icons/fontawesome/brands/github.svg" %}
+    </span>
+    <strong>GitHub</strong>
+  </a>
+  and
+  <a href="https://space.bilibili.com/49719605">
+    <span class="twemoji twitter">
+      {% include ".icons/fontawesome/brands/bilibili.svg" %}
+    </span>
+    <strong>bilibili</strong>
+  </a>
+{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'assets/javascripts/custom.4e50d00f.min.js' | url }}"></script>
+{% endblock %}
