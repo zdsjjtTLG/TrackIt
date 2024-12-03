@@ -28,8 +28,9 @@ class KeplerVis(object):
     def __init__(self, zoom: int = 15,
                  cen_loc: list[float, float] or tuple[float, float] = None, show_roads: bool = True,
                  map_style: str = 'dark'):
-        """可视化类
-        开普勒可视化类，提供了几何对象和路径的可视化方法
+        """可视化类KeplerVis：
+
+        - 初始化
 
         Args:
             zoom: 缩放层级, 默认15
@@ -56,8 +57,9 @@ class KeplerVis(object):
                         set_avg_zoom: bool = True, time_field: str = None, time_format: str = '%Y-%m-%d %H:%M:%S',
                         time_unit: str = 's', speed: float = 0.3, tooltip_fields: list[str] = None,
                         color_field: str = None, color_list: list = None) -> None:
-        """添加点层
-        可为底图加上一个点层
+        """KeplerVis类方法 - add_point_layer：
+
+        - 添加点层：可为底图加上一个点层
 
         Args:
             data: 点层图层数据
@@ -119,8 +121,9 @@ class KeplerVis(object):
                       time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                       speed: float = 0.3, set_avg_zoom: bool = True, tooltip_fields: list[str] = None,
                       color_field: str = None, color_list: list = None):
-        """添加几何图层
-        可为底图加上一个几何图层(即含有geometry几何列)
+        """KeplerVis类方法 - add_geo_layer：
+
+        - 添加几何图层：可为底图加上一个几何图层(即含有geometry几何列)
 
         Args:
             data: 几何图层数据
@@ -180,8 +183,9 @@ class KeplerVis(object):
                        thickness: float = 2.0, set_avg_zoom: bool = True,
                        opacity: float = 0.8, color: list or str = None,
                        trail_length: float = 120.0, tooltip_fields: list[str] = None):
-        """添加路径动画图层
-        可为底图加上一个路径动画图层(带时间字段的轨迹数据)
+        """KeplerVis类方法 - add_trip_layer：
+
+        - 添加路径动画图层：可为底图加上一个路径动画图层(带时间字段的轨迹数据)
 
         Args:
             data: 轨迹数据
@@ -227,8 +231,9 @@ class KeplerVis(object):
         self.trip_count += 1
 
     def export_html(self, height: float = 600, out_fldr: str = None, file_name: str = 'map'):
-        """HTML输出
-        将可视化HTML存储到磁盘且返回Map对象
+        """KeplerVis类方法 - export_html：
+
+        - 将可视化HTML存储到磁盘且返回Map对象
 
         Args:
             height: 地图对象的高度
