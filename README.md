@@ -1,15 +1,11 @@
 **Read this in other languages: [Chinese](README.md) or [English](README_EN.md).**
 
-
 <div align="center">
     <img src="docs/_static/images/gotrackit.svg"  width="320" alt="GoTrackIt"/>
 </div>
 
 
-<br>
-
 <div align=center>
-
 
 [![Documentation Status](https://readthedocs.org/projects/gotrackit/badge/?version=latest)](https://gotrackit.readthedocs.io/en/latest/?badge=latest)
 ![PyPI - Version](https://img.shields.io/pypi/v/gotrackit)
@@ -22,7 +18,6 @@
 ![Static Badge](https://img.shields.io/badge/Optimization-MultiCoreParallelism-9EC231)
 ![Github Created At](https://img.shields.io/github/created-at/zdsjjtTLG/Trackit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/zdsjjtTLG/Trackit)
-
 ![GitHub User's stars](https://img.shields.io/github/stars/zdsjjtTLG)
 ![GitHub forks](https://img.shields.io/github/forks/zdsjjtTLG/Trackit)
 
@@ -38,8 +33,6 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 
 😆😁👉[gotrackit用户手册](https://gotrackit.readthedocs.io/en/latest/)👈😝😉
 </div>
-<br>
-
 
 <div align=center>
 ~ gotrackit功能概览 ~
