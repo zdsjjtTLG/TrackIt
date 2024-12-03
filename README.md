@@ -2,7 +2,7 @@
 
 
 <div align="center">
-    <img src="docs/_static/images/gotrackit.png" />
+    <img src="docs/_static/images/gotrackit.svg" />
 </div>
 
 
