@@ -18,6 +18,18 @@ markov_field = MarkovField()
 
 
 def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r'./', file_name: str = 'check'):
+    """generate_check_file函数：
+    - 依据匹配警告信息生成空间书签文件
+
+    Args:
+        net: Net路网对象
+        warn_info_dict: MapMatch匹配警告信息
+        out_fldr: 空间书签的存储目录
+        file_name: 空间书签文件名称
+
+    Returns:
+        None
+    """
     single_link_gdf = net.get_link_data()
     single_link_gdf.reset_index(inplace=True, drop=True)
     may_error_list, book_mark_dict = list(), dict()
@@ -67,6 +79,22 @@ def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str 
                            lat_field: str = 'prj_lat', dis_threshold: float = 3,
                            time_format: str = '%Y-%m-%d %H:%M:%S',
                            time_unit: str = 's', plain_crs: str = 'EPSG:3857') -> pd.DataFrame:
+    """路径匹配结果路径增密函数 - dense_res_based_on_net：
+    - 对MapMatch后输出的匹配结果进行路径增密
+
+    Args:
+        net: Net路网对象
+        match_res_df: 匹配结果表
+        lng_field: 经度字段名称
+        lat_field: 纬度字段名称
+        dis_threshold: 合并距离阈值(米)
+        time_format: 匹配结果表时间列字符串格式化模板
+        time_unit: 匹配结果表时间列单位
+        plain_crs: 平面投影坐标系
+
+    Returns:
+        增密后的匹配结果表
+    """
     if match_res_df is not None and not match_res_df.empty:
         build_time_col(df=match_res_df, time_format=time_format, time_unit=time_unit, time_field=gps_field.TIME_FIELD)
 

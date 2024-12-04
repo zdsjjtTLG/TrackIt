@@ -58,7 +58,7 @@ class MapMatch(object):
             gps_sigma: [3]概率参数 - 该值越大, 发射概率对距离越不敏感
             dis_para: [3]概率参数 - 距离的折减系数
             use_heading_inf: [4]概率修正参数 - 是否利用GPS的差分方向向量修正发射概率, 适用于: 低定位误差 GPS数据 或者低频定位数据(配合加密参数)
-            heading_para_array: [4]概率修正参数 - 差分方向修正参数数组
+            heading_para_array: [4]概率修正参数 - 差分方向修正参数数组，默认np.array([1.0, 1.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.6, 0.5])
             omitted_l: [4]概率修正参数 - 当某GPS点与前后GPS点的平均距离小于omitted_l(m)时, 该GPS点的方向限制作用被取消
             del_dwell: [5]停留点处理 - 是否进行停留点识别并且删除停留点
             dwell_l_length: [5]停留点处理 - 停留点识别距离阈值
