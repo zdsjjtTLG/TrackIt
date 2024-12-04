@@ -73,11 +73,6 @@ nav:
       - 实时路径匹配: UserGuide/实时路径匹配.md
       - 时空可视化: UserGuide/时空可视化.md
       - GIS工具: UserGuide/GIS工具.md
-#  - 应用案例:
-#      - 生成微观仿真: ExampleGallery/生成微观仿真.md
-#      - 计算路况: ExampleGallery/计算路况.md
-#      - 路径流量溯源: ExampleGallery/路径流量溯源.md
-#      - 推算红绿灯倒计时: ExampleGallery/推算红绿灯倒计时.md
   - 社区讨论:
       - 贡献名单: CommunityDiscussion/贡献名单.md
       - 用户交流: CommunityDiscussion/用户交流.md
@@ -95,8 +90,7 @@ nav:
       - Grid: Func&API/grid.md
       - LngLatTransfer: Func&API/LngLatTransfer.md
       - StraightLineToArc: Func&API/StraightLineToArc.md
-  - 版本迭代:
-      - 版本迭代: 版本迭代.md
+  - 版本迭代: 版本迭代.md
 
 
 plugins:
