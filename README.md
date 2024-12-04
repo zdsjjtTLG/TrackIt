@@ -1,7 +1,9 @@
 **Read this in other languages: [Chinese](README.md) or [English](README_EN.md).**
 
 <div align="center">
+<a href="https://gotrackit.readthedocs.io/en/latest/">
     <img src="docs/_static/images/gotrackit.svg"  width="320" alt="GoTrackIt"/>
+</a>
 </div>
 
 
@@ -24,7 +26,9 @@
 
 
 <div align="center">
+<a href="https://gotrackit.readthedocs.io/en/latest/">
     <img src="docs/_static/home_page.png"  width="1080" alt="GoTrackIt"/>
+</a>
 </div>
 
 gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹配包
@@ -45,7 +49,9 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 </div>
 
 <div align="center">
+<a href="https://gotrackit.readthedocs.io/en/latest/">
     <img src="docs/_static/images/FunctionGraph.png" />
+</a>
 </div>
 
 
