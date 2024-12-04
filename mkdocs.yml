@@ -90,6 +90,7 @@ nav:
       - MapMatch: Func&API/MapMatch.md
       - OnLineMapMatch: Func&API/OnLineMapMatch.md
       - OnLineTrajectoryKF: Func&API/OnLineTrajectoryKF.md
+      - MatchResAna: Func&API/MatchResProcess.md
       - KeplerVis: Func&API/KeplerVis.md
       - Grid: Func&API/grid.md
       - LngLatTransfer: Func&API/LngLatTransfer.md
