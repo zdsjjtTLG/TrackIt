@@ -22,6 +22,11 @@
 ![GitHub User's stars](https://img.shields.io/github/stars/zdsjjtTLG)
 ![GitHub forks](https://img.shields.io/github/forks/zdsjjtTLG/Trackit)
 
+
+<div align="center">
+    <img src="docs/_static/home_page.png"  width="1080" alt="GoTrackIt"/>
+</div>
+
 gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹配包
 
 ~ 💪一个包搞定：路网获取、路网优化、宏微观地图匹配、匹配可视化、问题路段快速定位💪 ~
