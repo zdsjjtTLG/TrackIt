@@ -19,6 +19,7 @@ markov_field = MarkovField()
 
 def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r'./', file_name: str = 'check'):
     """generate_check_file函数：
+
     - 依据匹配警告信息生成空间书签文件
 
     Args:
@@ -80,6 +81,7 @@ def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str 
                            time_format: str = '%Y-%m-%d %H:%M:%S',
                            time_unit: str = 's', plain_crs: str = 'EPSG:3857') -> pd.DataFrame:
     """路径匹配结果路径增密函数 - dense_res_based_on_net：
+
     - 对MapMatch后输出的匹配结果进行路径增密
 
     Args:
