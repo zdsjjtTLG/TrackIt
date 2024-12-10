@@ -250,6 +250,8 @@ class LngLatTransfer(object):
             return gpd.GeoDataFrame()
         else:
             gdf = gdf.explode(ignore_index=True)
+            if gdf.empty:
+                return gpd.GeoDataFrame()
             g = gdf.at[0, geometry_field]
             if isinstance(g, Point):
                 nx, ny = self.loc_convert(lng=gdf[geometry_field].x, lat=gdf[geometry_field].y,
