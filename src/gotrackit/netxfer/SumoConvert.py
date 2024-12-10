@@ -167,7 +167,7 @@ class SumoConvert(object):
 
     @function_time_cost
     def get_net_shp(self, net_path: str, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
-            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, pd.DataFrame]:
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """SumoConvert类静态方法 - get_net_shp
         - 解析net.xml路网获取GeoDataFrame
 
@@ -274,6 +274,7 @@ class SumoConvert(object):
         conn_df = self.process_conn(pre_conn_df=conn_df)
 
         conn_gdf = self.tess_lane(conn_df=conn_df, lane_gdf=lane_gdf)
+        conn_gdf = conn_gdf.explode(ignore_index=True)
 
         avg_conn = conn_gdf.drop_duplicates(subset=['from_edge', 'to_edge'], keep='first')[['from_edge', 'to_edge']]
         avg_edge_geo_map = {edge: geo for edge, geo in zip(avg_edge_gdf['edge_id'], avg_edge_gdf[geometry_field])}
