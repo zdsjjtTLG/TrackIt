@@ -9,7 +9,7 @@ tags:
   - 开源仿真器
   - GoTrackIt
 authors:
-  - TangKai
+  - GoTrackIt
 slug: ny-eve
 ---
 
