@@ -61,33 +61,33 @@ class Net(object):
         """Net类初始化
         
         Args:
-            link_gdf: gpd.GeoDataFrame, 线层数据, 必需参数
-            node_gdf: gpd.GeoDataFrame, 点层数据, 必需参数
-            link_path: str, link层的路网文件路径, 若指定了该参数, 则直接从磁盘读取线层, 可选参数
-            node_path: str, node层的路网文件路径, 若指定了该参数, 则直接从磁盘读取点层, 可选参数
+            link_gdf: 线层数据, 必需参数
+            node_gdf: 点层数据, 必需参数
+            link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘读取线层, 可选参数
+            node_path: node层的路网文件路径, 若指定了该参数, 则直接从磁盘读取点层, 可选参数
             cut_off: 路径搜索截断长度, 米, 可选参数
-            not_conn_cost: float, 不连通路径的阻抗(m), 可选参数
-            fmm_cache: bool, 是否启用路径预计算, 可选参数
-            cache_cn: int, 使用几个核进行路径预计算, 可选参数
-            cache_slice: int, 大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
-            fmm_cache_fldr: str, 存储路径预计算结果的文件目录, 可选参数
-            recalc_cache: bool, 是否重新进行路径预计算, 取值False时, 程序会去fmm_cache_fldr下读取缓存, 若读取失败则会重新进行路径预计算, 可选参数
-            prj_cache: bool, 是否启用投影缓存, 可选参数
-            is_hierarchical: bool, 是否启用空间分层, 可选参数
-            grid_len: float, 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格, 可选参数
+            not_conn_cost: 不连通路径的阻抗(m), 可选参数
+            fmm_cache: 是否启用路径预计算, 可选参数
+            cache_cn: 使用几个核进行路径预计算, 可选参数
+            cache_slice: 大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
+            fmm_cache_fldr: 存储路径预计算结果的文件目录, 可选参数
+            recalc_cache: 是否重新进行路径预计算, 取值False时, 程序会去fmm_cache_fldr下读取缓存, 若读取失败则会重新进行路径预计算, 可选参数
+            prj_cache: 是否启用投影缓存, 可选参数(v0.3.15提供)
+            is_hierarchical: 是否启用空间分层, 可选参数
+            grid_len: 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格, 可选参数
             cache_name: 路径预存储的标志名称, 默认cache
-            plane_crs: str, 要使用的平面投影坐标系, 用户若不指定, 程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
-            weight_field: str, 搜路权重字段, 目前只能为length
-            create_single: bool, 是否在初始化的时候创建单项路网, 可选参数
-            search_method: str, 路径搜索方法, 目前只能为dijkstra
-            is_sub_net: bool, 用户不可指定
-            init_from_existing: bool, 用户不可指定
-            double_single_mapping: dict, 用户不可指定
-            link_ft_mapping: dict, 用户不可指定
-            link_f_mapping: dict, 用户不可指定
-            link_t_mapping: dict, 用户不可指定
-            link_geo_mapping: dict, 用户不可指定
-            ft_link_mapping: dict, 用户不可指定
+            plane_crs: 要使用的平面投影坐标系, 用户若不指定, 程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
+            weight_field: 搜路权重字段, 目前只能为length
+            create_single: 是否在初始化的时候创建单项路网, 可选参数
+            search_method: 路径搜索方法, 目前只能为dijkstra
+            is_sub_net: 用户不可指定
+            init_from_existing: 用户不可指定
+            double_single_mapping: 用户不可指定
+            link_ft_mapping: 用户不可指定
+            link_f_mapping: 用户不可指定
+            link_t_mapping: 用户不可指定
+            link_geo_mapping: 用户不可指定
+            ft_link_mapping: 用户不可指定
         """
         self.not_conn_cost = not_conn_cost
         self.geo_crs = geo_crs
