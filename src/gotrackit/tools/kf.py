@@ -86,7 +86,7 @@ class TrajectoryKalmanFilter(object):
 
 class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 
-    def __init__(self, trajectory_df: pd.DataFrame or gpd.GeoDataFrame = None,
+    def __init__(self, trajectory_df: pd.DataFrame or gpd.GeoDataFrame,
                  x_field: str = 'lng', y_field: str = 'lat'):
 
         TrajectoryKalmanFilter.__init__(self, trajectory_df)
@@ -147,7 +147,7 @@ class OffLineTrajectoryKF(TrajectoryKalmanFilter):
 
 
 class OnLineTrajectoryKF(TrajectoryKalmanFilter):
-    def __init__(self, trajectory_df: pd.DataFrame = None, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
+    def __init__(self, trajectory_df: pd.DataFrame, time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
                  x_field: str = 'lng', y_field: str = 'lat'):
         """实时卡尔曼滤波类OnLineTrajectoryKF：
 

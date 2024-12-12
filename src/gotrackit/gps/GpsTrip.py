@@ -31,7 +31,7 @@ dx_field, dy_field = od_field.DX_FIELD, od_field.DY_FIELD
 
 
 class GpsPreProcess(object):
-    def __init__(self, gps_df: pd.DataFrame = None, use_multi_core: bool = False, used_core_num: int = 2):
+    def __init__(self, gps_df: pd.DataFrame, use_multi_core: bool = False, used_core_num: int = 2):
         """轨迹预处理类GpsPreProcess：
 
         - 初始化
