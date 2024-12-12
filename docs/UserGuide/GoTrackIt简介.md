@@ -1,3 +1,7 @@
+---
+comments: true
+---
+
 # GoTrackIt简介
 
 

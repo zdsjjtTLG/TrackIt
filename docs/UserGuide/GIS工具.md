@@ -1,3 +1,7 @@
+---
+comments: true
+---
+
 # GIS工具
 
 [get_grid_data]: ../Func&API/grid.md#get_grid_data

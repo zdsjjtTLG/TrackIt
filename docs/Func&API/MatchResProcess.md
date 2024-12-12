@@ -1,3 +1,7 @@
+---
+comments: true
+---
+
 <a id="dense_res_based_on_net"></a>
 ::: src.gotrackit.MatchResAna.dense_res_based_on_net
 

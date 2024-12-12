@@ -1,3 +1,8 @@
+---
+comments: true
+---
+
+
 <a id="init"></a>
 ::: src.gotrackit.tools.kf.OnLineTrajectoryKF.__init__
 

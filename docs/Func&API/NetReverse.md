@@ -1,3 +1,7 @@
+---
+comments: true
+---
+
 <a id="init"></a>
 ::: src.gotrackit.netreverse.NetGen.NetReverse.__init__
 

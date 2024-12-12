@@ -1,3 +1,7 @@
+---
+comments: true
+---
+
 <a id="init"></a>
 ::: src.gotrackit.gps.GpsTrip.GpsPreProcess.__init__
 

@@ -1,3 +1,8 @@
+---
+comments: true
+---
+
+
 <a id="init"></a>
 ::: src.gotrackit.generation.SampleTrip.TripGeneration.__init__
 

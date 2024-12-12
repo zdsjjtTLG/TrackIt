@@ -1,3 +1,8 @@
+---
+comments: true
+---
+
+
 <a id="init"></a>
 ::: src.gotrackit.gps.Trajectory.TrajectoryPoints.__init__
 
