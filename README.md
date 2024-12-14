@@ -160,7 +160,7 @@ pip install -i https://pypi.org/simple/ gotrackit
 ``` shell
 pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 ```
-详细的安装教程见：[如何安装](https://gotrackit.readthedocs.io/en/latest/%E5%A6%82%E4%BD%95%E5%AE%89%E8%A3%85.html)
+详细的安装教程见：[如何安装](https://gotrackit.readthedocs.io/en/latest/UserGuide/如何下载/)
 
 ### 1.2 如何使用gotrackit
 
