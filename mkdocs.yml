@@ -74,9 +74,9 @@ nav:
       - 时空可视化: UserGuide/时空可视化.md
       - GIS工具: UserGuide/GIS工具.md
       - 常见报错: UserGuide/常见报错.md
-  - 社区讨论:
-      - 贡献名单: CommunityDiscussion/贡献名单.md
+  - 社区支持:
       - 用户交流: CommunityDiscussion/用户交流.md
+      - 贡献名单: CommunityDiscussion/贡献名单.md
   - 函数接口:
       - Net: Func&API/Net.md
       - NetReverse: Func&API/NetReverse.md
