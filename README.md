@@ -12,13 +12,16 @@
 [![Documentation Status](https://readthedocs.org/projects/gotrackit/badge/?version=latest)](https://gotrackit.readthedocs.io/en/latest/?badge=latest)
 ![PyPI - Version](https://img.shields.io/pypi/v/gotrackit)
 ![GitHub License](https://img.shields.io/github/license/zdsjjtTLG/Trackit)
+
 [![Downloads](https://static.pepy.tech/badge/gotrackit)](https://pepy.tech/project/gotrackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/gotrackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/gotrackit)
+![GitHub Discussions](https://img.shields.io/github/discussions/zdsjjtTLG/TrackIt)
+
 ![Static Badge](https://img.shields.io/badge/Model-HMM-9EC231)
 ![Static Badge](https://img.shields.io/badge/Optimization-FastMapMatching-blue)
 ![Static Badge](https://img.shields.io/badge/Optimization-MultiCoreParallelism-9EC231)
-![GitHub Discussions](https://img.shields.io/github/discussions/zdsjjtTLG/TrackIt)
+
 ![Github Created At](https://img.shields.io/github/created-at/zdsjjtTLG/Trackit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/zdsjjtTLG/Trackit)
 
