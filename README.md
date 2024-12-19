@@ -18,6 +18,7 @@
 ![Static Badge](https://img.shields.io/badge/Model-HMM-9EC231)
 ![Static Badge](https://img.shields.io/badge/Optimization-FastMapMatching-blue)
 ![Static Badge](https://img.shields.io/badge/Optimization-MultiCoreParallelism-9EC231)
+![GitHub Discussions](https://img.shields.io/github/discussions/zdsjjtTLG/TrackIt)
 ![Github Created At](https://img.shields.io/github/created-at/zdsjjtTLG/Trackit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/zdsjjtTLG/Trackit)
 
