@@ -71,8 +71,8 @@ class Link(object):
         assert len(gap_set) == 0, rf'the Link layer lacks the following fields: {gap_set}'
         assert len(self.link_gdf[net_field.LINK_ID_FIELD]) == len(self.link_gdf[net_field.LINK_ID_FIELD].unique()), \
             rf'{net_field.LINK_ID_FIELD} field value is not unique'
-        assert set(self.link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1}), \
-            rf'{net_field.DIRECTION_FIELD} field value can only be 0 or 1'
+        assert set(self.link_gdf[net_field.DIRECTION_FIELD]).issubset({0, 1, -1}), \
+            rf'{net_field.DIRECTION_FIELD} field value can only be 0, 1, -1'
         for col in [net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,
                     net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD]:
             assert len(self.link_gdf[self.link_gdf[col].isna()]) == 0, \
@@ -120,7 +120,8 @@ class Link(object):
         :return:
         """
         link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
-        neg_link = link_gdf[link_gdf[net_field.DIRECTION_FIELD] == 0].copy()
+        neg_link = link_gdf[(link_gdf[net_field.DIRECTION_FIELD] == 0) |
+                            (link_gdf[net_field.DIRECTION_FIELD] == -1)].copy()
         if neg_link.empty:
             self.__single_link_gdf = link_gdf.copy()
         else:
