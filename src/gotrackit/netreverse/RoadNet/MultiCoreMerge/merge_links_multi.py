@@ -479,8 +479,18 @@ def get_length_from_linestring(linestring_obj=None, crs='EPSG:4326'):
 
 
 def drop_no_use_nodes(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = None):
-    # 去除没有link连接的节点
+    """drop_no_use_nodes函数
+
+    去除没有link连接的节点, 就地修改
+
+    Args:
+        link_gdf:
+        node_gdf:
+
+    Returns:
+
+    """
     used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
     node_gdf.reset_index(inplace=True, drop=True)
-    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=1)
+    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=0)
     node_gdf.reset_index(inplace=True, drop=True)

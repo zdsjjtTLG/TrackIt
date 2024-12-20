@@ -26,6 +26,7 @@ from .RoadNet.Split.SplitPath import split_path_main
 from .RoadNet.Tools.process import merge_double_link, create_single_link
 from .RoadNet.SaveStreets.streets import generate_node_from_link, modify_minimum
 from ..tools.geo_process import clean_link_geo, remapping_id, rn_partition, rn_partition_alpha
+from .RoadNet.SaveStreets.streets import drop_no_use_nodes
 
 net_field = NetField()
 gps_field = GpsField()
@@ -599,6 +600,17 @@ class NetReverse(Reverse):
 
     def fix_minimum_gap(self, node_gdf: gpd.GeoDataFrame = None, link_gdf: gpd.GeoDataFrame = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+
+        Args:
+            node_gdf:
+            link_gdf:
+
+        Returns:
+
+        """
+        # 去除没有link连接的节点
+        drop_no_use_nodes(link_gdf, node_gdf)
         link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.plain_crs, link_gdf=link_gdf, node_gdf=node_gdf,
                                                buffer=self.modify_minimum_buffer,
                                                ignore_merge_rule=True)
