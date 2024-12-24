@@ -748,7 +748,7 @@ class NetReverse(Reverse):
 
     @staticmethod
     def merge_net(net_list: list[list[gpd.GeoDataFrame, gpd.GeoDataFrame]],
-                  conn_buffer: float = 0.5, out_fldr=r'./', plain_crs: str = 'EPSG:3857') -> \
+                  conn_buffer: float = 0.5, out_fldr: str = r'./', plain_crs: str = 'EPSG:3857') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """NetReverse类静态方法 - merge_net：
 
