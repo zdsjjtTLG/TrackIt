@@ -308,6 +308,8 @@ class NetReverse(Reverse):
             线层gdf, 点层gdf
         """
         assert net_file_type in ['shp', 'geojson']
+        assert '4326' not in plain_crs, \
+            'mistakenly specifying planar_crs(plain_crs) as a geographic coordinate system(EPSG:4326)'
         link_gdf, node_gdf, node_group_status_gdf = \
             generate_node_from_link(link_gdf=link_gdf,
                                     update_link_field_list=update_link_field_list,
