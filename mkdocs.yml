@@ -91,6 +91,7 @@ nav:
       - Grid: Func&API/grid.md
       - LngLatTransfer: Func&API/LngLatTransfer.md
       - StraightLineToArc: Func&API/StraightLineToArc.md
+      - SumoConvert: Func&API/SumoConvert.md
   - 版本迭代: 版本迭代.md
   - 技术博客:
       - blog/index.md
