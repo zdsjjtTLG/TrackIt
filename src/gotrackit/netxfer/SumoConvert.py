@@ -16,12 +16,16 @@ from shapely.ops import linemerge
 from shapely.ops import transform
 import xml.etree.cElementTree as ET
 from ..tools.group import cut_group
-from ..GlobalVal import NetField
+from ..GlobalVal import NetField, GpsField
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point, Polygon
-
+from ..tools.common import avoid_duplicate_cols
+from ..MatchResAna import del_dup_links
 
 net_field = NetField()
+gps_field = GpsField()
+agent_id_field = gps_field.AGENT_ID_FIELD
+time_field = gps_field.TIME_FIELD
 link_id_field = net_field.LINK_ID_FIELD
 dir_field = net_field.DIRECTION_FIELD
 from_node_field = net_field.FROM_NODE_FIELD
@@ -89,12 +93,17 @@ class SumoConvert(object):
 
     def get_plain_shp(self, plain_edge_path: str = None, plain_node_path: str = None, crs: str = None) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-        """
-        从解耦的node和edge文件生产shp层
-        :param plain_edge_path:
-        :param plain_node_path:
-        :param crs:
-        :return:
+        """SumoConvert类方法 - get_plain_shp
+
+        - 从解耦的node和edge文件生产shp层
+
+        Args:
+            plain_edge_path:
+            plain_node_path:
+            crs:
+
+        Returns:
+
         """
         # 先解析节点
         node_tree = ET.parse(plain_node_path)
@@ -125,10 +134,15 @@ class SumoConvert(object):
 
     @staticmethod
     def parse_node_plain(plain_node_root: ET.Element = None) -> pd.DataFrame:
-        """
-        解析node文件
-        :param plain_node_root:
-        :return:
+        """SumoConvert类方法 - parse_node_plain
+
+        - 解析node文件
+
+        Args:
+            plain_node_root:
+
+        Returns:
+
         """
         item_list: list[list[str, float, float, str]] = list()
         for child in plain_node_root:
@@ -141,11 +155,16 @@ class SumoConvert(object):
 
     @staticmethod
     def parse_edge_plain(plain_edge_root: ET.Element = None, node_loc_dict: dict = None) -> pd.DataFrame:
-        """
-        解析edge文件
-        :param plain_edge_root:
-        :param node_loc_dict:
-        :return:
+        """SumoConvert类方法 - parse_edge_plain
+
+        - 解析edge文件
+
+        Args:
+            plain_edge_root:
+            node_loc_dict:
+
+        Returns:
+
         """
         edge_item_list = []
         for child in plain_edge_root:
@@ -169,10 +188,11 @@ class SumoConvert(object):
     def get_net_shp(self, net_path: str, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """SumoConvert类静态方法 - get_net_shp
+
         - 解析net.xml路网获取GeoDataFrame
 
         Args:
-            net_path: net.xml路网文件位置
+            net_path: net.xml路网文件路径
             crs: 坐标系，一般net.xml文件会带有该信息，不用指定
             l_threshold: 线型简化阈值(米)
 
@@ -291,7 +311,7 @@ class SumoConvert(object):
 
     @staticmethod
     def tess_lane(conn_df: pd.DataFrame = None, lane_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
-        normal_lane = lane_gdf[~lane_gdf['edge_id'].str.startswith(':')].copy()
+        # normal_lane = lane_gdf[~lane_gdf['edge_id'].str.startswith(':')].copy()
         conn_lane = lane_gdf[lane_gdf['edge_id'].str.startswith(':')].copy()
         # print(normal_lane)
         # print(conn_lane)
@@ -309,12 +329,16 @@ class SumoConvert(object):
                        conn_ele_list: list[ET.Element] = None, x_offset: float = 0.0, y_offset: float = 0.0) \
             -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
-        :param edge_ele_list:
-        :param junction_ele_list
-        :param conn_ele_list
-        :param x_offset
-        :param y_offset
-        :return:
+
+        Args:
+            edge_ele_list:
+            junction_ele_list:
+            conn_ele_list:
+            x_offset:
+            y_offset:
+
+        Returns:
+
         """
         lane_item_list, avg_edge_item_list = list(), list()
         for edge_ele in edge_ele_list:
@@ -356,10 +380,13 @@ class SumoConvert(object):
             ]:
         """
 
-        :param net_edge_obj:
-        :param x_offset
-        :param y_offset
-        :return:
+        Args:
+            net_edge_obj:
+            x_offset:
+            y_offset:
+
+        Returns:
+
         """
         edge_id = net_edge_obj.get(EDGE_ID_KEY)
         edge_from, edge_to = net_edge_obj.get(EDGE_FROM_KEY), net_edge_obj.get(EDGE_TO_KEY)
@@ -421,10 +448,13 @@ class SumoConvert(object):
                            y_offset: float = 0.0) -> list[str, str, float, float, Polygon]:
         """
 
-        :param junction_obj:
-        :param x_offset:
-        :param y_offset:
-        :return:
+        Args:
+            junction_obj:
+            x_offset:
+            y_offset:
+
+        Returns:
+
         """
         junction_id, junction_type, junction_x, junction_y, junction_shape = \
             junction_obj.get(JUNCTION_ID_KEY), junction_obj.get(JUNCTION_TYPE_KEY), junction_obj.get(JUNCTION_X_KEY), \
@@ -558,11 +588,14 @@ class SumoConvert(object):
     def generate_plain_edge(link_gdf: gpd.GeoDataFrame = None, use_lane_ele: bool = False,
                             lane_info_reverse: bool = True):
         """
-        接收single形式的link
-        :param link_gdf: required_fields - link_id, from_node, to_node, spread_type, geometry
-        :param use_lane_ele: whether to use lane level description fields
-        :param lane_info_reverse: True
-        :return:
+
+        Args:
+            link_gdf:
+            use_lane_ele:
+            lane_info_reverse:
+
+        Returns:
+
         """
 
         # 创建根节点
@@ -640,6 +673,17 @@ class SumoConvert(object):
     @staticmethod
     def generate_plain_node(node_gdf: gpd.GeoDataFrame = None, junction_gdf: gpd.GeoDataFrame = None,
                             x_offset: float = 0.0, y_offset: float = 0.0):
+        """
+
+        Args:
+            node_gdf:
+            junction_gdf:
+            x_offset:
+            y_offset:
+
+        Returns:
+
+        """
         use_junction_shape = False
         if junction_gdf is not None and not junction_gdf.empty:
             junction_gdf.set_index('node_id', inplace=True)
@@ -683,16 +727,36 @@ class SumoConvert(object):
         del node_gdf['_x_'], node_gdf['_y_']
         return tree
 
-    def generate_hd_map(self, sumo_home_fldr: str, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame = None,
+    def generate_hd_map(self, sumo_home_fldr: str, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                         junction_gdf: gpd.GeoDataFrame = None,
                         use_lane_ele: bool = False, lane_info_reverse: bool = True, join_dist: float = 10.0,
                         x_offset: float = 0.0, y_offset: float = 0.0, out_fldr: str = r'./',
                         flag_name: str = 'prj', plain_crs: str = 'EPSG:3857', is_single_link: bool = False):
+        """SumoConvert类方法 - generate_hd_map(v0.3.16提供)
+
+        - 基于宏观路网生产.net.xml高精地图文件
+
+        Args:
+            sumo_home_fldr: sumo安装目录
+            link_gdf: 路网线层
+            node_gdf: 路网点层
+            is_single_link: 路网线层是否是单向表示
+            junction_gdf: 节点面域
+            use_lane_ele: 是否启用车道信息自定义
+            lane_info_reverse: 是否反转车道索引
+            join_dist: 路口合并阈值, 米
+            out_fldr: .net.xml路网输出目录
+            flag_name: .net.xml路网的名称
+            plain_crs: 平面投影坐标系
+
+        Returns:
+
+        """
         if not is_single_link:
             if rf'{SPREAD_TYPE}_ab' not in link_gdf.columns and rf'{SPREAD_TYPE}_ba' not in link_gdf.columns:
                 link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 0, SPREAD_TYPE] = 'right'
                 link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 1, SPREAD_TYPE] = 'center'
-            single_link_gdf = dual2single(net_data=link_gdf)
+            single_link_gdf = dual2single(link_gdf=link_gdf)
             single_link_gdf[link_id_field] = [i + 1 for i in range(len(single_link_gdf))]
         else:
             single_link_gdf = link_gdf
@@ -719,6 +783,164 @@ class SumoConvert(object):
                                      y_offset=y_offset, join_dist=join_dist, out_fldr=out_fldr,
                                      out_file_name=flag_name)
 
+    @staticmethod
+    def match2rou(match_res_df: pd.DataFrame | gpd.GeoDataFrame, edge_id_field: str = 'edge_id',
+                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's',
+                  out_fldr: str = r'./', file_name: str = 'flow') -> ET.ElementTree:
+        """SumoConvert类函数 - match2rou(v0.3.15提供)
+
+        - 将路径匹配结果表转化为SUMO的车流路径文件
+
+        Args:
+            match_res_df: 匹配结果表
+            time_format: 时间列字符串模板
+            time_unit: 时间列单位
+            edge_id_field: edge_id列字段名称
+            out_fldr: rou文件输出目录
+            file_name: rou文件名称
+
+        Returns:
+            DocTree
+        """
+
+        assert edge_id_field in match_res_df.columns, rf'edge_id_field: {edge_id_field} is not found in columns'
+
+        match_res_df.dropna(subset=[edge_id_field], inplace=True, how='any')
+        match_res_df.reset_index(inplace=True, drop=True)
+        try:
+            match_res_df[edge_id_field] = match_res_df[edge_id_field].astype(int)
+        except:
+            pass
+        match_res_df = del_dup_links(match_res_df=match_res_df, use_time=True, time_unit=time_unit,
+                                     time_format=time_format)
+        match_res_df['dt'] = (match_res_df[time_field] - match_res_df[time_field].min()).dt.total_seconds()
+        routes_root = ET.Element('routes')
+        tree = ET.ElementTree(routes_root)
+        iter_agents(routes_root, match_res_df, edge_id_field)
+        tree.write(os.path.join(out_fldr, rf'{file_name}.rou.xml'))
+        return tree
+
+    def generate_sim(self):
+        pass
+
+    @staticmethod
+    def get_prj_info(net_path: str = None, crs: str = None, ) -> tuple[float, float, str]:
+        """SumoConvert类静态方法 - get_prj_info
+
+        - 获取net.xml的坐标系信息
+
+        Args:
+            net_path: .net.xml路网的路径
+            crs:
+
+        Returns:
+            x_offset, y_offset, crs
+        """
+
+        net_tree = ET.parse(net_path)
+
+        net_root = net_tree.getroot()
+        location_ele = net_root.findall('location')[0]
+        try:
+            prj4_str = location_ele.get('projParameter')
+        except:
+            prj4_str = None
+
+        if crs is None:
+            assert prj4_str is not None
+            crs = 'EPSG:' + prj4_2_crs(prj4_str=prj4_str)
+        try:
+            x_offset, y_offset = list(map(float, location_ele.get('netOffset').split(',')))
+        except:
+            x_offset, y_offset = 0, 0
+        return x_offset, y_offset, crs
+
+    @staticmethod
+    def generate_sumocfg(net_file_path: str = r'net.net.xml',
+                         rou_file_path: str = r'rou.rou.xml', start_time: int = 0,
+                         end_time: int = 1200, out_fldr: str = r'./', file_name: str = r'sim'):
+        """SumoConvert类静态方法 - generate_sumocfg(v0.3.15提供)
+
+        - 生成sumo仿真配置文件
+
+        Args:
+            net_file_path: .net.xml路网的绝对路径
+            rou_file_path: .rou.xml车流文件的绝对路径
+            start_time: 仿真开始时间戳, 秒
+            end_time: 仿真结束时间戳, 秒
+            out_fldr: sumo仿真配置文件的存储目录
+            file_name: sumo仿真配置文件的名称
+
+        Returns:
+
+        """
+        config_root = ET.Element('configuration')
+        tree = ET.ElementTree(config_root)
+        input_ele = element('input', None, None)
+        config_root.append(input_ele)
+        net_file_ele, route_file_ele = \
+            element('net-file', 'value', net_file_path), \
+            element('route-files', 'value', rou_file_path)
+        ign_error_ele = element('ignore-route-errors', 'value', "True")
+        input_ele.append(net_file_ele)
+        input_ele.append(route_file_ele)
+        input_ele.append(ign_error_ele)
+        sim_time_ele = element('time', None, None)
+        begin_time_ele, end_time_ele = \
+            element('begin', 'value', rf'{start_time}'), element('end', 'value', rf'{end_time}')
+        sim_time_ele.append(begin_time_ele)
+        sim_time_ele.append(end_time_ele)
+        input_ele.append(sim_time_ele)
+        tree.write(os.path.join(out_fldr, file_name + '.sumocfg'))
+
+def element(name: str = None, k: str = None, v: str = None):
+    ele = ET.Element(name)
+    if k is not None:
+        ele.set(k, v)
+    return ele
+
+def prj4_2_crs(prj4_str: str = None) -> str:
+    """
+
+    Args:
+        prj4_str:
+
+    Returns:
+
+    """
+    # crs = pyproj.CRS(prj4_str)
+    # x = crs.to_epsg()
+    # return str(x)
+    return str(pyproj.CRS(prj4_str).to_epsg())
+
+def iter_agents(routes_root, match_res_df, edge_id_field):
+    """
+
+    Args:
+        routes_root:
+        match_res_df:
+        edge_id_field:
+
+    Returns:
+
+    """
+    i = 0
+    for agent, df in match_res_df.groupby(agent_id_field):
+        i += 1
+        route_ele = ET.Element('route')
+        route_ele.set('edges', ' '.join(df[edge_id_field].astype(str).to_list()))
+        route_ele.set('id', rf'route-{i}')
+
+        vehicle_ele = ET.Element('vehicle')
+        vehicle_ele.set('id', str(agent))
+        vehicle_ele.set('route', rf'route-{i}')
+
+        depart = df[['dt']].iloc[0, 0]
+        vehicle_ele.set('depart', rf'{depart}')
+
+        routes_root.append(route_ele)
+        routes_root.append(vehicle_ele)
+
 
 def try_get_v(item_obj: ET.Element = None, k: str = None, default: str = None):
     res = item_obj.get(k)
@@ -735,12 +957,6 @@ def get_off_polygon(l: LineString = None, off_line_l: float = 1.8):
     return Polygon(a_list + b_list[::-1])
 
 
-def prj4_2_crs(prj4_str: str = None) -> str:
-    crs = pyproj.CRS(prj4_str)
-    x = crs.to_epsg()
-    return str(x)
-
-
 def prj_xfer(from_crs: str = 'EPSG:32650', to_crs: str = 'EPSG:4326', origin_p: Point = None) -> Point:
     f = pyproj.CRS(from_crs)
     t = pyproj.CRS(to_crs)
@@ -748,59 +964,67 @@ def prj_xfer(from_crs: str = 'EPSG:32650', to_crs: str = 'EPSG:4326', origin_p: 
     xfer_point = transform(project, origin_p)
     return xfer_point
 
-def dual2single(net_data: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
-    """将具有方向字段的路网格式转化为单向的路网格式(没有方向字段, 仅靠from_node, to_node即可判别方向)
-    :param net_data: gpd.GeoDataFrame, 线层路网数据
-    :return: gpd.DatFrame or pd.DatFrame
+def dual2single(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
+    """dual2single函数
+
+    - 将具有方向字段的路网格式转化为单向的路网格式(没有方向字段, 仅靠from_node, to_node即可判别方向)
+
+    Args:
+        link_gdf: 线层路网数据
+
+    Returns:
+        线层路网数据
     """
     # 避免重名, 这里使用了内置字段__temp__
     built_in_col = '__temp__'
-    rename_dict = avoid_duplicate_cols(built_in_col_list=[built_in_col], df=net_data)
+    rename_dict = avoid_duplicate_cols(built_in_col_list=[built_in_col], df=link_gdf)
     cols_field_name_list = [LANE_NUM_FIELD, SPEED_FIELD, WIDTH_FIELD, ALLOW_MODE_KEY, SPREAD_TYPE]
     # 找出双向字段, 双向字段都应该以_ab或者_ba结尾
     two_way_field_list = list()
     for cols_name in cols_field_name_list:
-        if (cols_name + '_ab' in net_data.columns) or (cols_name + '_ba' in net_data.columns):
+        if (cols_name + '_ab' in link_gdf.columns) or (cols_name + '_ba' in link_gdf.columns):
             two_way_field_list.append(cols_name)
     two_way_field_list = list(set(two_way_field_list))
     ab_field_del = [x + '_ab' for x in two_way_field_list]
     ba_field_del = [x + '_ba' for x in two_way_field_list]
 
     for col in (ab_field_del + ba_field_del):
-        assert col in net_data.columns, f'缺少字段{col}!'
+        assert col in link_gdf.columns, f'缺少字段{col}!'
 
     ab_rename_dict = {x: y for x, y in zip(ab_field_del, two_way_field_list)}
     ba_rename_dict = {x: y for x, y in zip(ba_field_del, two_way_field_list)}
 
     # 方向为拓扑反向的
-    net_negs = net_data[net_data[dir_field] == -1].copy()
+    net_negs = link_gdf[link_gdf[dir_field] == -1].copy()
     net_negs.drop(ab_field_del, axis=1, inplace=True)
     net_negs.rename(columns=ba_rename_dict, inplace=True)
     if not net_negs.empty:
         net_negs[[from_node_field, to_node_field]] = \
             net_negs[[to_node_field, from_node_field]]
-        net_negs[geometry_field] = net_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+        # net_negs[geometry_field] = net_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+        net_negs[geometry_field] = net_negs[geometry_field].reverse()
 
     # 方向为拓扑正向的
-    net_poss = net_data[net_data[dir_field] == 1].copy()
+    net_poss = link_gdf[link_gdf[dir_field] == 1].copy()
     net_poss.drop(ba_field_del, axis=1, inplace=True)
     net_poss.rename(columns=ab_rename_dict, inplace=True)
 
     # 方向为拓扑双向的, 改为拓扑正向
-    net_zero_poss = net_data[net_data[dir_field] == 0].copy()
+    net_zero_poss = link_gdf[link_gdf[dir_field] == 0].copy()
     net_zero_poss[dir_field] = 1
     net_zero_poss.drop(ba_field_del, axis=1, inplace=True)
     net_zero_poss.rename(columns=ab_rename_dict, inplace=True)
 
     # 方向为拓扑双向的, 改为拓扑反向
-    net_zero_negs = net_data[net_data[dir_field] == 0].copy()
+    net_zero_negs = link_gdf[link_gdf[dir_field] == 0].copy()
     net_zero_negs.drop(ab_field_del, axis=1, inplace=True)
     net_zero_negs.rename(columns=ba_rename_dict, inplace=True)
     if not net_zero_negs.empty:
         net_zero_negs[dir_field] = 1
         net_zero_negs[[from_node_field, to_node_field]] = \
             net_zero_negs[[to_node_field, from_node_field]]
-        net_zero_negs[geometry_field] = net_zero_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+        # net_zero_negs[geometry_field] = net_zero_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
+        net_zero_negs[geometry_field] = net_zero_negs[geometry_field].reverse()
 
     net = pd.concat([net_poss, net_zero_poss, net_negs, net_zero_negs]).reset_index(drop=True)
 
@@ -813,35 +1037,5 @@ def dual2single(net_data: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     for col in [from_node_field, to_node_field, length_field]:
         cols_list.remove(col)
     return net[[from_node_field, to_node_field, length_field] + cols_list]
-
-
-# 逻辑子模块, 避免重名
-def avoid_duplicate_cols(built_in_col_list=None, df=None):
-    """
-    重命名数据表中和内置名称冲突的字段
-    :param built_in_col_list: list, 要使用的内置名称字段列表
-    :param df: pd.DataFrame, 数据表
-    :return: dict
-    """
-
-    rename_dict = dict()
-
-    # 数据表的所有列名称
-    df_cols_list = list(df.columns)
-
-    # 遍历每一个在函数内部需要使用的内置字段, 检查其是否已经存在数据表字段中
-    for built_in_col in built_in_col_list:
-        if built_in_col in df_cols_list:
-            num = 1
-            while '_'.join([built_in_col, str(num)]) in df_cols_list:
-                num += 1
-            rename_col = '_'.join([built_in_col, str(num)])
-            rename_dict[built_in_col] = rename_col
-        else:
-            pass
-    if rename_dict:
-        df.rename(columns=rename_dict, inplace=True)
-    return rename_dict
-
 
 
