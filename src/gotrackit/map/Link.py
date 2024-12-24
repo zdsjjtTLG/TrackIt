@@ -127,8 +127,9 @@ class Link(object):
         else:
             neg_link[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]] = neg_link[
                 [net_field.TO_NODE_FIELD, net_field.FROM_NODE_FIELD]]
-            neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
-                lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+            # neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
+            #     lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+            neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].reverse()
             self.__single_link_gdf = pd.concat([link_gdf, neg_link])
             # self.__single_link_gdf.reset_index(inplace=True, drop=True)
         self.__single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
