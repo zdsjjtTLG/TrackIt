@@ -6,16 +6,21 @@
 import pandas as pd
 import geopandas as gpd
 from .map.Net import Net
-from .tools.time_build import build_time_col
+from .gps.LocGps import GpsPointsGdf
 from .netreverse.RoadNet.save_file import save_file
 from .netreverse.book_mark import generate_book_mark
 from .GlobalVal import NetField, GpsField, MarkovField
-
+from .tools.common import avoid_duplicate_cols
+from .tools.time_build import build_time_col
 
 gps_field = GpsField()
 net_field = NetField()
 markov_field = MarkovField()
 
+agent_id_field = gps_field.AGENT_ID_FIELD
+node_id_field = net_field.NODE_ID_FIELD
+time_field = gps_field.TIME_FIELD
+from_node_field, to_node_field = net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD
 
 def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r'./', file_name: str = 'check'):
     """generate_check_file函数：
@@ -185,3 +190,101 @@ def label_local_group(df=None, subset: list[str] = None):
     df['__group__'] = (df['__seq__'].shift(1).bfill().astype(int) != df['__seq__']).astype(int).cumsum()
     del df['__seq__']
     return df
+
+
+class MatchResAna(object):
+    def __init__(self):
+        """匹配结果处理类-MatchResAna
+
+        - 初始化
+        """
+        pass
+
+    @staticmethod
+    def del_dup_links(match_res_df: pd.DataFrame | gpd.GeoDataFrame,
+                      time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', keep: str = 'first',
+                      use_time: bool = True) -> pd.DataFrame | gpd.GeoDataFrame:
+        """MatchResAna类方法 - del_dup_links
+
+        - 对匹配结果中的局部重复路段进行剔除
+
+        Args:
+            match_res_df: 匹配结果表
+            use_time: 是否启用时间字段
+            time_format: 时间列字符串模板, use_time=True时起效
+            time_unit: 时间列单位, use_time=True时起效
+            keep: 去重类型, first: 保留最早时刻进入的记录, last: 保留最晚时刻进入的记录
+
+        Returns:
+            局部去重后的匹配结果表
+        """
+        return del_dup_links(match_res_df=match_res_df, time_format=time_format, time_unit=time_unit, keep=keep,
+                             use_time=use_time)
+
+    @staticmethod
+    def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str = 'prj_lng',
+                               lat_field: str = 'prj_lat', dis_threshold: float = 3,
+                               time_format: str = '%Y-%m-%d %H:%M:%S',
+                               time_unit: str = 's', plain_crs: str = 'EPSG:3857') -> pd.DataFrame:
+        """MatchResAna类方法 - dense_res_based_on_net：
+
+        - 对MapMatch后输出的匹配结果进行路径增密
+
+        Args:
+            net: Net路网对象
+            match_res_df: 匹配结果表
+            lng_field: 经度字段名称
+            lat_field: 纬度字段名称
+            dis_threshold: 合并距离阈值(米)
+            time_format: 匹配结果表时间列字符串格式化模板
+            time_unit: 匹配结果表时间列单位
+            plain_crs: 平面投影坐标系
+
+        Returns:
+            增密后的匹配结果表
+        """
+        return dense_res_based_on_net(net=net, match_res_df=match_res_df, lat_field=lat_field, lng_field=lng_field,
+                                      dis_threshold=dis_threshold, time_unit=time_unit, time_format=time_format,
+                                      plain_crs=plain_crs)
+def del_dup_links(match_res_df: pd.DataFrame | gpd.GeoDataFrame,
+                  time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', keep: str = 'first',
+                  use_time: bool = True) -> pd.DataFrame | gpd.GeoDataFrame:
+    """del_dup_links
+
+    - 对匹配结果中的局部重复路段进行剔除
+
+    Args:
+        match_res_df: 匹配结果表
+        use_time: 是否启用时间字段
+        time_format: 时间列字符串模板, use_time=True时起效
+        time_unit: 时间列单位, use_time=True时起效
+        keep: 去重类型, first: 保留最早时刻进入的记录, last: 保留最晚时刻进入的记录
+
+    Returns:
+        局部去重后的匹配结果表
+    """
+    match_res_df = match_res_df.reset_index(drop=True)
+    if use_time:
+        build_time_col(df=match_res_df, time_unit=time_unit, time_format=time_format)
+        match_res_df.sort_values(by=[agent_id_field, time_field], ascending=[True, True], inplace=True)
+
+    rename_dict = avoid_duplicate_cols(df=match_res_df,
+                                       built_in_col_list=['ft', 'single_link_id', 'next_single', 'label'])
+    match_res_df['ft'] = match_res_df[from_node_field].astype(str) + '_' + match_res_df[to_node_field].astype(str)
+    non_unique_ft = set(match_res_df['ft'])
+    ft_single = {ft: s for ft, s in zip(non_unique_ft, [i for i in range(len(non_unique_ft))])}
+    match_res_df['single_link_id'] = match_res_df['ft'].map(ft_single)
+    if keep == 'first':
+        match_res_df['next_single'] = match_res_df['single_link_id'].shift(1).fillna(-1).astype(int)
+    else:
+        match_res_df['next_single'] = match_res_df['single_link_id'].shift(-1).fillna(-1).astype(int)
+    match_res_df['label'] = match_res_df['single_link_id'] - match_res_df['next_single']
+    GpsPointsGdf.del_consecutive_zero(df=match_res_df, col='label', n=0)
+    match_res_df.reset_index(inplace=True, drop=True)
+    del match_res_df['label'], match_res_df['ft'], match_res_df['single_link_id'], match_res_df['next_single']
+
+    # 恢复冲突字段
+    rename_dict_reverse = dict((v, k) for k, v in rename_dict.items())
+    if rename_dict:
+        match_res_df.rename(columns=rename_dict_reverse, inplace=True)
+    return match_res_df
