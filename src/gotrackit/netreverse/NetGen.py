@@ -282,7 +282,7 @@ class NetReverse(Reverse):
                               using_from_to: bool = False, fill_dir: int = 0, plain_crs: str = 'EPSG:32650',
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
-                              out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
+                              out_fldr: str = r'./', save_streets_before_modify_minimum: bool = False,
                               save_streets_after_modify_minimum: bool = True, net_file_type: str = 'shp') -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """NetReverse类静态方法 - create_node_from_link：
