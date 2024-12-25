@@ -12,18 +12,13 @@ class GdRoutePlan(object):
         pass
 
     @staticmethod
-    def car_route_plan(od_id=None, origin=None, destination=None, key: str = None,
-                       origin_id=None, destination_id=None,
-                       origin_type=None, avoidpolygons=None,
+    def car_route_plan(od_id=None, origin=None, destination=None, key: str = None, avoidpolygons=None,
                        waypoints_loc=None, strategy='32', is_rnd_strategy=False):
         """
         # 参数含义见: https://lbs.amap.com/api/webservice/guide/api/newroute
         :param key:
         :param origin:
         :param destination:
-        :param origin_id:
-        :param destination_id:
-        :param origin_type:
         :param avoidpolygons:
         :param od_id:
         :param waypoints_loc:
@@ -36,10 +31,8 @@ class GdRoutePlan(object):
         para_dict = {'key': key}
         if is_rnd_strategy:
             strategy = strategy_list[np.random.randint(0, len(strategy_list))]
-        para_name = ['origin', 'destination', 'origin_id', 'destination_id', 'origin_type', 'avoidpolygons',
-                     'waypoints', 'strategy']
-        para_val = [origin, destination, origin_id, destination_id, origin_type, avoidpolygons, waypoints_loc,
-                    str(strategy)]
+        para_name = ['origin', 'destination', 'avoidpolygons', 'waypoints', 'strategy']
+        para_val = [origin, destination, avoidpolygons, waypoints_loc, str(strategy)]
         for name, val in zip(para_name, para_val):
             if para_val is not None:
                 para_dict.update({name: val})
