@@ -17,6 +17,9 @@ comments: true
 [obj_convert]: ../Func&API/LngLatTransfer.md#obj_convert
 [gdf_convert]: ../Func&API/LngLatTransfer.md#gdf_convert
 [file_convert]: ../Func&API/LngLatTransfer.md#file_convert
+[Registration]: ../Func&API/Registration.md#init
+[generate_convert_mat]: ../Func&API/Registration.md#generate_convert_mat
+[coords_convert]: ../Func&API/Registration.md#coords_convert
 
 ## 生成渔网图层(切分栅格)
 
@@ -152,6 +155,35 @@ if __name__ == '__main__':
 
 
 ## 地理配准
-----------------------------
 
+[Registration]类提供了地理配准方法，使用类函数[generate_convert_mat]函数计算变换矩阵，使用[coords_convert]函数获取转换后的坐标
+
+```python
+import numpy as np
+from src.gotrackit.tools.registration import Registration
+
+# 像素坐标
+fig_loc = np.array([[998, -899],
+                    [1526, -547],
+                    [1030, -1497],
+                    [1549, -1884]])
+
+# 地图真实坐标(这里的坐标系是EPSG:3857)
+map_loc = np.array([[13390508.490, 3711698.016],
+                    [13390526.503, 3711702.823],
+                    [13390498.451, 3711679.131],
+                    [13390505.281, 3711656.220]])
+
+# 初始化求解类
+r = Registration()
+
+# 计算仿射变换矩阵
+r.generate_convert_mat(pixel_loc_array=fig_loc, actual_loc_array=map_loc)
+
+# 执行转换
+(real_x, real_y) = r.coords_convert(998, -899)
+
+print(r.convert_mat)
+print(real_x, real_y)
+```
 
