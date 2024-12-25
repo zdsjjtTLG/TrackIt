@@ -351,9 +351,10 @@ class HiddenMarkov(object):
         preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
             preliminary_candidate_link['route_dis'].values)
         preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
-        line_vec_list = [line_vec(line=single_link_geo, distance=dis) for single_link_geo, dis in
+        line_vec_list = [line_vec(line=single_link_geo, distance=dis, l_length=l_length) for
+                         single_link_geo, dis, l_length in
                          zip(preliminary_candidate_link['single_link_geo'],
-                             preliminary_candidate_link['route_dis'])]
+                             preliminary_candidate_link['route_dis'], preliminary_candidate_link['length'])]
         prj_df = pd.DataFrame(line_vec_list, columns=[net_field.X_DIFF, net_field.Y_DIFF])
         # prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
         #                  zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
