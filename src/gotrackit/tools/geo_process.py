@@ -3,6 +3,7 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
+import warnings
 import os
 import math
 import numpy as np
@@ -273,6 +274,8 @@ def remapping_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame = None,
     link_gdf[link_id_field] = [i for i in range(start_link_id, len(link_gdf) + start_link_id)]
     link_gdf[from_node_field] = link_gdf[from_node_field].map(node_map)
     link_gdf[to_node_field] = link_gdf[to_node_field].map(node_map)
+    if not link_gdf[(link_gdf[from_node_field].isna()) | (link_gdf[to_node_field].isna())].empty:
+        warnings.warn(r'some nodes in the link layer cannot be found in the node layer')
 
 
 def divide_line_by_l(line_geo: LineString = None, divide_l: float = 50.0, l_min: float = 0.5) -> \
