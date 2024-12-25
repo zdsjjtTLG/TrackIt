@@ -10,7 +10,6 @@ import pandas as pd
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
-from ..tools.geo_process import prj_inf
 from ..tools.geo_process import segmentize
 from ..tools.kf import OffLineTrajectoryKF
 from ..tools.time_build import build_time_col
@@ -560,36 +559,10 @@ class GpsPointsGdf(object):
         else:
             return self.__source_gps_points_gdf.copy()
 
-    def get_prj_inf(self, line: LineString, seq: int = 0) -> tuple[Point, float, float, float, float, float]:
-        """投影信息计算
-
-        计算gps点在指定线对象上的投影信息
-
-        Args:
-            line:
-            seq:
-
-        Returns:
-
-        """
-        (prj_p, prj_dis, route_dis, l_length, dx, dy) = self._get_prj_inf(self.get_point(seq)[1], line)
-        return prj_p, prj_dis, route_dis, l_length, dx, dy
-
     def delete_target_gps(self, target_seq_list: list[int]) -> None:
         self.__gps_points_gdf.drop(
             index=self.__gps_points_gdf[self.__gps_points_gdf[gps_field.POINT_SEQ_FIELD].isin(target_seq_list)].index,
             inplace=True, axis=0)
-
-    @staticmethod
-    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float, float, float]:
-        """
-        # 返回 (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
-        :param gps_point:
-        :param line:
-        :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
-        """
-        prj_p, p_prj_l, prj_route_l, line_length, _, dx, dy = prj_inf(p=gps_point, line=line)
-        return prj_p, p_prj_l, prj_route_l, line_length, dx, dy
 
     @property
     def gps_list_length(self) -> int:
