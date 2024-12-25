@@ -175,7 +175,7 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
     raise ValueError(r'link geometry has overlapping points, please use the redivide_link_node function to handle it')
 
 
-def line_vec(line: LineString = None, distance: float = None) -> tuple[float, float]:
+def line_vec(line: LineString = None, distance: float = None, l_length: float = None) -> tuple[float, float]:
     """line_vec函数
 
     - 多段线的方向向量计算
@@ -183,16 +183,18 @@ def line_vec(line: LineString = None, distance: float = None) -> tuple[float, fl
     Args:
         line: 线对象
         distance: 点对象在线对象上的投影点到线对象的起点的路径距离
+        l_length:
 
     Returns:
         (dx, dy)
     """
-
+    if l_length is None:
+        l_length = line.length
     if distance <= 0.0:
         line_cor = list(line.coords)
         dx, dy = line_cor[1][0] - line_cor[0][0], line_cor[1][1] - line_cor[0][1]
         return dx, dy
-    elif distance >= line.length:
+    elif distance >= l_length:
         line_cor = list(line.coords)
         dx, dy = line_cor[-1][0] - line_cor[-2][0], line_cor[-1][1] - line_cor[-2][1]
         return dx, dy
