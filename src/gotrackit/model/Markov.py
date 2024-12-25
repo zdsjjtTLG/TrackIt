@@ -6,7 +6,6 @@
 """Markov Model Class"""
 
 import os.path
-import time
 import warnings
 import numpy as np
 import pandas as pd
@@ -16,7 +15,7 @@ from ..map.Net import Net
 from .Para import ParaGrid
 from ..solver.Viterbi import Viterbi
 from ..gps.LocGps import GpsPointsGdf
-from ..tools.geo_process import prj_inf
+from ..tools.geo_process import line_vec
 from ..tools.geo_process import vec_angle
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import Point, LineString
@@ -327,9 +326,9 @@ class HiddenMarkov(object):
         """
         对Buffer范围内的初步候选路段进行二次筛选, 需按照投影距离排名前K位, 并且得到计算发射概率需要的数据
         :param preliminary_candidate_link:
-        :param top_k
-        :param using_cache
-        :param cache_prj_inf
+        :param top_k:
+        :param using_cache:
+        :param cache_prj_inf:
         :return:
         """
         preliminary_candidate_link.reset_index(inplace=True, drop=True)
@@ -347,15 +346,24 @@ class HiddenMarkov(object):
             except Exception as e:
                 pass
         print('do not use prj_cache')
-        prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
-                         zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
-                             preliminary_candidate_link['single_link_geo'])]
-        prj_df = pd.DataFrame(prj_info_list,
-                              columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line',
-                                       net_field.X_DIFF, net_field.Y_DIFF])
+        preliminary_candidate_link['route_dis'] = preliminary_candidate_link['single_link_geo'].project(
+            preliminary_candidate_link[gps_field.GEOMETRY_FIELD])
+        preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
+            preliminary_candidate_link['route_dis'].values)
+        preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
+        line_vec_list = [line_vec(line=single_link_geo, distance=dis) for single_link_geo, dis in
+                         zip(preliminary_candidate_link['single_link_geo'],
+                             preliminary_candidate_link['route_dis'])]
+        prj_df = pd.DataFrame(line_vec_list, columns=[net_field.X_DIFF, net_field.Y_DIFF])
+        # prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
+        #                  zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
+        #                      preliminary_candidate_link['single_link_geo'])]
+        # prj_df = pd.DataFrame(prj_info_list,
+        #                       columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line',
+        #                                net_field.X_DIFF, net_field.Y_DIFF])
+        # del prj_df['split_line']
+        # del preliminary_candidate_link['quick_stl']
         prj_df[net_field.VEC_LEN] = np.sqrt(prj_df[net_field.X_DIFF] ** 2 + prj_df[net_field.Y_DIFF] ** 2)
-        del prj_df['split_line']
-        del preliminary_candidate_link['quick_stl']
         preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True,
                                               right_index=True)
         k_candidate_link = preliminary_candidate_link
@@ -515,13 +523,13 @@ class HiddenMarkov(object):
                                add_single_ft: list[bool] = None, link_f_map: dict = None,
                                link_t_map: dict = None) -> \
             tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
-        s = time.time()
+        # s = time.time()
         # K候选
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
                                      top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-        t1 = time.time()
-        print(rf'投影计算: {t1 - s}')
+        # t1 = time.time()
+        # print(rf'投影计算: {t1 - s}')
         # print(rf'{len(seq_k_candidate_info)}个候选路段...')
         seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         now_source_node = set(seq_k_candidate_info[net_field.FROM_NODE_FIELD])
@@ -563,7 +571,7 @@ class HiddenMarkov(object):
         transition_df.reset_index(inplace=True, drop=True)
         col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
         transition_df[col] = transition_df[col].astype(int)
-        print(rf'{len(transition_df)}次状态转移...')
+        # print(rf'{len(transition_df)}次状态转移...')
         if len(transition_df) >= 30000:
             now_target_node = set(seq_k_candidate_info[net_field.TO_NODE_FIELD])
             link_t_map = {k: v for k, v in link_t_map.items() if v in now_target_node}
@@ -577,8 +585,8 @@ class HiddenMarkov(object):
             transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
             transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
             transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
-        t2 = time.time()
-        print(rf'组装计算: {t2 - t1}')
+        # t2 = time.time()
+        # print(rf'组装计算: {t2 - t1}')
         # now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
             # 先计算所有要计算的path
@@ -600,8 +608,8 @@ class HiddenMarkov(object):
 
         _done_stp_cost_df = done_stp_cost_df[done_stp_cost_df[o_node_field].isin(now_source_node) &
                                              done_stp_cost_df[d_node_field].isin(now_source_node)].copy()
-        t3 = time.time()
-        print(rf'最短路计算: {t3 - t2}')
+        # t3 = time.time()
+        # print(rf'最短路计算: {t3 - t2}')
         if not fmm_cache:
             _done_stp_cost_df['2nd_node'] = -1
             _done_stp_cost_df['-2nd_node'] = -1
