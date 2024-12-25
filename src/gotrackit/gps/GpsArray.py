@@ -6,10 +6,8 @@
 
 import pandas as pd
 import geopandas as gpd
-from ..tools.geo_process import prj_inf
 from ..GlobalVal import GpsField, NetField
 from ..tools.time_build import build_time_col
-from shapely.geometry import Point, LineString
 
 gps_field = GpsField()
 net_field = NetField()
@@ -83,17 +81,6 @@ class GpsArray(object):
             return self.gps_points_gdf.copy()
         else:
             return self.__source_gps_points_gdf.copy()
-
-    @staticmethod
-    def _get_prj_inf(gps_point: Point = None, line: LineString = None) -> tuple[Point, float, float, float]:
-        """
-        # 返回 (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
-        :param gps_point:
-        :param line:
-        :return: (GPS投影点坐标, GPS点到投影点的直线距离, GPS投影点到line拓扑起点的路径距离, line的长度)
-        """
-        prj_p, p_prj_l, prj_route_l, line_length, _, _, _ = prj_inf(p=gps_point, line=line)
-        return prj_p, p_prj_l, prj_route_l, line_length
 
     @property
     def gps_list_length(self) -> int:
