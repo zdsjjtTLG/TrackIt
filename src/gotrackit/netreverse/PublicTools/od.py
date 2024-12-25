@@ -37,12 +37,12 @@ def region_rnd_od(polygon_obj=None, flag_name=None,
 
     od_loc = [generate_rnd_od(p_geo=polygon_obj, length_limit=length_limit, gap_n=gap_n) for i in range(0, od_num)]
     od_df = gpd.GeoDataFrame(od_loc, columns=['o', 'd'], geometry='o', crs='EPSG:4326')
-    od_df[o_x_field] = od_df['o'].apply(lambda g: g.x)
-    od_df[o_y_field] = od_df['o'].apply(lambda g: g.y)
+    od_df[o_x_field] = od_df['o'].x
+    od_df[o_y_field] = od_df['o'].y
 
     od_df.set_geometry('d', crs='EPSG:4326', inplace=True)
-    od_df[d_x_field] = od_df['d'].apply(lambda g: g.x)
-    od_df[d_y_field] = od_df['d'].apply(lambda g: g.y)
+    od_df[d_x_field] = od_df['d'].x
+    od_df[d_y_field] = od_df['d'].y
     od_df[od_id_field] = range(1, len(od_df) + 1)
     od_df.drop(columns=['o', 'd'], axis=1, inplace=True)
     return od_df
@@ -105,8 +105,11 @@ def region_od(region_gdf: gpd.GeoDataFrame = None) -> pd.DataFrame:
     :param region_gdf:
     :return:
     """
-    assert region_id_field in region_gdf.columns
-    region_id_list = set(region_gdf[region_id_field])
+    if region_id_field not in region_gdf.columns:
+        region_id_list = [i for i in range(1, len(region_gdf) + 1)]
+        region_gdf[region_id_field] = region_id_list
+    else:
+        region_id_list = set(region_gdf[region_id_field])
     region_cen_loc_dict = {region_id: geo for region_id, geo in zip(region_gdf[region_id_field],
                                                                     region_gdf[region_geo_field])}
     od_list = [[o, d] for o in region_id_list for d in region_id_list if o != d]
