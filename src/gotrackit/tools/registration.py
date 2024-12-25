@@ -137,36 +137,15 @@ class Registration(object):
         print(dx, dy, scale, theta * 180 / np.pi)
 
     def coords_convert(self, x: float = None, y: float = None) -> np.ndarray:
-        """
-        将像素坐标转换为真实世界坐标
-        :param x:
-        :param y:
-        :return:
+        """Registration类方法 - coords_convert
+
+        - 将像素坐标转换为真实世界坐标
+
+        Args:
+            x: x坐标
+            y: y坐标
+
+        Returns:
+            (x, y)
         """
         return np.dot(np.array([[x, y, 1]]), self.convert_mat)[0][:2]
-
-
-if __name__ == '__main__':
-    # 像素坐标
-    fig_loc = np.array([[998, -899],
-                        [1526, -547],
-                        [1030, -1497],
-                        [1549, -1884]])
-
-    # 地图真实坐标(这里的坐标系是EPSG:3857)
-    map_loc = np.array([[13390508.490, 3711698.016],
-                        [13390526.503, 3711702.823],
-                        [13390498.451, 3711679.131],
-                        [13390505.281, 3711656.220]])
-
-    # 初始化求解类
-    r = Registration()
-
-    # 计算仿射变换矩阵
-    r.generate_convert_mat(pixel_loc_array=fig_loc, actual_loc_array=map_loc)
-
-    # 执行转换
-    (real_x, real_y) = r.coords_convert(998, -899)
-
-    print(r.convert_mat)
-    print(real_x, real_y)
