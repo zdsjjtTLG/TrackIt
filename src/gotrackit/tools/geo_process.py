@@ -124,11 +124,16 @@ def segmentize(s_loc: list or tuple = None, e_loc: list or tuple = None, n: int 
 
 
 def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, float, float, list[LineString], float, float]:
-    """
-    # 返回 某point到line的(投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list)
-    :param p:
-    :param line:
-    :return: (投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list, 投影点的方向向量)
+    """prj_inf函数
+
+    - 点到线的投影信息计算
+
+    Args:
+        p: 点对象
+        line: 线对象
+
+    Returns:
+        (投影点坐标, 点到投影点的直线距离, 投影点到line拓扑起点的路径距离, line的长度, 投影点打断line后的geo list, dx, dy)
     """
 
     distance = line.project(p)
@@ -168,6 +173,46 @@ def prj_inf(p: Point = None, line: LineString = None) -> tuple[Point, float, flo
                                                                        [(cp.x, cp.y)] + coords[i:])], dx, dy
     # to here means error
     raise ValueError(r'link geometry has overlapping points, please use the redivide_link_node function to handle it')
+
+
+def line_vec(line: LineString = None, distance: float = None) -> tuple[float, float]:
+    """line_vec函数
+
+    - 多段线的方向向量计算
+
+    Args:
+        line: 线对象
+        distance: 点对象在线对象上的投影点到线对象的起点的路径距离
+
+    Returns:
+        (dx, dy)
+    """
+
+    if distance <= 0.0:
+        line_cor = list(line.coords)
+        dx, dy = line_cor[1][0] - line_cor[0][0], line_cor[1][1] - line_cor[0][1]
+        return dx, dy
+    elif distance >= line.length:
+        line_cor = list(line.coords)
+        dx, dy = line_cor[-1][0] - line_cor[-2][0], line_cor[-1][1] - line_cor[-2][1]
+        return dx, dy
+    else:
+        coords = list(line.coords)
+        for i, _p in enumerate(coords):
+            xd = line.project(Point(_p))
+            if xd == distance:
+                coords_len = len(coords)
+                if 0 < i < coords_len - 1:
+                    dx, dy = coords[i + 1][0] - coords[i - 1][0], coords[i + 1][1] - coords[i - 1][1]
+                else:
+                    dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
+                return dx, dy
+            if xd > distance:
+                dx, dy = coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]
+                return dx, dy
+    # to here means error
+    raise ValueError(r'link geometry has overlapping points, please use the redivide_link_node function to handle it')
+
 
 def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', l_threshold: float = 0.5) -> gpd.GeoDataFrame:
     """
