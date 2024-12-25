@@ -14,7 +14,7 @@ region_field = RegionField()
 
 
 class FormatOD(object):
-    def __init__(self, plain_crs: str = 'EPSG:32650'):
+    def __init__(self, plain_crs: str = 'EPSG:3857'):
         self.plain_crs = plain_crs
 
     @staticmethod
@@ -43,8 +43,7 @@ class FormatOD(object):
         """
         origin_crs = region_gdf.crs
         region_gdf = region_gdf.to_crs(self.plain_crs)
-        region_gdf[region_field.GEO_FIELD] = region_gdf[region_field.GEO_FIELD].apply(
-            lambda geo: geo.buffer(boundary_buffer))
+        region_gdf[region_field.GEO_FIELD] = region_gdf[region_field.GEO_FIELD].buffer(boundary_buffer)
         region_gdf = region_gdf.to_crs(origin_crs)
         polygon_obj = unary_union(region_gdf[region_field.GEO_FIELD].to_list())
         rnd_od_df = region_rnd_od(polygon_obj=polygon_obj, flag_name=flag_name,
