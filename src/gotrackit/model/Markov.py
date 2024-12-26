@@ -427,7 +427,7 @@ class HiddenMarkov(object):
                                   net_field.TO_NODE_FIELD])
             b_info['ratio'] = b_info['route_dis'] / b_info[net_field.SEG_ACCU_LENGTH]
 
-            c_info = b_info[b_info['ratio'] <= 1].copy()
+            c_info = b_info[b_info['ratio'] <= 1.0001].copy()
             if not c_info.empty:
                 c_info.sort_values(
                     by=[gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
