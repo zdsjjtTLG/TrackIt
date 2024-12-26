@@ -373,7 +373,6 @@ class HiddenMarkov(object):
     @staticmethod
     def filter_k_candidates_by_cache(preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
                                      cache_prj_inf: dict = None) -> pd.DataFrame:
-        del preliminary_candidate_link[net_field.LENGTH_FIELD]
         preliminary_candidate_link['route_dis'] = preliminary_candidate_link['single_link_geo'].project(
             preliminary_candidate_link[gps_field.GEOMETRY_FIELD])
         preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
@@ -434,7 +433,7 @@ class HiddenMarkov(object):
                         'topo_seq'], ascending=True)
                 c_info = c_info.groupby(
                     [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).head(n=1)
-                del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH]
+                del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH], c_info[net_field.SEG_COUNT]
 
             # preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
             preliminary_candidate_link = pd.concat([a_info, c_info])
