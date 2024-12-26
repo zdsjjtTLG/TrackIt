@@ -5,6 +5,7 @@
 
 import os
 import pandas as pd
+import numpy as np
 import multiprocessing
 import geopandas as gpd
 from .GpsArray import GpsArray
@@ -263,7 +264,7 @@ class GpsTrip(GpsArray):
         # 记录原始agent_id
         self.gps_points_gdf[ori_agent_field] = self.gps_points_gdf[agent_field]
         try:
-            self.gps_points_gdf[agent_field] = self.gps_points_gdf[agent_field].astype(int)
+            self.gps_points_gdf[agent_field] = self.gps_points_gdf[agent_field].astype(np.int64)
         except ValueError:
             str_map = {str_agent: int_agent for str_agent, int_agent in
                        zip(origin_agent_set, range(1, len(origin_agent_set) + 1))}
@@ -280,20 +281,20 @@ class GpsTrip(GpsArray):
             self.gps_points_gdf[geometry_field])
         # 前序agent_id
         self.gps_points_gdf[pre_agent_field] = self.gps_points_gdf[agent_field].shift(1).fillna(
-            self.gps_points_gdf[agent_field]).astype(int)
+            self.gps_points_gdf[agent_field]).astype(np.int64)
 
         # 切分主行程
-        self.gps_points_gdf['main_label'] = (self.gps_points_gdf[time_gap_field] > self.group_gap_threshold).astype(int)
+        self.gps_points_gdf['main_label'] = (self.gps_points_gdf[time_gap_field] > self.group_gap_threshold).astype(np.int64)
         _ = self.gps_points_gdf[agent_field] != self.gps_points_gdf[pre_agent_field]
         self.gps_points_gdf.loc[_, 'main_label'] = 1
         self.gps_points_gdf[agent_field] = self.gps_points_gdf['main_label'].cumsum() + 1 # 主行程ID更新
         del self.gps_points_gdf['main_label']
         self.gps_points_gdf[pre_agent_field] = self.gps_points_gdf[agent_field].shift(1).fillna(
-            self.gps_points_gdf[agent_field]).astype(int)  # 再次更新pre_agent
+            self.gps_points_gdf[agent_field]).astype(np.int64)  # 再次更新pre_agent
 
         # 切分子行程
         self.gps_points_gdf['sub_label'] = \
-            (self.gps_points_gdf[dis_gap_field] >= self.min_distance_threshold).astype(int)
+            (self.gps_points_gdf[dis_gap_field] >= self.min_distance_threshold).astype(np.int64)
         self.gps_points_gdf.loc[0, 'sub_label'] = 1
         if len(self.gps_points_gdf[self.gps_points_gdf['sub_label'].eq(0)]) == 0:
             del self.gps_points_gdf['sub_label'], self.gps_points_gdf[pre_time_field], \
@@ -346,8 +347,8 @@ class GpsTrip(GpsArray):
         :return:
         """
         gps_df['trip_len'] = gps_df.groupby(agent_field)[seq_field].transform('count')
-        gps_df['gap'] = (gps_df['trip_len'] / way_points_num).astype(int)
-        gps_df['rk'] = gps_df.groupby(agent_field)[seq_field].rank(method='min').astype(int)
+        gps_df['gap'] = (gps_df['trip_len'] / way_points_num).astype(np.int64)
+        gps_df['rk'] = gps_df.groupby(agent_field)[seq_field].rank(method='min').astype(np.int64)
 
         choose_idx = ((gps_df['rk'] == 1) | (gps_df['rk'] == gps_df['trip_len']) | (
                 gps_df['rk'] % gps_df['gap'] == 0)) & (gps_df['trip_len'] >= 2)
