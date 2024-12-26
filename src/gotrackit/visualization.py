@@ -251,6 +251,8 @@ class KeplerVis(object):
                 user_map.add_data(self.data_dict[key], name=key)
         user_map.config = self.user_config
         if out_fldr is not None:
+            if not os.path.exists(out_fldr):
+                os.makedirs(out_fldr)
             user_map.save_to_html(file_name=os.path.join(out_fldr, file_name + '.html'))  # 导出到本地可编辑html文件
         return user_map
 
