@@ -817,6 +817,8 @@ class SumoConvert(object):
         routes_root = ET.Element('routes')
         tree = ET.ElementTree(routes_root)
         iter_agents(routes_root, match_res_df, edge_id_field)
+        if not os.path.exists(out_fldr):
+            os.makedirs(out_fldr)
         tree.write(os.path.join(out_fldr, rf'{file_name}.rou.xml'))
         return tree
 
@@ -872,7 +874,7 @@ class SumoConvert(object):
             file_name: sumo仿真配置文件的名称
 
         Returns:
-
+            None
         """
         config_root = ET.Element('configuration')
         tree = ET.ElementTree(config_root)
@@ -891,6 +893,8 @@ class SumoConvert(object):
         sim_time_ele.append(begin_time_ele)
         sim_time_ele.append(end_time_ele)
         input_ele.append(sim_time_ele)
+        if not os.path.exists(out_fldr):
+            os.makedirs(out_fldr)
         tree.write(os.path.join(out_fldr, file_name + '.sumocfg'))
 
 def element(name: str = None, k: str = None, v: str = None):
