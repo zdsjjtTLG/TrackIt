@@ -3,6 +3,7 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
+import os.path
 import pandas as pd
 from .LocGps import GpsPointsGdf
 from ..visualization import KeplerVis
@@ -85,6 +86,8 @@ class TrajectoryPoints(GpsPointsGdf):
                                    time_field=time_field, layer_id='trajectory', color=[65, 72, 88],
                                    color_field='type',
                                    color_list=['#438ECD', '#FFC300'])
+                if not os.path.exists(out_fldr):
+                    os.makedirs(out_fldr)
                 kv.export_html(out_fldr=out_fldr, file_name=rf'{agent_id}_' + file_name)
             except Exception as e:
                 print(repr(e))
