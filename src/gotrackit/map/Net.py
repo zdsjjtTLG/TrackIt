@@ -55,7 +55,7 @@ class Net(object):
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
                  is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
-                 fmm_cache_fldr: str = r'./', prj_cache: bool = True, grid_len: float = 2000.0, is_hierarchical: bool = False,
+                 fmm_cache_fldr: str = r'./', prj_cache: bool = False, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
                  cut_off: float = 1200.0, delete_circle: bool = True, plane_crs: str = None):
         """Net类初始化
