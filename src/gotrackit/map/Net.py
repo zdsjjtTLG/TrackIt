@@ -939,3 +939,38 @@ class Net(object):
 
     def get_single_link(self):
         return self.__link.get_link_data()
+
+    def divide_links_gamma(self, break_pts: gpd.GeoDataFrame, min_l: float = 1.0, is_init_link: bool = True):
+        break_pts[node_id_field] = '-1'
+        for index, stop_row in break_pts.iterrows():
+            stop_point = stop_row.geometry
+            # 找到最近的 road 线段
+            road_link_o = self.__link.link_gdf
+            nearest_road = road_link_o.iloc[road_link_o.geometry.distance(stop_point).argmin()]
+            nearest_road_line = nearest_road[geometry_field]
+
+            # 计算线段上距离 stop 点最近的点
+            # nearest_pt = nearest_points(stop_point, nearest_road_line)[1]  # nearest_points 返回两个点，这里取第二个（road 上的点）
+            split_ok, prj_p, modified_link, res_type = self.split_link(stop_point, nearest_road[link_id_field],
+                                                                       omitted_length_threshold=2)
+            if split_ok:
+                new_node_id = self.__node.available_node_id
+                break_pts.at[index, node_id_field] = new_node_id
+                self.__node.append_nodes(node_id=[new_node_id], geo=[prj_p])
+                self.modify_link_gdf(link_id_list=[modified_link[0]], attr_field_list=[to_node_field],
+                                     val_list=[[new_node_id]])
+                self.modify_link_gdf(link_id_list=[modified_link[1]], attr_field_list=[from_node_field],
+                                     val_list=[[new_node_id]])
+                self.renew_link_tail_geo(link_list=[modified_link[0]])
+                self.renew_link_head_geo(link_list=[modified_link[1]])
+            else:
+                road_node_o = self.__node.get_node_data()
+                nearest_node = road_node_o.iloc[road_node_o.geometry.distance(stop_point).argmin()]
+                break_pts.at[index, node_id_field] = nearest_node[node_id_field]
+
+        if is_init_link:
+            self.check()
+            self.__link.init_link()
+            self.__node.init_node()
+
+        return break_pts
