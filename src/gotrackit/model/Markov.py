@@ -397,31 +397,47 @@ class HiddenMarkov(object):
         else:
             a_info = pd.DataFrame()
 
+        # if 2 in cache_prj_inf.keys():
+        #     cache_prj_gdf_b = cache_prj_inf[2]
+        #     b_info = pd.merge(preliminary_candidate_link, cache_prj_gdf_b, how='inner', on=[net_field.FROM_NODE_FIELD,
+        #                                                                                     net_field.TO_NODE_FIELD])
+        #     b_info['ratio'] = b_info['route_dis'] / b_info[net_field.SEG_ACCU_LENGTH]
+        #
+        #     c_info = b_info[b_info['ratio'] >= 1].copy()
+        #     if not c_info.empty:
+        #         c_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+        #                                'topo_seq'], ascending=True)
+        #         c_info = c_info.groupby(
+        #             [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).tail(n=1)
+        #         del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH]
+        #     d_info = b_info[b_info['ratio'] < 1].copy()
+        #     if not d_info.empty:
+        #         d_info['ck'] = \
+        #             d_info.groupby([gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[
+        #             [net_field.FROM_NODE_FIELD]].transform('count')
+        #         d_info = d_info[d_info['ck'] == d_info[net_field.SEG_COUNT]].copy()
+        #
+        #         d_info = d_info.groupby(
+        #             [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).head(n=1)
+        #         del d_info['ck'], d_info['topo_seq'], d_info['ratio'], d_info[net_field.SEG_ACCU_LENGTH]
         if 2 in cache_prj_inf.keys():
             cache_prj_gdf_b = cache_prj_inf[2]
-            b_info = pd.merge(preliminary_candidate_link, cache_prj_gdf_b, how='inner', on=[net_field.FROM_NODE_FIELD,
-                                                                                            net_field.TO_NODE_FIELD])
+            b_info = pd.merge(preliminary_candidate_link, cache_prj_gdf_b, how='inner',
+                              on=[net_field.FROM_NODE_FIELD,
+                                  net_field.TO_NODE_FIELD])
             b_info['ratio'] = b_info['route_dis'] / b_info[net_field.SEG_ACCU_LENGTH]
 
-            c_info = b_info[b_info['ratio'] >= 1].copy()
+            c_info = b_info[b_info['ratio'] <= 1].copy()
             if not c_info.empty:
-                c_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
-                                       'topo_seq'], ascending=True)
+                c_info.sort_values(
+                    by=[gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
+                        'topo_seq'], ascending=True)
                 c_info = c_info.groupby(
-                    [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).tail(n=1)
-                del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH]
-            d_info = b_info[b_info['ratio'] < 1].copy()
-            if not d_info.empty:
-                d_info['ck'] = \
-                    d_info.groupby([gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD])[
-                    [net_field.FROM_NODE_FIELD]].transform('count')
-                d_info = d_info[d_info['ck'] == d_info[net_field.SEG_COUNT]].copy()
-
-                d_info = d_info.groupby(
                     [gps_field.POINT_SEQ_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]).head(n=1)
-                del d_info['ck'], d_info['topo_seq'], d_info['ratio'], d_info[net_field.SEG_ACCU_LENGTH]
+                del c_info['topo_seq'], c_info['ratio'], c_info[net_field.SEG_ACCU_LENGTH]
 
-            preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
+            # preliminary_candidate_link = pd.concat([a_info, c_info, d_info])
+            preliminary_candidate_link = pd.concat([a_info, c_info])
             preliminary_candidate_link.reset_index(inplace=True, drop=True)
             preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
             return preliminary_candidate_link
