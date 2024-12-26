@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
 ```python
 import numpy as np
-from src.gotrackit.tools.registration import Registration
+from gotrackit.tools.registration import Registration
 
 # 像素坐标
 fig_loc = np.array([[998, -899],
