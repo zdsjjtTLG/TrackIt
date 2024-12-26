@@ -54,7 +54,7 @@ class Net(object):
                  ft_link_mapping: dict = None, double_single_mapping: dict = None, link_ft_mapping: dict = None,
                  link_t_mapping: dict = None, link_f_mapping: dict = None, link_geo_mapping: dict = None,
                  not_conn_cost: float = 1000.0, cache_path: bool = True, cache_id: bool = True,
-                 is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 2, cache_slice: int = None,
+                 is_sub_net: bool = False, fmm_cache: bool = False, cache_cn: int = 1, cache_slice: int = None,
                  fmm_cache_fldr: str = r'./', prj_cache: bool = False, grid_len: float = 2000.0, is_hierarchical: bool = False,
                  cache_name: str = 'cache', recalc_cache: bool = True,
                  cut_off: float = 1200.0, delete_circle: bool = True, plane_crs: str = None):
@@ -65,20 +65,20 @@ class Net(object):
             node_gdf: 点层数据, 必需参数
             link_path: link层的路网文件路径, 若指定了该参数, 则直接从磁盘读取线层, 可选参数
             node_path: node层的路网文件路径, 若指定了该参数, 则直接从磁盘读取点层, 可选参数
-            cut_off: 路径搜索截断长度, 米, 可选参数
-            not_conn_cost: 不连通路径的阻抗(m), 可选参数
-            fmm_cache: 是否启用路径预计算, 可选参数
-            cache_cn: 使用几个核进行路径预计算, 可选参数
-            cache_slice: 大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
-            fmm_cache_fldr: 存储路径预计算结果的文件目录, 可选参数
-            recalc_cache: 是否重新进行路径预计算, 取值False时, 程序会去fmm_cache_fldr下读取缓存, 若读取失败则会重新进行路径预计算, 可选参数
+            cut_off: 路径搜索截断长度, 米
+            not_conn_cost: 不连通路径的阻抗(m)
+            fmm_cache: 路径预计算参数1：是否启用路径预计算
+            fmm_cache_fldr: 路径预计算参数2：存储路径预计算结果的文件目录
+            recalc_cache: 路径预计算参数3：是否重新进行路径预计算, 取值False时, 程序会去fmm_cache_fldr下读取缓存, 若读取失败则会重新进行路径预计算
+            cache_cn: 路径预计算参数4：使用几个核进行路径预计算
+            cache_slice: 路径预计算参数5：大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
             prj_cache: 是否启用投影缓存, 可选参数(v0.3.15提供)
-            is_hierarchical: 是否启用空间分层, 可选参数
-            grid_len: 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格, 可选参数
+            is_hierarchical: 是否启用空间分层
+            grid_len: 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格
             cache_name: 路径预存储的标志名称, 默认cache
             plane_crs: 要使用的平面投影坐标系, 用户若不指定, 程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
             weight_field: 搜路权重字段, 目前只能为length
-            create_single: 是否在初始化的时候创建单项路网, 可选参数
+            create_single: 是否在初始化的时候创建单向路网(若该Net传入地图匹配模块中, 无需指定使用默认值即可)
             search_method: 路径搜索方法, 目前只能为dijkstra
             is_sub_net: 用户不可指定
             init_from_existing: 用户不可指定
