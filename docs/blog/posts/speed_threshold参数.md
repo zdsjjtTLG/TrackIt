@@ -62,6 +62,7 @@ authors:
     my_net = Net(link_gdf=link, prj_cache=True,
                  node_gdf=node, not_conn_cost=2500.0, cut_off=600.0, 
                  grid_len=4000, is_hierarchical=True)
+    my_net.init_net()  # net初始化
     
     mpm = MapMatch(net=my_net, flag_name='id1', time_unit='ms',
                    gps_buffer=900.0, top_k=30,
