@@ -53,7 +53,7 @@ gotrackit是一个基于改进隐马尔可夫模型实现的全流程地图匹�
 - [支持路径匹配结果到微观仿真的转换](https://gotrackit.readthedocs.io/en/latest/blog/2024/12/08/ny-eve/)
 - 路径匹配模块：优化投影计算，匹配效率提升，构建Net时提供了[prj_cache参数](https://gotrackit.readthedocs.io/en/latest/Func%26API/Net/)
 - 路径匹配模块：[提供了对dir=-1的link的支持](https://gotrackit.readthedocs.io/en/latest/UserGuide/数据要求/#-_1)
-- 路径匹配模块：[增加了速度限制参数speed_threshold](https://gotrackit.readthedocs.io/en/latest/Func%26API/Net/)
+- 路径匹配模块：[增加了速度限制参数speed_threshold](https://gotrackit.readthedocs.io/en/latest/Func%26API/MapMatch/)
 - 线层清洗函数：[增加环路、自相交路段的清洗功能](https://gotrackit.readthedocs.io/en/latest/UserGuide/路网优化/#_2)
 - GIS工具模块：[增加地理配准接口](https://gotrackit.readthedocs.io/en/latest/UserGuide/GIS工具/#_10)
 - 其他代码优化、BUG修复
