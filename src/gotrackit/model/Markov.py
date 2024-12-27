@@ -552,7 +552,7 @@ class HiddenMarkov(object):
         now_source_node = set(seq_k_candidate_info[net_field.FROM_NODE_FIELD])
 
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
-                                          net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
+                                          net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
 
         ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
 
@@ -710,7 +710,7 @@ class HiddenMarkov(object):
         del _
 
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
-                                          net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(int) - 1
+                                          net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
 
         ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
 
