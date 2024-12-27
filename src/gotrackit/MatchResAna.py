@@ -213,7 +213,7 @@ class MatchResAna(object):
             use_time: 是否启用时间字段
             time_format: 时间列字符串模板, use_time=True时起效
             time_unit: 时间列单位, use_time=True时起效
-            keep: 去重类型, first: 保留最早时刻进入的记录, last: 保留最晚时刻进入的记录
+            keep: 去重类型, first: 保留最早时刻进入某link的记录, last: 保留最晚时刻进入某link的记录
 
         Returns:
             局部去重后的匹配结果表
