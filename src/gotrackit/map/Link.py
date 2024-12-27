@@ -197,7 +197,7 @@ class Link(object):
             return node_seq
         except nx.NetworkXNoPath as e:
             raise nx.NetworkXNoPath
-    
+
     def get_shortest_length(self, o_node=None, d_node=None, weight_field: str = None):
         used_weight = weight_field
         if used_weight is None:
