@@ -40,7 +40,8 @@ class HiddenMarkov(object):
     """隐马尔可夫模型类"""
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 not_conn_cost: float = 999.0, use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
+                 speed_threshold:float = 200, not_conn_cost: float = 999.0,
+                 use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
                  dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
                  use_para_grid: bool = False, use_node_restrict: bool = False,
                  heading_vec_len: float = 15.0, flag_name: str = None,
@@ -56,6 +57,7 @@ class HiddenMarkov(object):
         self.__ft_idx_map = pd.DataFrame()
         self.beta = beta
         self.gps_sigma = gps_sigma
+        self.speed_threshold = speed_threshold
         self.__emission_mat_dict = dict()
         self.__seq2seq_len_dict = dict()
         self.__solver = None
@@ -982,7 +984,8 @@ class HiddenMarkov(object):
         # 获取补全的路径
         # seq, single_link_id, sub_seq, link_id, dir, from_node, to_node, time
         if path_completion_method == 'alpha':
-            omitted_gps_state_df = self.acquire_omitted_match_item(gps_link_state_df=gps_match_res_gdf)
+            omitted_gps_state_df = self.acquire_omitted_match_item(gps_link_state_df=gps_match_res_gdf,
+                                                                   speed_threshold=self.speed_threshold)
         else:
             omitted_gps_state_df = self.acquire_omitted_match_item_alpha(gps_link_state_df=gps_match_res_gdf)
         del gps_match_res_gdf[gps_field.NEXT_SINGLE], gps_match_res_gdf[gps_field.NEXT_SEQ]
@@ -1020,11 +1023,15 @@ class HiddenMarkov(object):
                                        markov_field.DIS_TO_NEXT, markov_field.MATCH_HEADING,
                                        markov_field.DRIVING_L] + self.gps_points.user_filed_list]
 
-    def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None) -> pd.DataFrame:
-        """
-        Calculate and complete the paths between discontinuous links
-        :param gps_link_state_df: preliminary matching results, there may be broken paths
-        :return:
+    def acquire_omitted_match_item(self, gps_link_state_df: pd.DataFrame = None, speed_threshold: float = 200) -> pd.DataFrame:
+        """Calculate and complete the paths between discontinuous links
+
+        Args:
+            gps_link_state_df:
+            speed_threshold: 速度阈值, 用于判定在cut_off之外的路径是否满足速度合理性(速度超过阈值认为不合理)
+
+        Returns:
+
         """
         bilateral_unidirectional_mapping = self.net.bilateral_unidirectional_mapping
 
@@ -1072,13 +1079,22 @@ class HiddenMarkov(object):
                                                          range(1, len(_single_link_list) + 1))])
                 else:
                     try:
-                        node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
-                        _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
-                                             range(0, len(node_seq) - 1)]
-                        omitted_gps_state_item.extend([
-                            (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
-                            for _single_link, sub_seq in zip(_single_link_list,
-                                                             range(1, len(_single_link_list) + 1))])
+                        _length = self.net.get_shortest_length(o_node=now_to_node, d_node=next_from_node)
+                        dt = (gps_link_state_df.at[i + 1, 'time'] - gps_link_state_df.at[i, 'time']).total_seconds()
+                        if dt == 0:
+                            raise ValueError('infinite speed')
+                        else:
+                            v = 3.6 * _length / dt
+                            if v >= speed_threshold:
+                                raise ValueError('speed exceeds speed threshold')
+                            else:
+                                node_seq = self.net.get_shortest_path(o_node=now_to_node, d_node=next_from_node)
+                                _single_link_list = [ft_node_link_mapping[(node_seq[j], node_seq[j + 1])] for j in
+                                                     range(0, len(node_seq) - 1)]
+                                omitted_gps_state_item.extend([
+                                    (pre_seq, _single_link, sub_seq) + bilateral_unidirectional_mapping[_single_link]
+                                    for _single_link, sub_seq in zip(_single_link_list,
+                                                                     range(1, len(_single_link_list) + 1))])
                     except:
                         self.is_warn = True
                         warnings.warn(
