@@ -14,7 +14,7 @@ slug: ny-eve
 
 [MapMatch]: https://gotrackit.readthedocs.io/en/latest/Func%26API/MapMatch/
 
-# 一个案例
+# 关于speed_threshold
 
 在0.3.17中在[MapMatch]()中新增加了`speed_threshold`参数，这里对这个参数的作用原理做一个解释。如下面的代码所示，分别设置不同的速度阈值为`160km/h`和`1000km/h`
 
