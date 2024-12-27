@@ -197,6 +197,16 @@ class Link(object):
             return node_seq
         except nx.NetworkXNoPath as e:
             raise nx.NetworkXNoPath
+    
+    def get_shortest_length(self, o_node=None, d_node=None, weight_field: str = None):
+        used_weight = weight_field
+        if used_weight is None:
+            used_weight = self.weight_field
+        try:
+            l = nx.dijkstra_path_length(self.__graph, o_node, d_node, weight=used_weight)
+            return l
+        except nx.NetworkXNoPath as e:
+            raise nx.NetworkXNoPath
 
     @function_time_cost
     def get_rnd_shortest_path(self) -> list[int]:

@@ -270,6 +270,10 @@ class Net(object):
         """
         return self.__link.get_shortest_path(o_node=o_node, d_node=d_node)
 
+    def get_shortest_length(self,  o_node=1, d_node=2) -> float:
+
+        return self.__link.get_shortest_length(o_node=o_node, d_node=d_node)
+
     def calc_shortest_path(self, source: int = None, method: str = 'dijkstra') -> None:
 
         try:
