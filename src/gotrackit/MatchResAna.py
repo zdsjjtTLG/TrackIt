@@ -204,7 +204,7 @@ class MatchResAna(object):
     def del_dup_links(match_res_df: pd.DataFrame | gpd.GeoDataFrame,
                       time_format: str = '%Y-%m-%d %H:%M:%S', time_unit: str = 's', keep: str = 'first',
                       use_time: bool = True) -> pd.DataFrame | gpd.GeoDataFrame:
-        """MatchResAna类方法 - del_dup_links
+        """MatchResAna类静态方法 - del_dup_links
 
         - 对匹配结果中的局部重复路段进行剔除
 
@@ -226,7 +226,7 @@ class MatchResAna(object):
                                lat_field: str = 'prj_lat', dis_threshold: float = 3,
                                time_format: str = '%Y-%m-%d %H:%M:%S',
                                time_unit: str = 's', plain_crs: str = 'EPSG:3857') -> pd.DataFrame:
-        """MatchResAna类方法 - dense_res_based_on_net：
+        """MatchResAna类静态方法 - dense_res_based_on_net：
 
         - 对MapMatch后输出的匹配结果进行路径增密
 
