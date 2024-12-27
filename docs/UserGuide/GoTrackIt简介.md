@@ -25,7 +25,7 @@ GoTrackIt是一个基于改进隐马尔可夫模型实现的**全流程地图匹
 
 !!! note 
     
-    这个项目正处在频繁的升级迭代期， 当前版本v0.3.16， 请用户及时更新.
+    这个项目正处在频繁的升级迭代期， 当前版本v0.3.17， 请用户及时更新.
 
 <figure markdown="span">
   ![Image title](../_static/images/MapMatch.PNG)
