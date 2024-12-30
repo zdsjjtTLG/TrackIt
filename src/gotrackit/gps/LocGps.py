@@ -103,6 +103,7 @@ class GpsPointsGdf(object):
             self.__gps_points_gdf[gps_field.PLAIN_Y] = gps_points_gdf[gps_field.LAT_FIELD]
 
         self.gps_adj_dis_map = dict()
+        self.gps_adj_dt_map = dict()
         self.gps_seq_time_map = dict()
         self.gps_seq_geo_map = dict()
         self.gps_rou_buffer = None
@@ -302,6 +303,13 @@ class GpsPointsGdf(object):
         res = self.__gps_points_gdf.copy()
         self.gps_adj_dis_map = {seq: adj_dis for seq, adj_dis in zip(res[gps_field.POINT_SEQ_FIELD],
                                                                      res[gps_field.ADJ_DIS])}
+
+    def calc_pre_next_dt(self) -> pd.DataFrame():
+        self.calc_adj_time_gap()
+        # next_seq
+        res = self.__gps_points_gdf.copy()
+        self.gps_adj_dt_map = {seq: dt for seq, dt in zip(res[gps_field.POINT_SEQ_FIELD],
+                                                          res[time_gap_field])}
 
     def lower_frequency(self, lower_n: int = 2, multi_agents: bool = True):
         """类方法 - lower_frequency
@@ -580,7 +588,7 @@ class GpsPointsGdf(object):
 
         Args:
             dwell_l_length: 停留点识别距离阈值(米)
-            dwell_n: 超过连续dwell_n个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+            dwell_n: >=0, 超过连续dwell_n + 1个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
 
         Returns:
             self
