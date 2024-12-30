@@ -588,7 +588,7 @@ class GpsPointsGdf(object):
 
         Args:
             dwell_l_length: 停留点识别距离阈值(米)
-            dwell_n: >=0, 超过连续dwell_n + 1个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
+            dwell_n: 大于等于0的整数, 超过连续dwell_n + 1个相邻GPS点的距离小于dwell_l_length，那么这一组点就会被识别为停留点
 
         Returns:
             self

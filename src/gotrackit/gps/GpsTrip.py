@@ -102,7 +102,7 @@ class GpsPreProcess(object):
             time_unit: 时间列单位
             plain_crs: 平面投影坐标系
             group_gap_threshold: 时间阈值，主行程划分参数，单位秒，如果前后GPS点的定位时间超过该阈值，则在该点切分主行程
-            n: >=0, 子行程切分参数，如果超过连续n+1个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程
+            n: 子行程切分参数(大于等于0的整数)，如果超过连续n+1个gps点的距离小于min_distance_threshold 且 持续时间超过dwell_accu_time，那么该处被识别为停留点，从该处切分子行程
             min_distance_threshold: 子行程切分距离阈值，单位米，如果你只想划分主行程，则指定min_distance_threshold为负数即可
             dwell_accu_time: 子行程切分时间阈值，秒
             way_points_num: 途径点数目
