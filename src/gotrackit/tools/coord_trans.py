@@ -292,6 +292,8 @@ class LngLatTransfer(object):
 
         gdf = gpd.read_file(file_path)
         gdf = self.gdf_convert(gdf=gdf, con_type=con_type, ignore_z=ignore_z)
+        if not os.path.exists(out_fldr):
+            os.makedirs(out_fldr)
         if file_type == 'shp':
             gdf.to_file(os.path.join(out_fldr, out_file_name + '.shp'))
         else:
