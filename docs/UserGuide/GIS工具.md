@@ -34,6 +34,9 @@ if __name__ == '__main__':
     region_gdf = gpd.read_file(r'region.shp')
     grid_gdf = get_grid_data(polygon_gdf=region_gdf, 
                              meter_step=100.0, is_geo_coord=True, generate_index=True)
+    # <= v0.3.17的版本，可能会出现重复栅格，做一次去重处理
+    grid_gdf.drop_duplicates(subset=['grid_id'], inplace=True, keep='first')
+    grid_gdf.reset_index(inplace=True, drop=True)
     grid_gdf.to_file(r'grid.shp', encoding='gbk')
 ```
 
