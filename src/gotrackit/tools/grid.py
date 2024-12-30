@@ -44,7 +44,7 @@ def get_grid_data(polygon_gdf: gpd.GeoDataFrame, meter_step: float = None, is_ge
                              generate_index=generate_index)
 
     grid_gdf = gpd.GeoDataFrame(grid_gdf, geometry=geometry_field, crs=crs)
-    grid_gdf = gpd.sjoin(grid_gdf, polygon_gdf[[geometry_field]])
+    grid_gdf = gpd.sjoin(grid_gdf, gpd.GeoDataFrame([], geometry=[polygon_obj], crs=crs))
     del grid_gdf['index_right']
     grid_gdf.reset_index(inplace=True, drop=True)
     if generate_index:
