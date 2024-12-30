@@ -16,6 +16,7 @@ class NetField(object):
         self.FROM_NODE_FIELD = 'from_node'
         self.TO_NODE_FIELD = 'to_node'
         self.LENGTH_FIELD = 'length'
+        self.SPEED_FIELD = 'speed'
         self.GEOMETRY_FIELD = 'geometry'
         self.NODE_ID_FIELD = 'node_id'
         self.S_NODE = 'o_node'
@@ -112,6 +113,7 @@ class MarkovField(object):
         self.USED_HEADING_GAP = 'used_heading_gap'
         self.EMISSION_P = 'emission_p'
         self.DRIVING_L = 'route_dis'
+        self.SPEED_FACTOR = 'speed_factor'
 
 
 class OdField(object):
