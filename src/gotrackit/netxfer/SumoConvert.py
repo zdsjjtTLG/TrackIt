@@ -732,7 +732,7 @@ class SumoConvert(object):
                         use_lane_ele: bool = False, lane_info_reverse: bool = True, join_dist: float = 10.0,
                         x_offset: float = 0.0, y_offset: float = 0.0, out_fldr: str = r'./',
                         flag_name: str = 'prj', plain_crs: str = 'EPSG:3857', is_single_link: bool = False):
-        """SumoConvert类方法 - generate_hd_map(v0.3.16提供)
+        """SumoConvert类方法 - generate_hd_map(v0.3.18提供)
 
         - 基于宏观路网生产.net.xml高精地图文件
 
