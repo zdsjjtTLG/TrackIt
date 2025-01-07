@@ -36,19 +36,12 @@ def region_rnd_od(polygon_obj=None, flag_name=None,
     print(rf'{flag_name} 生成OD......')
 
     od_loc = [generate_rnd_od(p_geo=polygon_obj, length_limit=length_limit, gap_n=gap_n) for i in range(0, od_num)]
-    od_df = gpd.GeoDataFrame(od_loc, columns=['o', 'd'], geometry='o', crs='EPSG:4326')
-    od_df[o_x_field] = od_df['o'].x
-    od_df[o_y_field] = od_df['o'].y
-
-    od_df.set_geometry('d', crs='EPSG:4326', inplace=True)
-    od_df[d_x_field] = od_df['d'].x
-    od_df[d_y_field] = od_df['d'].y
+    od_df = pd.DataFrame(od_loc, columns=[o_x_field, o_y_field, d_x_field, d_y_field])
     od_df[od_id_field] = range(1, len(od_df) + 1)
-    od_df.drop(columns=['o', 'd'], axis=1, inplace=True)
     return od_df
 
 
-def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[Point, Point]:
+def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[float, float, float, float]:
     """
 
     :param p_geo:
@@ -65,7 +58,7 @@ def generate_rnd_od(p_geo=None, length_limit=0.001, gap_n=1000) -> tuple[Point, 
 
         if distance((o_y, o_x), (d_y, d_x)).m >= length_limit or _count > max_times:
             break
-    return Point(o_x, o_y), Point(d_x, d_y)
+    return o_x, o_y, d_x, d_y
 
 
 def rnd_point_in_polygon(p_geo=None, gap_n=1000) -> tuple[float, float]:
