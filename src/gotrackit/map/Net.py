@@ -74,6 +74,7 @@ class Net(object):
             cache_slice: 路径预计算参数5：大于0的整数, 表示将路径预计算结果切分为cache_slice份(大规模路网启用预计算时, 增大该值可以防止内存溢出)
             prj_cache: 是否启用投影缓存, 可选参数(v0.3.15提供)
             is_hierarchical: 是否启用空间分层
+            cache_path: 是否缓存最短路信息, 该参数只在use_sub_net=False且fmm_cache=False时生效, 即: 匹配过程中计算好的单源最短路信息会被缓存用于减少后续的最短路计算量, 该选项启用后有可能会造成内存溢出问题
             grid_len: 启用空间分层时, 该参数起效, 意为将路网区域划分为grid_len(m)的栅格
             cache_name: 路径预存储的标志名称, 默认cache
             plane_crs: 要使用的平面投影坐标系, 用户若不指定, 程序会依据路网的经纬度范围自动进行6度投影带的选择, 推荐使用程序自动
