@@ -186,6 +186,7 @@ class Link(object):
                                                   to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
             return node_path, sum(cost_list)
         except Exception as e:
+            print(repr(e))
             return [], self.not_conn_cost
 
     def get_shortest_path(self, o_node=None, d_node=None, weight_field: str = None):
