@@ -472,8 +472,8 @@ def generate_match_html(mix_gdf: gpd.GeoDataFrame = None, out_fldr: str = None, 
         loc_type_set = mix_gdf[gps_field.LOC_TYPE].unique()
         if 'c' in loc_type_set:
             _color_map['c'] = '#FFFFFF'
-            if 'd' in loc_type_set:
-                _color_map['d'] = '#11BD2B'
+        if 'd' in loc_type_set:
+            _color_map['d'] = '#11BD2B'
         _color_map['l'] = '#438ECD'
         _color_map['s'] = '#FFC300'
         kv.add_geo_layer(data=mix_gdf, layer_id=kepler_config.MIX_NAME, width=0.1, color=[18, 147, 154],
