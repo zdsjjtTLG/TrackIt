@@ -52,9 +52,11 @@ class Viterbi(object):
             init_n = self.AMat[self.o_seq_list[0]].shape[0]
             # 初始观测概率矩阵
             init_b = self.BMat[self.o_seq_list[0]]
-            self.initial_ep = (1 / init_n) * init_b.astype(float)
+            # self.initial_ep = (1 / init_n) * init_b.astype(float)
+            self.initial_ep = init_b.astype(float) - np.log(init_n)
             if self.use_log_p:
-                self.zeta_array_dict[self.o_seq_list[0]] = np.log(self.initial_ep)
+                # self.zeta_array_dict[self.o_seq_list[0]] = np.log(self.initial_ep)
+                self.zeta_array_dict[self.o_seq_list[0]] = self.initial_ep
             else:
                 self.zeta_array_dict[self.o_seq_list[0]] = self.initial_ep
         else:
@@ -114,8 +116,9 @@ class Viterbi(object):
                     a_now_array: np.ndarray = None,
                     b_next_array: np.ndarray = None, use_log: bool = True) -> np.ndarray:
         if use_log:
-            return zeta_now_array.astype(np.float32) + np.log(a_now_array.astype(np.float32)) + \
-                np.log(b_next_array.astype(np.float32))
+            # return zeta_now_array.astype(np.float32) + np.log(a_now_array.astype(np.float32)) + \
+            #     np.log(b_next_array.astype(np.float32))
+            return zeta_now_array.astype(np.float32) + a_now_array.astype(np.float32) + b_next_array.astype(np.float32)
         else:
             return zeta_now_array * a_now_array * b_next_array
 
