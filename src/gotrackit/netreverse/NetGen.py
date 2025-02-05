@@ -325,8 +325,8 @@ class NetReverse(Reverse):
                                     save_streets_before_modify_minimum=save_streets_before_modify_minimum)
         return link_gdf, node_gdf, node_group_status_gdf
 
-    def topology_optimization(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
-                              out_fldr: str = r'./') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
+    def topology_optimization(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame) -> \
+            tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, dict]:
         """NetReverse类方法 - topology_optimization：
 
         - 拓扑优化：对标准路网进行路段合并、重复路段消除
@@ -334,7 +334,6 @@ class NetReverse(Reverse):
         Args:
             link_gdf: 线层gdf, 坐标系必须为EPSG:4326
             node_gdf: 点层gdf, 坐标系必须为EPSG:4326
-            out_fldr: 输出路网的存储目录
 
         Returns:
             线层gdf, 点层gdf, 修复点位空间信息
@@ -357,9 +356,9 @@ class NetReverse(Reverse):
                                                      min_length=self.min_length,
                                                      dup_link_buffer_ratio=self.dup_link_buffer_ratio,
                                                      multi_core=self.multi_core_merge, core_num=self.merge_core_num)
-        if out_fldr is not None:
-            save_file(data_item=link_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_link')
-            save_file(data_item=node_gdf, out_fldr=out_fldr, file_type=self.net_file_type, file_name='opt_node')
+        if self.net_out_fldr is not None:
+            save_file(data_item=link_gdf, out_fldr=self.net_out_fldr, file_type=self.net_file_type, file_name='opt_link')
+            save_file(data_item=node_gdf, out_fldr=self.net_out_fldr, file_type=self.net_file_type, file_name='opt_node')
         return link_gdf, node_gdf, dup_info_dict
 
     def get_od_df(self) -> pd.DataFrame:
