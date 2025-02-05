@@ -32,7 +32,8 @@ class MapMatch(object):
                  del_dwell: bool = False, dwell_l_length: float = 5.0, dwell_n: int = 2,
                  is_lower_f: bool = False, lower_n: int = 2,
                  is_rolling_average: bool = False, window: int = 2,
-                 dense_gps: bool = True, dense_interval: float = 120.0, speed_threshold:float = 200,
+                 dense_gps: bool = True, dense_interval: float = 120.0, speed_threshold: float = 200,
+                 use_st: bool = False, st_main_coe: float = 1.0, st_min_factor: float = 0.1,
                  out_fldr: str = r'./', instant_output: bool = False, user_field_list: list[str] = None,
                  export_html: bool = False, use_gps_source: bool = False,
                  gps_radius: float = 6.0, export_all_agents: bool = False, visualization_cache_times: int = 10,
@@ -70,18 +71,21 @@ class MapMatch(object):
             dense_gps: [8]轨迹增密 - 是否对GPS数据进行线性增密
             dense_interval: [8]轨迹增密 - 当前后GPS点的直线距离l超过dense_interval即进行增密, 进行 int(l / dense_interval) + 1 等分增密
             speed_threshold: [9]车辆行驶速度阈值, km/h, 用于判定在cut_off之外的路径是否满足速度合理性(速度超过阈值认为不合理)
-            out_fldr: [10]输出设置 - 保存匹配结果的文件目录
-            instant_output: [10]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
-            user_field_list: [10]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
-            export_html: [11]HTML输出设置 - 是否输出匹配结果的网页可视化html文件
-            use_gps_source: [11]HTML输出设置 - 是否在可视化结果中仅仅使用GPS源数据进行展示
-            gps_radius: [11]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
-            export_all_agents: [11]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
-            visualization_cache_times: [11]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
-            export_geo_res: [12]GeoJSON输出设置 - 是否输出匹配结果的矢量图层文件
-            heading_vec_len: [12]GeoJSON输出设置 - 匹配航向向量的显示长度(控制geojson文件中的可视化)
-            use_para_grid: [13]网格参数搜索设置 - 是否启用网格参数搜索
-            para_grid: [13]网格参数搜索设置 - 网格参数对象
+            use_st: [10]st-match参数 - 是否启用行程速度限制
+            st_main_coe: [10]st-match参数 - 主系数
+            st_min_factor: [10]st-match参数 - 最小折减系数
+            out_fldr: [11]输出设置 - 保存匹配结果的文件目录
+            instant_output: [11]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
+            user_field_list: [11]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
+            export_html: [12]HTML输出设置 - 是否输出匹配结果的网页可视化html文件
+            use_gps_source: [12]HTML输出设置 - 是否在可视化结果中仅仅使用GPS源数据进行展示
+            gps_radius: [12]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
+            export_all_agents: [12]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
+            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            export_geo_res: [13]GeoJSON输出设置 - 是否输出匹配结果的矢量图层文件
+            heading_vec_len: [13]GeoJSON输出设置 - 匹配航向向量的显示长度(控制geojson文件中的可视化)
+            use_para_grid: [14]网格参数搜索设置 - 是否启用网格参数搜索
+            para_grid: [15]网格参数搜索设置 - 网格参数对象
         """
         # 坐标系投影
         self.plain_crs = net.planar_crs
@@ -106,6 +110,9 @@ class MapMatch(object):
         self.use_heading_inf = use_heading_inf
         self.heading_para_array = heading_para_array
         self.speed_threshold = speed_threshold
+        self.use_st = use_st
+        self.st_main_coe = st_main_coe
+        self.st_min_factor = st_min_factor
         if not omitted_l < dense_interval / 2:
             omitted_l = dense_interval / 2 - 0.1
         self.omitted_l = omitted_l
@@ -230,7 +237,8 @@ class MapMatch(object):
                                    heading_para_array=self.heading_para_array, dis_para=self.dis_para,
                                    top_k=self.top_k, use_node_restrict=self.use_node_restrict,
                                    omitted_l=self.omitted_l, para_grid=self.para_grid,
-                                   heading_vec_len=self.heading_vec_len, speed_threshold=self.speed_threshold)
+                                   heading_vec_len=self.heading_vec_len, speed_threshold=self.speed_threshold,
+                                   use_st=self.use_st, st_main_coe=self.st_main_coe, st_min_factor=self.st_min_factor)
             if not self.use_para_grid:
                 is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft)
             else:
@@ -326,7 +334,8 @@ class MapMatch(object):
                            visualization_cache_times=self.visualization_cache_times,
                            multi_core_save=False, instant_output=self.instant_output, use_para_grid=self.use_para_grid,
                            para_grid=self.para_grid, user_field_list=self.user_field_list,
-                           heading_vec_len=self.heading_vec_len, speed_threshold=self.speed_threshold)
+                           heading_vec_len=self.heading_vec_len, speed_threshold=self.speed_threshold,
+                           use_st=self.use_st, st_main_coe=self.st_main_coe, st_min_factor=self.st_min_factor)
             result = pool.apply_async(mmp.execute,
                                       args=(_gps_df, ))
             result_list.append(result)
@@ -385,6 +394,7 @@ class OnLineMapMatch(MapMatch):
                  dup_threshold: float = 10.0,
                  is_rolling_average: bool = False, window: int = 2,
                  speed_threshold: float = 200,
+                 use_st: bool = False, st_main_coe: float = 1.0, st_min_factor: float = 0.1,
                  export_html: bool = False, use_gps_source: bool = False, out_fldr: str = None,
                  export_geo_res: bool = False, top_k: int = 20, omitted_l: float = 6.0,
                  link_width: float = 1.5, node_radius: float = 1.5,
@@ -421,16 +431,19 @@ class OnLineMapMatch(MapMatch):
             dense_gps: [8]轨迹增密 - 是否对GPS数据进行增密
             dense_interval: [8]轨迹增密 - 当前后GPS点的直线距离l超过dense_interval即进行增密, 进行 int(l / dense_interval) + 1 等分增密
             speed_threshold: [9]车辆行驶速度阈值, km/h, 用于判定在cut_off之外的路径是否满足速度合理性(速度超过阈值认为不合理)
-            out_fldr: [10]输出设置 - 保存匹配结果的文件目录
-            instant_output: [10]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
-            user_field_list: [10]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
-            export_html: [11]HTML输出设置 - 是否输出匹配结果的网页可视化html文件
-            use_gps_source: [11]HTML输出设置 - 是否在可视化结果中使用GPS源数据进行展示
-            gps_radius: [11]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
-            export_all_agents: [11]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
-            visualization_cache_times: [11]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
-            export_geo_res: [12]GeoJSON输出设置 - 是否输出匹配结果的几何可视化文件
-            heading_vec_len: [12]GeoJSON输出设置 - 匹配航向向量的长度(控制geojson文件中的可视化)
+            use_st: [10]st-match参数 - 是否启用行程速度限制
+            st_main_coe: [10]st-match参数 - 主系数
+            st_min_factor: [10]st-match参数 - 最小折减系数
+            out_fldr: [11]输出设置 - 保存匹配结果的文件目录
+            instant_output: [11]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
+            user_field_list: [11]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
+            export_html: [12]HTML输出设置 - 是否输出匹配结果的网页可视化html文件
+            use_gps_source: [12]HTML输出设置 - 是否在可视化结果中使用GPS源数据进行展示
+            gps_radius: [12]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
+            export_all_agents: [12]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
+            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            export_geo_res: [13]GeoJSON输出设置 - 是否输出匹配结果的几何可视化文件
+            heading_vec_len: [13]GeoJSON输出设置 - 匹配航向向量的长度(控制geojson文件中的可视化)
         """
         MapMatch.__init__(self, flag_name=flag_name, net=net, use_sub_net=use_sub_net, time_format=time_format,
                           time_unit=time_unit, gps_buffer=gps_buffer, gps_route_buffer_gap=gps_route_buffer_gap,
@@ -445,7 +458,8 @@ class OnLineMapMatch(MapMatch):
                           link_width=link_width, node_radius=node_radius, match_link_width=match_link_width,
                           export_all_agents=export_all_agents, visualization_cache_times=visualization_cache_times,
                           multi_core_save=multi_core_save, instant_output=instant_output,
-                          user_field_list=user_field_list, heading_vec_len=heading_vec_len)
+                          user_field_list=user_field_list, heading_vec_len=heading_vec_len,
+                          use_st=use_st, st_main_coe=st_main_coe, st_min_factor=st_min_factor)
         self.his_hmm_dict = dict()
         self.his_gps = dict()
         self.add_single_ft = [True]
@@ -565,7 +579,8 @@ class OnLineMapMatch(MapMatch):
                                    top_k=self.top_k, omitted_l=self.omitted_l,
                                    para_grid=self.para_grid, speed_threshold=self.speed_threshold,
                                    heading_vec_len=self.heading_vec_len, flag_name=self.flag_name,
-                                   out_fldr=self.out_fldr)
+                                   out_fldr=self.out_fldr, use_st=self.use_st, st_main_coe=self.st_main_coe,
+                                   st_min_factor=self.st_min_factor)
             his_emission = dict()
             his_ft_idx_map = pd.DataFrame()
             if cor_with_his:
