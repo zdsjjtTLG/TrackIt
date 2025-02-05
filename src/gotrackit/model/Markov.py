@@ -34,14 +34,16 @@ path_field = net_field.NODE_PATH_FIELD
 cost_field = net_field.COST_FIELD
 o_node_field, d_node_field = net_field.S_NODE, net_field.T_NODE
 MIN_P = 1e-10
+INF_SPEED = 500
 
 
 class HiddenMarkov(object):
     """隐马尔可夫模型类"""
 
     def __init__(self, net: Net, gps_points: GpsPointsGdf, beta: float = 30.1, gps_sigma: float = 20.0,
-                 speed_threshold:float = 200, not_conn_cost: float = 999.0,
+                 speed_threshold: float = 200, not_conn_cost: float = 999.0,
                  use_heading_inf: bool = True, heading_para_array: np.ndarray = None,
+                 use_st: bool = False, st_main_coe: float = 1.0, st_min_factor: float = 0.1,
                  dis_para: float = 0.1, top_k: int = 25, omitted_l: float = 6.0, para_grid: ParaGrid = None,
                  use_para_grid: bool = False, use_node_restrict: bool = False,
                  heading_vec_len: float = 15.0, flag_name: str = None,
@@ -57,6 +59,12 @@ class HiddenMarkov(object):
         self.__ft_idx_map = pd.DataFrame()
         self.beta = beta
         self.gps_sigma = gps_sigma
+        self.use_st = use_st
+        if use_st:
+            assert st_main_coe > 0
+            assert st_min_factor > 0
+        self.st_main_coe = st_main_coe
+        self.st_min_factor = st_min_factor
         self.speed_threshold = speed_threshold
         self.__emission_mat_dict = dict()
         self.__seq2seq_len_dict = dict()
@@ -520,7 +528,11 @@ class HiddenMarkov(object):
         seq_len_dict = self.__seq2seq_len_dict
         self.__transition_df['trans_values'] = \
             self.transition_probability(beta, self.__transition_df[markov_field.DIS_GAP].values, dis_para)
-
+        if self.use_st:
+            # self.__transition_df['trans_values'] = \
+            #     self.__transition_df['trans_values'] * self.__transition_df[markov_field.SPEED_FACTOR]
+            self.__transition_df['trans_values'] = \
+                self.__transition_df['trans_values'] + np.log(self.__transition_df[markov_field.SPEED_FACTOR])
         ft_transition_dict = {f_gps_seq: df['trans_values'].values.reshape(seq_len_dict[f_gps_seq],
                                                                            int(len(df) / seq_len_dict[f_gps_seq])) for
                               (f_gps_seq, t_gps_seq), df in
@@ -585,6 +597,7 @@ class HiddenMarkov(object):
         to_state['to_route_dis'] = to_state['to_route_dis'].astype(float)
 
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
+        del from_state, to_state
         transition_df.reset_index(inplace=True, drop=True)
         col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
         transition_df[col] = transition_df[col].astype(int)
@@ -663,23 +676,29 @@ class HiddenMarkov(object):
                                  _[markov_field.TO_STATE],
                                  _[path_field],
                                  _[cost_field]) if c > 0}
+        del transition_df[path_field], transition_df['g']
+        transition_df[gps_field.ADJ_DIS] = transition_df[gps_field.FROM_GPS_SEQ].map(gps_adj_dis_map)
 
         same_link_idx = transition_df[markov_field.FROM_STATE] == transition_df[markov_field.TO_STATE]
         normal_path_idx_b = (normal_path_idx_a & (transition_df['2nd_node'] == transition_df['from_link_t']) & (
                     transition_df['-2nd_node'] != transition_df['to_link_t'])) | \
                             ((transition_df['from_link_f'] == transition_df['to_link_t']) &
                              (transition_df['from_link_t'] == transition_df['to_link_f']))
+        del transition_df['to_link_f'], transition_df['to_link_t'], transition_df['2nd_node'], transition_df['-2nd_node']
         final_idx = normal_path_idx_b | same_link_idx
         transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] = \
             np.abs(transition_df.loc[final_idx, :][cost_field] -
                    transition_df.loc[final_idx, :]['from_route_dis'] +
                    transition_df.loc[final_idx, :]['to_route_dis'])
-        transition_df[gps_field.ADJ_DIS] = transition_df[gps_field.FROM_GPS_SEQ].map(gps_adj_dis_map)
+        del transition_df['from_route_dis'], transition_df['to_route_dis'], transition_df[cost_field]
+        if self.use_st:
+            self.add_speed_factor(transition_df, self.st_main_coe, self.st_min_factor, final_idx, same_link_idx)
+        del transition_df['from_link_f'], transition_df['from_link_t']
 
         transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
         transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
             -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
-
+        del transition_df[gps_field.ADJ_DIS]
         s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
                                      markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
@@ -850,6 +869,50 @@ class HiddenMarkov(object):
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
             seq_len_dict, transition_df
 
+    def add_speed_factor(self, transition_df=None, main_factor: float = 1.0, min_para: float = 0.1,
+                         normal_path_idx=None, same_link_idx=None):
+        """
+
+        Args:
+            transition_df:
+            main_factor:
+            min_para:
+            normal_path_idx:
+            same_link_idx:
+
+        Returns:
+
+        """
+        self.gps_points.calc_pre_next_dt()
+        transition_df[markov_field.SPEED_FACTOR] = main_factor * min_para
+        # same link xfer
+        # same_link_idx = (transition_df[cost_field] == 0) & (~transition_df[path_field].isna())
+        same_ft_df = transition_df[same_link_idx][['from_link_f', 'from_link_t']]
+        if not same_ft_df.empty:
+            z = self.net.get_link_data()[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, net_field.SPEED_FIELD]]
+            q = pd.merge(same_ft_df, z, how='left',
+                         left_on=['from_link_f', 'from_link_t'], right_on=[net_field.FROM_NODE_FIELD,
+                                                                           net_field.TO_NODE_FIELD])
+            transition_df.loc[same_link_idx, net_field.SPEED_FIELD] = q[net_field.SPEED_FIELD].values
+            del q
+        # link which do not assign speed and normal_path
+        na_speed_idx = transition_df['speed'].isna()
+        no_reduction_idx = na_speed_idx & normal_path_idx
+        transition_df.loc[no_reduction_idx, markov_field.SPEED_FACTOR] = 1.0
+
+        transition_df['dt'] = transition_df[gps_field.FROM_GPS_SEQ].map(self.gps_points.gps_adj_dt_map)
+        transition_df[gps_field.ADJ_SPEED] = 3.6 * transition_df[gps_field.ADJ_DIS] / transition_df['dt']
+        less_than_rs_idx = transition_df[gps_field.ADJ_SPEED] <= transition_df[net_field.SPEED_FIELD]
+        transition_df.loc[less_than_rs_idx, markov_field.SPEED_FACTOR] = 1.0
+
+        reduction_idx = ~no_reduction_idx & ~na_speed_idx & ~less_than_rs_idx
+        del transition_df['dt']
+        transition_df.loc[reduction_idx, markov_field.SPEED_FACTOR] = main_factor * self.speed_factor(
+            transition_df.loc[reduction_idx, :][gps_field.ADJ_SPEED],
+            transition_df.loc[reduction_idx, :][net_field.SPEED_FIELD],
+            min_para)
+        transition_df.drop(columns=[net_field.SPEED_FIELD, gps_field.ADJ_SPEED], inplace=True, axis=1)
+
     def add_path_cache(self, done_stp_cost_df: pd.DataFrame = None, source_node_list: list[int] or set[int] = None,
                        g: nx.DiGraph = None, method: str = 'dijkstra', single_link_ft_path_df: pd.DataFrame = None,
                        weight_field: str = None, cut_off: float = 600.0, add_single_ft: list[bool] = True) \
@@ -893,7 +956,45 @@ class HiddenMarkov(object):
             stp_cost_df = pd.merge(stp_df, cost_df, on=[o_node_field, d_node_field])
             del stp_df, cost_df
             stp_cost_df.reset_index(inplace=True, drop=True)
+            if self.use_st:
+                if net_field.SPEED_FIELD in self.net.get_link_data().columns:
+                    stp_cost_df = self.add_path_speed(stp_cost_df)
+                else:
+                    print('st-match fails, there is no speed column in link layer')
+                    self.use_st = False
         return stp_cost_df
+
+    @function_time_cost
+    def add_path_speed(self, path: pd.DataFrame = None):
+        temp_df = \
+            path.drop(index=path[path[o_node_field] ==
+                                 path[d_node_field]].index, inplace=False)[[o_node_field,
+                                                                            d_node_field,
+                                                                            path_field]].explode(column=[path_field],
+                                                                                                 ignore_index=True).rename(
+                columns={path_field: net_field.FROM_NODE_FIELD})
+
+        temp_df[net_field.TO_NODE_FIELD] = temp_df[net_field.FROM_NODE_FIELD].shift(-1)
+
+        temp_df.drop(index=temp_df[(temp_df[o_node_field].shift(-1) != temp_df[o_node_field]) |
+                                   (temp_df[d_node_field].shift(-1) != temp_df[d_node_field])].index,
+                     axis=0, inplace=True)
+        temp_df = pd.merge(temp_df,
+                           self.net.get_link_data()[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD, 'speed',
+                                                     net_field.LENGTH_FIELD]],
+                           on=[net_field.FROM_NODE_FIELD,
+                               net_field.TO_NODE_FIELD], how='left')
+        temp_df.loc[temp_df['speed'].isna(), net_field.LENGTH_FIELD] = np.nan
+        temp_df['sl'] = temp_df['speed'] * temp_df[net_field.LENGTH_FIELD]
+
+        temp_df = temp_df.groupby([o_node_field, d_node_field])[['sl', net_field.LENGTH_FIELD]].sum().reset_index(
+            drop=False)
+        temp_df[net_field.SPEED_FIELD] = temp_df['sl'] / temp_df[net_field.LENGTH_FIELD]
+        del temp_df['sl'], temp_df[net_field.LENGTH_FIELD]
+        # temp_df = temp_df.groupby([o_node_field, d_node_field])[[net_field.SPEED_FIELD]].mean().reset_index(drop=False)
+        path = pd.merge(path, temp_df, on=[o_node_field, d_node_field], how='left')
+        return path
+
 
     @staticmethod
     def _single_source_path_alpha(g: nx.DiGraph = None, source: int = None, method: str = 'dijkstra',
@@ -914,16 +1015,22 @@ class HiddenMarkov(object):
         :return:
         """
         # p = (1 / beta) * np.e ** (- 0.1 * dis_gap / beta)
-        p = np.e ** (- dis_para * dis_gap / beta)
+        # p = np.e ** (- dis_para * dis_gap / beta)
+        p = - dis_para * dis_gap / beta
         return p
 
     def emission_probability(self, sigma: float = 1.0, dis: np.ndarray = 6.0, heading_gap: np.ndarray = None) -> float:
         # p = (1 / (sigma * (2 * np.pi) ** 0.5)) * (np.e ** (-0.5 * (0.1 * dis / sigma) ** 2))
         # print(heading_gap)
-        heading_gap = self.heading_para_array[(heading_gap / self.angle_slice).astype(int)]
+        heading_gap = np.log(self.heading_para_array)[(heading_gap / self.angle_slice).astype(int)]
         # print(heading_gap)
-        p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
+        # p = heading_gap * np.e ** (-0.5 * (self.dis_para * dis / sigma) ** 2)
+        p = heading_gap - 0.5 * (self.dis_para * dis / sigma) ** 2
         return p
+
+    @staticmethod
+    def speed_factor(gps_speed: np.ndarray = None, road_speed: np.ndarray = None, min_para: float = 0.1) -> np.ndarray:
+        return np.maximum(1 - (gps_speed - road_speed) / road_speed, min_para)
 
     def acquire_res(self, path_completion_method: str = 'alpha') -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
