@@ -347,7 +347,8 @@ class GpsTrip(GpsArray):
         :return:
         """
         gps_df['trip_len'] = gps_df.groupby(agent_field)[seq_field].transform('count')
-        gps_df['gap'] = (gps_df['trip_len'] / way_points_num).astype(np.int64)
+        gps_df['gap'] = ((gps_df['trip_len'] - 2) / way_points_num).astype(np.int64)
+        gps_df.loc[gps_df['gap'] <= 0, 'gap'] = 1
         gps_df['rk'] = gps_df.groupby(agent_field)[seq_field].rank(method='min').astype(np.int64)
 
         choose_idx = ((gps_df['rk'] == 1) | (gps_df['rk'] == gps_df['trip_len']) | (
