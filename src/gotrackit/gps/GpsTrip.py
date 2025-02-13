@@ -373,10 +373,10 @@ class GpsTrip(GpsArray):
         od_res['d_xy'] = od_res['str_xy'].apply(lambda x: x[-1])
         od_res[waypoints_field] = od_res['str_xy'].apply(lambda x: x[1:-1])
         del od_res['str_xy']
-        od_res[ox_field] = od_res['o_xy'].apply(lambda x: x[0])
-        od_res[oy_field] = od_res['o_xy'].apply(lambda x: x[1])
-        od_res[dx_field] = od_res['d_xy'].apply(lambda x: x[0])
-        od_res[dy_field] = od_res['d_xy'].apply(lambda x: x[1])
+        od_res[ox_field] = od_res['o_xy'].apply(lambda x: x[0]).astype(float)
+        od_res[oy_field] = od_res['o_xy'].apply(lambda x: x[1]).astype(float)
+        od_res[dx_field] = od_res['d_xy'].apply(lambda x: x[0]).astype(float)
+        od_res[dy_field] = od_res['d_xy'].apply(lambda x: x[1]).astype(float)
         del od_res['o_xy'], od_res['d_xy']
         od_res[waypoints_field] = od_res[waypoints_field].apply(lambda x: ';'.join([','.join(item) for item in x]))
         od_res.rename(columns={agent_field: od_id_field}, inplace=True)
