@@ -638,6 +638,12 @@ class HiddenMarkov(object):
 
         _done_stp_cost_df = done_stp_cost_df[done_stp_cost_df[o_node_field].isin(now_source_node) &
                                              done_stp_cost_df[d_node_field].isin(now_source_node)].copy()
+        if self.use_st:
+            if net_field.SPEED_FIELD in self.net.get_link_data().columns:
+                _done_stp_cost_df = self.add_path_speed(_done_stp_cost_df)
+            else:
+                print('st-match fails, there is no speed column in link layer')
+                self.use_st = False
         # t3 = time.time()
         # print(rf'最短路计算: {t3 - t2}')
         if not fmm_cache:
@@ -956,12 +962,6 @@ class HiddenMarkov(object):
             stp_cost_df = pd.merge(stp_df, cost_df, on=[o_node_field, d_node_field])
             del stp_df, cost_df
             stp_cost_df.reset_index(inplace=True, drop=True)
-            if self.use_st:
-                if net_field.SPEED_FIELD in self.net.get_link_data().columns:
-                    stp_cost_df = self.add_path_speed(stp_cost_df)
-                else:
-                    print('st-match fails, there is no speed column in link layer')
-                    self.use_st = False
         return stp_cost_df
 
     @function_time_cost
