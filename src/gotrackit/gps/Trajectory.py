@@ -36,6 +36,7 @@ class TrajectoryPoints(GpsPointsGdf):
         self.time_unit = time_unit
         user_field_list = list(set(gps_points_df.columns) - {agent_field, lng_field, lat_field, time_field,
                                                              gps_field.POINT_SEQ_FIELD})
+        assert '4326' not in plain_crs, 'incorrectly specifying plain_crs as a geographic coordinate system'
         user_field_list = self.check(gps_points_df=gps_points_df, user_field_list=user_field_list)
         GpsPointsGdf.__init__(self, gps_points_df=gps_points_df, time_format=time_format, time_unit=time_unit,
                               plane_crs=plain_crs, already_plain=already_plain, multi_agents=True,
