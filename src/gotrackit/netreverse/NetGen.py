@@ -20,6 +20,7 @@ from .RoadNet.save_file import save_file
 from .Request.request_path import CarPath
 from .RoadNet.optimize_net import optimize
 from .Parse.gd_car_path import ParseGdPath
+from ..tools.common import avoid_duplicate_cols
 from .RoadNet.Split.SplitPath import split_path
 from .PublicTools.GeoProcess import generate_region
 from .RoadNet.Split.SplitPath import split_path_main
@@ -338,8 +339,15 @@ class NetReverse(Reverse):
         Returns:
             线层gdf, 点层gdf, 修复点位空间信息
         """
+        add_built_in = False
         if self.limit_col_name not in link_gdf.columns:
-            self.limit_col_name = None
+            if self.restrict_length or self.restrict_angle:
+                avoid_duplicate_cols(built_in_col_list=['x'], df=link_gdf)
+                link_gdf['x'] = ''
+                self.limit_col_name = 'x'
+                add_built_in = True
+            else:
+                self.limit_col_name = None
         link_gdf, node_gdf, dup_info_dict = optimize(link_gdf=link_gdf, node_gdf=node_gdf,
                                                      ignore_dir=self.ignore_dir,
                                                      allow_ring=self.allow_ring,
@@ -356,6 +364,11 @@ class NetReverse(Reverse):
                                                      min_length=self.min_length,
                                                      dup_link_buffer_ratio=self.dup_link_buffer_ratio,
                                                      multi_core=self.multi_core_merge, core_num=self.merge_core_num)
+        if add_built_in:
+            try:
+                del link_gdf['x']
+            except:
+                pass
         if self.net_out_fldr is not None:
             save_file(data_item=link_gdf, out_fldr=self.net_out_fldr, file_type=self.net_file_type, file_name='opt_link')
             save_file(data_item=node_gdf, out_fldr=self.net_out_fldr, file_type=self.net_file_type, file_name='opt_node')
