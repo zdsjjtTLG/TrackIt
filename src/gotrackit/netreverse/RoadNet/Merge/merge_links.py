@@ -6,7 +6,6 @@
 
 """路网拓扑优化"""
 
-import os
 import pandas as pd
 from tqdm import tqdm
 import networkx as nx
@@ -75,7 +74,7 @@ def merge_two_degrees_node(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoD
         pass
     else:
         new_link = new_link.to_crs(plain_prj)
-        new_link[length_field] = new_link[geometry_field].apply(lambda x: x.length)
+        new_link[length_field] = new_link[geometry_field].length
         new_link = new_link.to_crs(origin_crs)
     drop_no_use_nodes(link_gdf=new_link, node_gdf=new_node)
     return new_link, new_node, info_dict
