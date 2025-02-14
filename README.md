@@ -48,16 +48,17 @@ gotrackit是一个基于**改进隐马尔可夫模型**实现的全流程地图�
 
 </div>
 
-**💬版本状态: 2024.12.27 已更新v0.3.17**
+**💬版本状态: 2025.02.20 即将更新v0.3.18**
 
-- [支持路径匹配结果到微观仿真的转换](https://gotrackit.readthedocs.io/en/latest/blog/2024/12/08/ny-eve/)
-- 路径匹配模块：优化投影计算，匹配效率提升，构建Net时提供了[prj_cache参数](https://gotrackit.readthedocs.io/en/latest/Func%26API/Net/)
-- 路径匹配模块：[提供了对dir=-1的link的支持](https://gotrackit.readthedocs.io/en/latest/UserGuide/数据要求/#-_1)
-- 路径匹配模块：[增加了速度限制参数speed_threshold](https://gotrackit.readthedocs.io/en/latest/blog/#speed_threshold)
-- 线层清洗函数：[增加环路、自相交路段的清洗功能](https://gotrackit.readthedocs.io/en/latest/UserGuide/路网优化/#_2)
-- GIS工具模块：[增加地理配准接口](https://gotrackit.readthedocs.io/en/latest/UserGuide/GIS工具/#_10)
+- 时空可视化模块：修复GPS点颜色显示错误的BUG
+- 路径匹配模块：优化对数概率计算、优化内存占用
+- 轨迹处理模块：优化途径点数目与指定值不相符的BUG-[issue#29](https://github.com/zdsjjtTLG/TrackIt/issues/29)
+- 轨迹处理模块：[修复issue#31](https://github.com/zdsjjtTLG/TrackIt/issues/31)提及的问题
+- 路径匹配模块：[新增st-match](https://gotrackit.readthedocs.io/en/latest/UserGuide/路径匹配/#st-match0318)
+- 路网优化模块：[拓扑优化函数新增文档使用说明](https://gotrackit.readthedocs.io/en/latest/UserGuide/路网优化/#_6)
 - 其他代码优化、BUG修复
 
+详情见：[v0.3.18更新](https://gotrackit.readthedocs.io/en/latest/blog/2025/02/07/v0318%E6%9B%B4%E6%96%B0/)
 
 
 
