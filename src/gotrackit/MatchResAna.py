@@ -49,7 +49,7 @@ def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r
         book_mark_df = may_error_gdf.groupby('ft_gps').apply(
             lambda df: df[['geometry']].values[0, 0].centroid).reset_index(drop=False)
         book_mark_dict.update({k: (v.x, v.y) for k, v in zip(book_mark_df['ft_gps'], book_mark_df[0])})
-        generate_book_mark(name_loc_dict=book_mark_dict, input_fldr=out_fldr, prj_name=file_name)
+        generate_book_mark(name_loc_dict=book_mark_dict, input_fldr=out_fldr, prj_name=file_name, _mode='replace')
         save_file(data_item=may_error_gdf, file_name=file_name, out_fldr=out_fldr, file_type='shp')
 
 
