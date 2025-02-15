@@ -120,18 +120,16 @@ class Link(object):
         :return:
         """
         link_gdf[net_field.DIRECTION_FIELD] = link_gdf[net_field.DIRECTION_FIELD].astype(int)
-        neg_link = link_gdf[(link_gdf[net_field.DIRECTION_FIELD] == 0) |
-                            (link_gdf[net_field.DIRECTION_FIELD] == -1)].copy()
+        zero_index = link_gdf[net_field.DIRECTION_FIELD] == 0
+        neg_link = link_gdf[zero_index | (link_gdf[net_field.DIRECTION_FIELD] == -1)].copy()
         if neg_link.empty:
             self.__single_link_gdf = link_gdf.copy()
         else:
             neg_link[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD]] = neg_link[
                 [net_field.TO_NODE_FIELD, net_field.FROM_NODE_FIELD]]
-            # neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
-            #     lambda line_geo: LineString(list(line_geo.coords)[::-1]))
             neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].reverse()
-            self.__single_link_gdf = pd.concat([link_gdf, neg_link])
-            # self.__single_link_gdf.reset_index(inplace=True, drop=True)
+            self.__single_link_gdf = \
+                pd.concat([link_gdf[zero_index | (link_gdf[net_field.DIRECTION_FIELD] == 1)], neg_link])
         self.__single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
         self.__single_link_gdf.reset_index(inplace=True, drop=True)
         self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
