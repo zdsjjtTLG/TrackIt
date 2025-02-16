@@ -60,7 +60,9 @@ theme:
 
 nav:
   - 项目主页: index.md
-  - 快速开始: 快速开始.md
+  - 快速开始:
+      - 非稀疏定位-路径匹配: 快速开始/非稀疏定位数据路径匹配.md
+      - 稀疏定位-路径匹配: 快速开始/稀疏定位数据路径匹配.md
   - 用户手册:
       - 概览: UserGuide/GoTrackIt简介.md
       - 如何下载: UserGuide/如何下载.md
@@ -74,6 +76,8 @@ nav:
       - 时空可视化: UserGuide/时空可视化.md
       - GIS工具: UserGuide/GIS工具.md
       - 常见报错: UserGuide/常见报错.md
+  - 案例介绍:
+      - gps2sumo: 案例介绍/匹配结果转微观仿真.md
   - 社区支持:
       - 用户交流: CommunityDiscussion/用户交流.md
       - 贡献名单: CommunityDiscussion/贡献名单.md
