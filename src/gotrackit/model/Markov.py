@@ -964,7 +964,6 @@ class HiddenMarkov(object):
             stp_cost_df.reset_index(inplace=True, drop=True)
         return stp_cost_df
 
-    @function_time_cost
     def add_path_speed(self, path: pd.DataFrame = None):
         temp_df = \
             path.drop(index=path[path[o_node_field] ==
