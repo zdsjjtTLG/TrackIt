@@ -50,7 +50,7 @@ gotrackit是一个基于**改进隐马尔可夫模型**实现的全流程地图�
 
 **💬版本状态: 2025.02.17 已更新v0.3.18**
 
-- 时空可视化模块：修复GPS点颜色显示错误的BUG
+- 路径匹配可视化：修复GPS点颜色显示错误的BUG
 - 路径匹配模块：[修复issue#34](https://github.com/zdsjjtTLG/TrackIt/issues/34)提及的问题
 - 路径匹配模块：优化对数概率计算、优化内存占用
 - 轨迹处理模块：优化途径点数目与指定值不相符的BUG-[issue#29](https://github.com/zdsjjtTLG/TrackIt/issues/29)
