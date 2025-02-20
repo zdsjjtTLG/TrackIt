@@ -8,4 +8,5 @@ comments: true
 
 <figure markdown="span">
   ![Image title](../_static/images/money/wx.jpg)
+  <figcaption>~推荐使用微信支付~</figcaption>
 </figure>
