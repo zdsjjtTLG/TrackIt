@@ -14,18 +14,19 @@ comments: true
 [GPS点匹配结果表]: ./路径匹配.md#match_res
 [匹配结果矢量化图层]: ./路径匹配.md#geojson_show
 [矢量图层匹配动画(HTML文件)]: ./路径匹配.md#html_show
-
+[杭州浙诚数据科技有限公司]: https://www.zhechengdata.com/
 
 # GoTrackIt简介
 <figure markdown="span">
   ![Image title](../_static/images/gotrackit.svg){ width="300" }
 </figure>
 
-GoTrackIt是一个基于改进隐马尔可夫模型实现的**全流程地图匹配**pyhon包， 通过概率图建模的方式将车辆的GPS轨迹数据匹配到道路路网， 获取车辆的标准化时空轨迹， 可以有效支撑出行导航、交通监测、交通治理、碳排核算、交通建模等方向。
+GoTrackIt由[杭州浙诚数据科技有限公司]-数据分析团队开发，是一个基于改进隐马尔可夫模型实现的**全流程地图匹配**pyhon包，通过概率图建模的方式将车辆的GPS轨迹数据匹配到道路路网， 获取车辆的标准化时空轨迹， 可以有效支撑出行导航、交通监测、交通治理、碳排核算、交通建模等方向。
+
 
 !!! note 
     
-    这个项目正处在频繁的升级迭代期， 当前版本v0.3.17， 请用户及时更新.
+    这个项目正处在频繁的升级迭代期， 当前版本v0.3.18， 请用户及时更新.
 
 <figure markdown="span">
   ![Image title](../_static/images/MapMatch.PNG)
