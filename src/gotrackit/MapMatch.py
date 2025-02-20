@@ -81,7 +81,7 @@ class MapMatch(object):
             use_gps_source: [12]HTML输出设置 - 是否在可视化结果中仅仅使用GPS源数据进行展示
             gps_radius: [12]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
             export_all_agents: [12]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
-            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储。该参数设置的过大可能导致内存溢出
             export_geo_res: [13]GeoJSON输出设置 - 是否输出匹配结果的矢量图层文件
             heading_vec_len: [13]GeoJSON输出设置 - 匹配航向向量的显示长度(控制geojson文件中的可视化)
             use_para_grid: [14]网格参数搜索设置 - 是否启用网格参数搜索
@@ -441,7 +441,7 @@ class OnLineMapMatch(MapMatch):
             use_gps_source: [12]HTML输出设置 - 是否在可视化结果中使用GPS源数据进行展示
             gps_radius: [12]HTML输出设置 - HTML可视化中GPS点的半径大小，单位米
             export_all_agents: [12]HTML输出设置 - 是否将所有agent的可视化存储于一个html文件中
-            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储
+            visualization_cache_times: [12]HTML输出设置 - 每匹配完visualization_cache_times辆车再进行(html or geojson文件)结果的统一存储。该参数设置的过大可能导致内存溢出
             export_geo_res: [13]GeoJSON输出设置 - 是否输出匹配结果的几何可视化文件
             heading_vec_len: [13]GeoJSON输出设置 - 匹配航向向量的长度(控制geojson文件中的可视化)
         """
