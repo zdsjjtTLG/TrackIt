@@ -430,7 +430,7 @@ class NetReverse(Reverse):
 
     def request_path(self, key_list: list[str], binary_path_fldr: str = r'./',
                      od_file_path: str = None, od_df: pd.DataFrame = None,
-                     region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
+                     region_gdf: gpd.GeoDataFrame = None, od_type: str = 'rand_od', boundary_buffer: float = 2000,
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
