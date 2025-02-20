@@ -100,6 +100,8 @@ nav:
   - 版本迭代: 版本迭代.md
   - 技术博客:
       - blog/index.md
+  - 买杯咖啡:
+      - money.md
 
 
 plugins:
