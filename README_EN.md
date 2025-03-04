@@ -1,10 +1,12 @@
 **Read this in other languages: [Chinese](README.md) or [English](README.md).**
 
 <div align="center">
-    <img src="docs/_static/images/gotrackit.png" />
+<a href="https://gotrackit.readthedocs.io/en/latest/">
+    <img src="docs/_static/images/gotrackit.svg"  width="320" alt="GoTrackIt"/>
+</a>
 </div>
 
-<br>
+
 
 <div align=center>
 
@@ -14,9 +16,12 @@
 [![Downloads](https://static.pepy.tech/badge/gotrackit)](https://pepy.tech/project/gotrackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/gotrackit)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/gotrackit)
+![GitHub Discussions](https://img.shields.io/github/discussions/zdsjjtTLG/TrackIt)
+
 ![Static Badge](https://img.shields.io/badge/Model-HMM-9EC231)
 ![Static Badge](https://img.shields.io/badge/Optimization-FastMapMatching-blue)
 ![Static Badge](https://img.shields.io/badge/Optimization-MultiCoreParallelism-9EC231)
+
 ![Github Created At](https://img.shields.io/github/created-at/zdsjjtTLG/Trackit)
 ![GitHub last commit](https://img.shields.io/github/last-commit/zdsjjtTLG/Trackit)
 
@@ -24,6 +29,11 @@
 ![GitHub forks](https://img.shields.io/github/forks/zdsjjtTLG/Trackit)
 
 
+<div align="center">
+<a href="https://gotrackit.readthedocs.io/en/latest/">
+    <img src="docs/_static/home_page.png"  width="1080" alt="GoTrackIt"/>
+</a>
+</div>
 
 💪One package helps you do it: road network acquisition, road network optimization, macro and micro map matching💪
 
@@ -36,11 +46,6 @@
 😆😁👉[Gotrackit User Manual](https://gotrackitdocs.readthedocs.io/en/latest/)👈😝😉
 </div>
 <br>
-
-
-**💬version status：10.20 Updated: v0.3.11**
-
-update command：pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 <div align=center>
 ~ Functional Architecture of GoTrackIt ~
@@ -123,15 +128,13 @@ This map matching package implements probabilistic modeling of continuous GPS po
 
 #### __Required pre-dependencies__
 
+- geopandas(>=0.14.3)
 - geopy(2.4.1)
 - gdal(3.4.3)
 - shapely(2.0.3)
 - fiona(1.9.5)
 - pyproj(3.6.1)
-- geopandas(0.14.3)
 - networkx(3.2.1)
-- pandas(2.0.3)
-- numpy(1.26.2)
 - keplergl(0.3.2)
 
 The version used by the author (based on python3.11) is for reference only.
