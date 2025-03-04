@@ -177,7 +177,6 @@ def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str 
                 lambda t: t.interpolate(method='linear').bfill())
         dense_res.drop(index=dense_res[dense_res['__gap__'] <= dis_threshold].index, inplace=True, axis=0)
         dense_res.reset_index(inplace=True, drop=True)
-        # dense_res[gps_field.TIME_FIELD] = dense_res[gps_field.TIME_FIELD].interpolate(method='linear')
         dense_res.dropna(subset=gps_field.TIME_FIELD, inplace=True)
         dense_res.reset_index(inplace=True, drop=True)
         return dense_res
