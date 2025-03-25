@@ -391,8 +391,9 @@ class GpsPointsGdf(object):
 
         self.add_seq_field(gps_points_gdf=self.__gps_points_gdf, multi_agents=multi_agents)
 
-        self.__gps_points_gdf[net_field.GEOMETRY_FIELD] = \
-            self.__gps_points_gdf[[gps_field.PLAIN_X, gps_field.PLAIN_Y]].apply(lambda item: Point(item), axis=1)
+        self.__gps_points_gdf[net_field.GEOMETRY_FIELD] = gpd.points_from_xy(self.__gps_points_gdf[gps_field.PLAIN_X],
+                                                                             self.__gps_points_gdf[gps_field.PLAIN_Y],
+                                                                             crs=self.crs)
         self.__gps_points_gdf[gps_field.TIME_FIELD] = \
             pd.to_datetime(self.__gps_points_gdf[gps_field.TIME_FIELD], unit='s')
         self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=gps_field.GEOMETRY_FIELD, crs=self.crs)
