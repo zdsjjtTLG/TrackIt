@@ -8,7 +8,10 @@ import pandas as pd
 import multiprocessing
 import geopandas as gpd
 from .map.Net import Net
-from keplergl import KeplerGl
+try:
+    from keplergl import KeplerGl
+except:
+    pass
 from .tools.group import cut_group
 from .GlobalVal import KeplerConfig
 from .model.Markov import HiddenMarkov
