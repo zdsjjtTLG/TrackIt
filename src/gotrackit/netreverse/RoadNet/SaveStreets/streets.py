@@ -47,8 +47,8 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
     :param net_file_type: shp or geojson
     :return:
     """
-    if save_streets_before_modify_minimum or save_streets_after_modify_minimum:
-        assert out_fldr is not None
+    # if save_streets_before_modify_minimum or save_streets_after_modify_minimum:
+    #     assert out_fldr is not None
 
     if not ignore_merge_rule:
         assert auxiliary_judge_field in link_gdf.columns, \
@@ -422,7 +422,8 @@ def avoid_duplicate_cols(df=None, update_col_name_list=None) -> None:
                     break
         else:
             pass
-    df.rename(columns=rename_dict, inplace=True)
+    if rename_dict:
+        df.rename(columns=rename_dict, inplace=True)
 
 
 def get_dup_node(node_gdf: gpd.GeoDataFrame = None, buffer: float = 0.5) -> dict[int, int]:
