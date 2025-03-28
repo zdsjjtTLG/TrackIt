@@ -37,7 +37,7 @@ def generate_check_file(net: Net, warn_info_dict: dict = None, out_fldr: str = r
         None
     """
     single_link_gdf = net.get_link_data()
-    single_link_gdf.reset_index(inplace=True, drop=True)
+    # single_link_gdf.reset_index(inplace=True, drop=True)
     may_error_list, book_mark_dict = list(), dict()
     for agent_id in warn_info_dict.keys():
         _may_error_gdf = format_warn_info_to_geo(warn_info=warn_info_dict[agent_id], single_link_gdf=single_link_gdf)
@@ -105,7 +105,7 @@ def dense_res_based_on_net(net: Net, match_res_df: pd.DataFrame, lng_field: str 
     if match_res_df is not None and not match_res_df.empty:
         build_time_col(df=match_res_df, time_format=time_format, time_unit=time_unit, time_field=gps_field.TIME_FIELD)
 
-        single_link_gdf = net.get_link_data()
+        single_link_gdf = net.get_slink_data()
         _crs = single_link_gdf.crs
         single_link_gdf = single_link_gdf[
             single_link_gdf[net_field.LINK_ID_FIELD].isin(set(match_res_df[net_field.LINK_ID_FIELD]))][

@@ -487,10 +487,10 @@ class GpsPointsGdf(object):
         gps_buffer_gdf.set_geometry('gps_buffer', inplace=True, crs=gps_buffer_gdf.crs)
         origin_seq = set(gps_buffer_gdf[gps_field.POINT_SEQ_FIELD])
 
-        single_link_gdf = net.get_link_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.LINK_ID_FIELD,
+        single_link_gdf = net.get_slink_data()[[net_field.SINGLE_LINK_ID_FIELD, net_field.LINK_ID_FIELD,
                                                net_field.FROM_NODE_FIELD,
                                                net_field.TO_NODE_FIELD, net_field.DIRECTION_FIELD,
-                                               net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]]
+                                               net_field.LENGTH_FIELD, net_field.GEOMETRY_FIELD]].copy()
         if not net.is_sub_net and is_hierarchical:
             try:
                 pre_filter_link = net.calc_pre_filter(gps_rou_buffer_gdf=gps_buffer_gdf)

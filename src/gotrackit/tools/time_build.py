@@ -16,7 +16,7 @@ def build_time_col(df: pd.DataFrame or gpd.GeoDataFrame = None, time_format: str
     :param time_field:
     :return:
     """
-    if df[time_field].dtype not in ['datetime64[ns]', 'datetime64[ms]', 'datetime64[s]']:
+    if str(df[time_field].dtype) not in ['datetime64[ns]', 'datetime64[ms]', 'datetime64[s]']:
         try:
             df[time_field] = pd.to_datetime(df[time_field], format=time_format)
         except ValueError:

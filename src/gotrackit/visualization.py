@@ -7,7 +7,6 @@ import os
 import pandas as pd
 import multiprocessing
 import geopandas as gpd
-from .map.Net import Net
 try:
     from keplergl import KeplerGl
 except:
@@ -539,10 +538,6 @@ def generate_trip_layer(match_res_df: pd.DataFrame = None, lng_field: str = 'prj
     res = {"type": "FeatureCollection", "features": trip_df[0].to_list()}
     return res
 
-def generate_trip_layer_alpha(net: Net = Net, match_res_df: pd.DataFrame = None):
-    single_link_gdf = net.get_link_data()
-    com_idx = match_res_df['prj_lng'].isna()
-    com_df = match_res_df[com_idx]
 
 
 def get_avg_loc(df: pd.DataFrame = None, x_field: str = 'lng', y_field: str = 'lat') -> tuple[float, float]:

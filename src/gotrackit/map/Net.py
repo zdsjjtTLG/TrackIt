@@ -301,6 +301,9 @@ class Net(object):
     def get_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_link_data()
 
+    def get_slink_data(self) -> gpd.GeoDataFrame:
+        return self.__link.get_slink_data()
+
     def calc_link_vec(self):
         self.__link.calc_link_vec()
 
@@ -376,7 +379,7 @@ class Net(object):
     @function_time_cost
     def create_computational_net(self, gps_array_buffer: Polygon = None, weight_field: str = 'length',
                                  cache_path: bool = True, cache_id: bool = True, not_conn_cost: float = 999.0,
-                                 fmm_cache: bool = False, prj_cache: bool = True, must_contain_link: list[int] = None):
+                                 fmm_cache: bool = False, prj_cache: bool = True):
         """
 
         Args:
@@ -387,7 +390,6 @@ class Net(object):
             not_conn_cost:
             fmm_cache:
             prj_cache:
-            must_contain_link:
 
         Returns:
 
@@ -396,8 +398,8 @@ class Net(object):
             return None
         gps_array_buffer_gdf = gpd.GeoDataFrame({'geometry': [gps_array_buffer]}, geometry='geometry',
                                                 crs=self.planar_crs)
-        single_link_gdf = self.get_link_data()
-        single_link_gdf.reset_index(inplace=True, drop=True)
+
+        single_link_gdf = self.get_slink_data()
         if self.is_hierarchical:
             try:
                 pre_filter_link = self.calc_pre_filter(gps_array_buffer_gdf)
@@ -405,13 +407,6 @@ class Net(object):
             except Exception as e:
                 print(repr(e), 'spatial layered association failure')
         sub_single_link_gdf = gpd.sjoin(single_link_gdf, gps_array_buffer_gdf)
-
-        if must_contain_link is not None and must_contain_link:
-            _gap = set(must_contain_link) - set(sub_single_link_gdf[net_field.SINGLE_LINK_ID_FIELD])
-            if _gap:
-                sub_single_link_gdf = pd.concat(
-                    [sub_single_link_gdf,
-                     single_link_gdf[single_link_gdf[net_field.SINGLE_LINK_ID_FIELD].isin(_gap)]])
 
         if sub_single_link_gdf.empty:
             print(rf'the GPS data cannot be associated with any road network data within the specified buffer range...')
@@ -739,6 +734,7 @@ class Net(object):
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
         del link
         print(rf'calc fmm cache...')
+        # g.all_pairs(cache=True, cut_off=cut_off, weight=weight, thread_num=thread_num)
         if self.cache_cn <= 1:
             done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, self.cache_slice)
         else:
