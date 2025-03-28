@@ -38,7 +38,7 @@ class Route2Gps(object):
         assert len(path_o_time_df) >= 1
         assert {path_id_field, seq_field, time_cost_field, geometry_field}.issubset(set(path_gdf.columns))
         assert {path_id_field, o_time_field}.issubset(set(path_o_time_df.columns))
-        self.path_gdf = path_gdf
+        self.path_gdf = path_gdf.copy()
         self.path_o_time_df = path_o_time_df
         self.path_gdf = self.path_gdf.to_crs(planar_crs)
         self.path_gdf[geometry_field] = self.path_gdf[geometry_field].remove_repeated_points(5.0)
@@ -77,3 +77,11 @@ class Route2Gps(object):
         # self.path_gdf[time_field] = self.path_gdf[time_field].astype(int)
         self.path_gdf.drop_duplicates(subset=[agent_id_field, time_field], inplace=True, keep='first')
         return self.path_gdf[[agent_id_field, lng_field, lat_field, time_field]]
+
+def line2gps(path_gdf: gpd.GeoDataFrame = None):
+    path_gdf[geometry_field] = path_gdf[geometry_field].apply(lambda line: list(line.coords))
+    gps_df = pd.DataFrame(path_gdf).explode(column=[geometry_field], ignore_index=True)
+    gps_df[lng_field] = gps_df[geometry_field].apply(lambda t: t[0])
+    gps_df[lat_field] = gps_df[geometry_field].apply(lambda t: t[1])
+    del gps_df[geometry_field]
+    return gps_df
