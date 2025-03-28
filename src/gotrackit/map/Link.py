@@ -88,12 +88,12 @@ class Link(object):
 
     def init_link(self):
         """
-        初始化Link, 这里会创建一个single层的link, 并将single_link设置为索引
+        初始化Link, 这里会创建一个single层的link, 行索引 = single_link_id
         :return:
         """
         self.create_single_link(link_gdf=self.link_gdf)
-        self.__single_link_gdf.set_index(net_field.SINGLE_LINK_ID_FIELD, inplace=True)
-        self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
+        # self.__single_link_gdf.set_index(net_field.SINGLE_LINK_ID_FIELD, inplace=True)
+        # self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = list(self.__single_link_gdf.index)
 
     def renew_length(self):
         self.link_gdf[length_field] = self.link_gdf[geometry_field].length
@@ -132,7 +132,7 @@ class Link(object):
                 pd.concat([link_gdf[zero_index | (link_gdf[net_field.DIRECTION_FIELD] == 1)], neg_link])
         self.__single_link_gdf.drop_duplicates(subset=[from_node_field, to_node_field], keep='first', inplace=True)
         self.__single_link_gdf.reset_index(inplace=True, drop=True)
-        self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(1, len(self.__single_link_gdf) + 1)]
+        self.__single_link_gdf[net_field.SINGLE_LINK_ID_FIELD] = [i for i in range(len(self.__single_link_gdf))]
         self.__single_link_gdf['path'] = self.__single_link_gdf.apply(
             lambda row: [row[net_field.FROM_NODE_FIELD], row[net_field.TO_NODE_FIELD]], axis=1)
         self.__double_single_mapping = {single_link_id: (link_id, int(direction), f, t) for
@@ -216,6 +216,9 @@ class Link(object):
 
     def get_link_data(self):
         return self.__single_link_gdf.copy()
+
+    def get_slink_data(self):
+        return self.__single_link_gdf
 
     def get_bilateral_link_data(self) -> gpd.GeoDataFrame:
         """获取双向路网数据"""
