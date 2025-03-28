@@ -715,67 +715,6 @@ class HiddenMarkov(object):
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
             seq_len_dict, transition_df
 
-    # def generate_transition_st_gc(self, single_link_ft_df: pd.DataFrame = None,
-    #                            pre_seq_candidate: pd.DataFrame = None,
-    #                            gps_adj_dis_map: dict = None,
-    #                            g: nx.DiGraph = None,
-    #                            method: str = None, weight_field: str = 'length',
-    #                            cache_path: bool = True, not_conn_cost: float = 999.0,
-    #                            done_stp_cost_df: pd.DataFrame = None,
-    #                            is_sub_net: bool = True, fmm_cache: bool = False, cut_off: float = 600.0,
-    #                            cache_prj_inf: dict = None,
-    #                            add_single_ft: list[bool] = None, link_f_map: dict = None,
-    #                            link_t_map: dict = None) -> \
-    #         tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
-    #     import time
-    #     s = time.time()
-    #     # K候选
-    #     seq_k_candidate_info = \
-    #         self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
-    #                                  top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-    #     t1 = time.time()
-    #     print(rf'投影计算: {t1 - s}')
-    #     print(rf'{len(seq_k_candidate_info)}个候选路段...')
-    #     seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
-    #
-    #     seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
-    #                                       net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
-    #
-    #     ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
-    #
-    #     del seq_k_candidate_info['idx']
-    #     del pre_seq_candidate
-    #
-    #     # 依据路径计算转移距离
-    #     if is_sub_net:
-    #         use_cache = False
-    #     # 如果使用了fmm, 则不更新cache, 使用原来的global_cache
-    #     # 如果没使用fmm, 则依据use_cache来选择是否使用cache
-    #
-    #     # 加上修正add_speed_factor
-    #     transition_df = \
-    #         g.gotrackit_calc(use_cache=use_cache, seq_k_candidate_info, global_cache=fmm_cache, gps_adj_dis_map)
-    #     # 返回gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
-    #     # markov_field.FROM_STATE, markov_field.TO_STATE, markov_field.DIS_GAP, SPEED_FACTOR
-    #     # sub_net do not share path within different agents
-    #     if is_sub_net or fmm_cache or not cache_path:
-    #         del done_stp_cost_df
-    #         done_stp_cost_df = pd.DataFrame()
-    #         # g.del_cache()
-    #
-    #     # g.has_path(use_cache=cache)
-    #     # adj_seq_path_dict = {(int(f_state), int(t_state)): node_path for f_state, t_state, node_path, c in
-    #     #                      zip(_[markov_field.FROM_STATE],
-    #     #                          _[markov_field.TO_STATE],
-    #     #                          _[path_field],
-    #     #                          _[cost_field]) if c > 0}
-    #
-    #     s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
-    #                                  markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
-    #     seq_len_dict = {'gps_seq': 'count'}
-    #     return ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, seq_len_dict, transition_df
-    #
-
     @function_time_cost
     def generate_transition_st_alpha(self, single_link_ft_df: pd.DataFrame = None,
                                      pre_seq_candidate: pd.DataFrame = None,

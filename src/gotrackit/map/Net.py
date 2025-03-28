@@ -734,7 +734,6 @@ class Net(object):
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
         del link
         print(rf'calc fmm cache...')
-        # g.all_pairs(cache=True, cut_off=cut_off, weight=weight, thread_num=thread_num)
         if self.cache_cn <= 1:
             done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, self.cache_slice)
         else:
