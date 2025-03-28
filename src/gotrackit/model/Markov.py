@@ -9,7 +9,7 @@ import os.path
 import warnings
 import numpy as np
 import pandas as pd
-import networkx as nx
+import graphworkc as gw
 import geopandas as gpd
 from ..map.Net import Net
 from .Para import ParaGrid
