@@ -751,7 +751,7 @@ class HiddenMarkov(object):
 
         seq_k_candidate_info.reset_index(drop=True, inplace=True)
         # 加上修正add_speed_factor
-        fs, ts, fl, tl, dis_gap, route_l = g.gotrackit_calc(seq_k_candidate_info=seq_k_candidate_info,
+        fs, ts, fl, tl, dis_gap = g.gotrackit_calc(seq_k_candidate_info=seq_k_candidate_info,
                                                             gps_adj_dis_map=gps_adj_dis_map,
                                                             use_global_cache=False,
                                                             not_conn_cost=not_conn_cost,
@@ -764,8 +764,9 @@ class HiddenMarkov(object):
         transition_df[markov_field.FROM_STATE] = fl
         transition_df[markov_field.TO_STATE] = tl
         transition_df[markov_field.DIS_GAP] = dis_gap
-        transition_df[markov_field.ROUTE_LENGTH] = route_l
+        # transition_df[markov_field.ROUTE_LENGTH] = route_l
         print(transition_df)
+        transition_df.to_csv(r'cpp.csv', encoding='utf_8_sig', index=False)
 
         # sub_net do not share path within different agents
         if is_sub_net or fmm_cache or not cache_path:
@@ -1214,6 +1215,7 @@ class HiddenMarkov(object):
         ft_node_link_mapping = self.net.get_ft_node_link_mapping()
         omitted_gps_state_item = []
         used_observation_seq_list = self.gps_points.used_observation_seq_list
+        g = self.net.graph
         for i, used_o in enumerate(used_observation_seq_list[:-1]):
             ft_state = (int(gps_link_state_df.at[i, net_field.SINGLE_LINK_ID_FIELD]),
                         int(gps_link_state_df.at[i, gps_field.NEXT_SINGLE]))
@@ -1229,10 +1231,8 @@ class HiddenMarkov(object):
             else:
                 pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
                 next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
-                # if g.has_path(now_from_node, next_from_node, use_cache=True)
-                if ft_state in self.__adj_seq_path_dict.keys():
-                    node_seq = self.__adj_seq_path_dict[ft_state]
-                    # node_seq = g.cache_path(now_from_node, next_from_node)
+                has_path, cost, node_seq = g.has_path(now_from_node, next_from_node, use_cache=True)
+                if has_path:
                     if node_seq[1] != now_to_node:
                         warnings.warn(
                             rf'''gps seq: {pre_seq} -> {next_seq} problem with state transfer
@@ -1253,7 +1253,10 @@ class HiddenMarkov(object):
                                                          range(1, len(_single_link_list) + 1))])
                 else:
                     try:
-                        _length = self.net.get_shortest_length(o_node=now_to_node, d_node=next_from_node)
+                        has_path, _length, node_seq = g.has_path(now_to_node, next_from_node, use_cache=False)
+                        if not has_path:
+                            raise ValueError('no path')
+                        # _length = self.net.get_shortest_length(o_node=now_to_node, d_node=next_from_node)
                         dt = (gps_link_state_df.at[i + 1, 'time'] - gps_link_state_df.at[i, 'time']).total_seconds()
                         if dt == 0:
                             raise ValueError('infinite speed')
