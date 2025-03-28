@@ -537,6 +537,7 @@ class HiddenMarkov(object):
 
         self.__ft_transition_dict = ft_transition_dict
 
+
     # def generate_transition_st(self, single_link_ft_df: pd.DataFrame = None,
     #                            pre_seq_candidate: pd.DataFrame = None,
     #                            gps_adj_dis_map: dict = None,
