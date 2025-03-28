@@ -10,7 +10,7 @@ import os
 import pickle
 import numpy as np
 import pandas as pd
-import networkx as nx
+import graphworkc as gw
 import multiprocessing
 from .Link import Link
 from .Node import Node
@@ -217,41 +217,7 @@ class Net(object):
             else:
                 self.fmm_path_cache()
 
-    def search(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
-        """
 
-        :param o_node:
-        :param d_node:
-        :return:
-        """
-        return self.get_od_cost(o_node=o_node, d_node=d_node)
-
-    def get_od_cost(self, o_node: int = None, d_node: int = None) -> tuple[list, float]:
-        """
-
-        :param o_node:
-        :param d_node:
-        :return:
-        """
-
-        if o_node in self.__stp_cache.keys():
-            try:
-                node_path = self.__stp_cache[o_node][d_node]
-                cost = self.__done_path_cost[o_node][d_node]
-            except KeyError:
-                return [], self.not_conn_cost
-        else:
-            self.calc_shortest_path(source=o_node, method=self.search_method)
-            try:
-                node_path = self.__stp_cache[o_node][d_node]
-                cost = self.__done_path_cost[o_node][d_node]
-                if not self.cache_path:
-                    del self.__stp_cache[o_node]
-                    del self.__done_path_cost[o_node]
-            except KeyError:
-                return [], self.not_conn_cost
-
-        return node_path, cost
 
     def get_shortest_path_length(self, o_node=1, d_node=2) -> tuple[list, float]:
         """
@@ -275,22 +241,6 @@ class Net(object):
 
         return self.__link.get_shortest_length(o_node=o_node, d_node=d_node)
 
-    def calc_shortest_path(self, source: int = None, method: str = 'dijkstra') -> None:
-
-        try:
-            self.__done_path_cost[source], self.__stp_cache[source] = self._single_source_path(
-                self.__link.get_graph(), source=source,
-                method=method, weight_field=self.weight_field)
-        except nx.NetworkXNoPath:
-            pass
-
-    @staticmethod
-    def _single_source_path(g: nx.DiGraph = None, source: int = None, method: str = 'dijkstra',
-                            weight_field: str = None) -> tuple[dict[int, int], dict[int, list]]:
-        if method == 'dijkstra':
-            return nx.single_source_dijkstra(g, source, weight=weight_field)
-        else:
-            return nx.single_source_bellman_ford(g, source, weight=weight_field)
 
     def get_rnd_shortest_path(self) -> list[int]:
         return self.__link.get_rnd_shortest_path()
@@ -429,12 +379,9 @@ class Net(object):
         return sub_net
 
     @property
-    def graph(self) -> nx.DiGraph:
+    def graph(self) -> gw.CGraph():
         return self.__link.get_graph()
 
-    @property
-    def node_degree(self, node: int = None) -> int:
-        return self.__link.vertex_degree(node)
 
     def renew_link_head_geo(self, link_list: list[int] = None):
         self.__link.renew_head_of_geo(target_link=link_list,
@@ -801,13 +748,14 @@ class Net(object):
         stp_cost_res.reset_index(inplace=True, drop=True)
         return stp_cost_res
 
-    def single_source_cache(self, node_list: list = None, g: nx.DiGraph = None,
+    def single_source_cache(self, node_list: list = None, g: gw.CGraph() = None,
                             cut_off: float = 500.0, weight_field: str = 'length', n: int = 2) -> pd.DataFrame:
         done_cost_cache, done_stp_cache = {}, {}
         for node in node_list:
             try:
-                done_cost_cache[node], done_stp_cache[node] = nx.single_source_dijkstra(g, node, weight=weight_field,
-                                                                                        cutoff=cut_off)
+                res = g.single_source_all(start=node, weight_name=weight_field, cut_off=cut_off)
+                done_cost_cache[node] = res.cost
+                done_stp_cache[node] = res.paths
             except Exception as e:
                 pass
 
@@ -922,21 +870,21 @@ class Net(object):
         # del path_gdf['__l__']
         return path_gdf
 
-    def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2) -> list:
-        """Net类方法 - shortest_k_paths：
-
-        - 计算两个节点之间的K条最短路
-
-        Args:
-            o: 起点节点
-            d: 终点节点
-            k: 路径数目
-
-        Returns:
-            list
-        """
-        g = self.__link.get_graph()
-        return list(islice(nx.shortest_simple_paths(g, o, d, weight=self.weight_field), k))
+    # def shortest_k_paths(self, o: int = None, d: int = None, k: int = 2) -> list:
+    #     """Net类方法 - shortest_k_paths：
+    #
+    #     - 计算两个节点之间的K条最短路
+    #
+    #     Args:
+    #         o: 起点节点
+    #         d: 终点节点
+    #         k: 路径数目
+    #
+    #     Returns:
+    #         list
+    #     """
+    #     g = self.__link.get_graph()
+    #     return list(islice(nx.shortest_simple_paths(g, o, d, weight=self.weight_field), k))
 
     def get_single_link(self):
         return self.__link.get_link_data()

@@ -9,7 +9,7 @@
 
 import numpy as np
 import pandas as pd
-import networkx as nx
+import graphworkc as gw
 import geopandas as gpd
 from shapely.geometry import LineString
 from ..GlobalVal import NetField, PrjConst
@@ -55,8 +55,7 @@ class Link(object):
         self.__double_single_mapping: dict[int, tuple[int, int, int, int]] = dict()
         self.__ft_link_mapping: dict[tuple[int, int], int] = dict()
 
-        self.__graph = nx.DiGraph()
-        self.__ud_graph = nx.Graph()
+        self.__graph = gw.CGraph()
         self.__one_out_degree_nodes = None
         self.__link_ft_mapping: dict[int, tuple[int, int]] = dict()
         self.__link_f_mapping: dict[int, int] = dict()
@@ -165,8 +164,7 @@ class Link(object):
                      zip(self.__single_link_gdf[net_field.FROM_NODE_FIELD],
                          self.__single_link_gdf[net_field.TO_NODE_FIELD],
                          self.__single_link_gdf[weight_field])]
-        self.__graph.add_edges_from(edge_list)
-        # self.__ud_graph = self.__graph.to_undirected()
+        self.__graph.add_edges(edge_list)
 
     def get_graph(self):
         return self.__graph
@@ -179,7 +177,7 @@ class Link(object):
         :return: ([12,13, ...], 263.33)
         """
         try:
-            node_path = nx.dijkstra_path(self.__graph, o_node, d_node, weight=self.weight_field)
+            node_path = self.__graph.shortest_path_path(o_node, d_node, weight_name=self.weight_field)
             cost_list = [self.get_link_attr_by_ft(attr_name=self.weight_field, from_node=node_path[i],
                                                   to_node=node_path[i + 1]) for i in range(len(node_path) - 1)]
             return node_path, sum(cost_list)
@@ -192,25 +190,25 @@ class Link(object):
         if used_weight is None:
             used_weight = self.weight_field
         try:
-            node_seq = nx.dijkstra_path(self.__graph, o_node, d_node, weight=used_weight)
+            node_seq = self.__graph.shortest_path_path(o_node, d_node, weight_name=used_weight)
             return node_seq
-        except nx.NetworkXNoPath as e:
-            raise nx.NetworkXNoPath
+        except:
+            raise ValueError
 
     def get_shortest_length(self, o_node=None, d_node=None, weight_field: str = None):
         used_weight = weight_field
         if used_weight is None:
             used_weight = self.weight_field
         try:
-            l = nx.dijkstra_path_length(self.__graph, o_node, d_node, weight=used_weight)
+            l = self.__graph.shortest_path_cost(o_node, d_node, weight_name=used_weight)
             return l
-        except nx.NetworkXNoPath as e:
-            raise nx.NetworkXNoPath
+        except:
+            raise ValueError
 
     @function_time_cost
     def get_rnd_shortest_path(self) -> list[int]:
         rnd_node = list(self.get_link_data()[net_field.FROM_NODE_FIELD].sample(n=1))[0]
-        path_dict = nx.single_source_shortest_path(self.__graph, rnd_node)
+        path_dict = self.__graph.single_source_path(start=rnd_node)
         targets = list(path_dict.keys())
         return path_dict[targets[np.random.randint(len(targets))]]
 
@@ -414,10 +412,6 @@ class Link(object):
     @property
     def link_geo_map(self) -> dict[int, LineString]:
         return self.__link_geo_mapping
-
-    def vertex_degree(self, node: int = None) -> int:
-        """无向图的节点度"""
-        return self.__ud_graph.degree[node]
 
     def used_node(self) -> set[int]:
         return set(self.link_gdf[from_node_field]) | set(self.link_gdf[to_node_field])
