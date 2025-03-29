@@ -424,7 +424,7 @@ class GpsPointsGdf(object):
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:
-        return self.__gps_points_gdf.copy()
+        return self.__gps_points_gdf
 
     @property
     def user_info(self) -> pd.DataFrame:
