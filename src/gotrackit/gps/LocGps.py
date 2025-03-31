@@ -82,7 +82,7 @@ class GpsPointsGdf(object):
         self.add_seq_field(gps_points_gdf=gps_points_gdf, multi_agents=self.multi_agents)
         gps_points_gdf.reset_index(inplace=True, drop=True)
 
-        self.__source_gps_points_gdf = gps_points_gdf.copy()  # 存储最原始的GPS信息
+        self.__source_gps_points_gdf = gps_points_gdf  # 存储最原始的GPS信息
 
         self.__user_gps_info = pd.DataFrame()
         self.user_filed_list = list() if user_filed_list is None else user_filed_list
