@@ -750,8 +750,8 @@ class HiddenMarkov(object):
         # 如果没使用fmm, 则依据use_cache来选择是否使用cache
 
         seq_k_candidate_info.reset_index(drop=True, inplace=True)
-        seq_k_candidate_info.to_csv(r'F:\PyPrj\TrackIt\data\output\cppmodify\seq_k_candidate.csv', encoding='utf_8_sig',
-                                    index=False)
+        # seq_k_candidate_info.to_csv(r'F:\PyPrj\TrackIt\data\output\cppmodify\seq_k_candidate.csv', encoding='utf_8_sig',
+        #                             index=False)
         # 加上修正add_speed_factor
         fs, ts, fl, tl, dis_gap, route_l = g.gotrackit_calc(seq_k_candidate_info=seq_k_candidate_info,
                                                             gps_adj_dis_map=gps_adj_dis_map,
@@ -767,8 +767,8 @@ class HiddenMarkov(object):
         transition_df[markov_field.TO_STATE] = tl
         transition_df[markov_field.DIS_GAP] = dis_gap
         transition_df[markov_field.ROUTE_LENGTH] = route_l
-        print(transition_df)
-        transition_df.to_csv(r'cpp.csv', encoding='utf_8_sig', index=False)
+        # print(transition_df)
+        # transition_df.to_csv(r'cpp.csv', encoding='utf_8_sig', index=False)
 
         # sub_net do not share path within different agents
         if is_sub_net or fmm_cache or not cache_path:
