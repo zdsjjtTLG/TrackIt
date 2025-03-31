@@ -1256,7 +1256,8 @@ class HiddenMarkov(object):
                                                          range(1, len(_single_link_list) + 1))])
                 else:
                     try:
-                        has_path, _length, node_seq = g.has_path(now_to_node, next_from_node, use_cache=False)
+                        has_path, node_seq, _length = g.has_path(now_to_node, next_from_node, use_cache=False,
+                                                                 weight_name=self.net.weight_field)
                         if not has_path:
                             raise ValueError('no path')
                         # _length = self.net.get_shortest_length(o_node=now_to_node, d_node=next_from_node)
