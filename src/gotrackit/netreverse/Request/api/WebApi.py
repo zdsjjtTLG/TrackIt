@@ -48,6 +48,37 @@ class GdRoutePlan(object):
 
         return json_data, int(info_code)
 
+    @staticmethod
+    def bike_route_plan(od_id=None, origin=None, destination=None, key: str = None, alternative_route='2'):
+        """
+        # 参数含义见: https://lbs.amap.com/api/webservice/guide/api/newroute
+        :param key:
+        :param origin:
+        :param destination:
+        :param od_id:
+        :param alternative_route:
+        :return:
+        """
+        api_url = 'https://restapi.amap.com/v5/direction/bicycling'
+        para_dict = {'key': key}
+        para_name = ['origin', 'destination', 'alternative_route']
+        para_val = [origin, destination, str(alternative_route)]
+        for name, val in zip(para_name, para_val):
+            if para_val is not None:
+                para_dict.update({name: val})
+        para_dict.update({'show_fields': "cost,navi,polyline"})
+        # print(para_dict)
+        # 请求
+        try:
+            r = requests.get(api_url, params=para_dict, timeout=10)
+            json_data = json.loads(r.text)
+            info_code = json_data['infocode']
+        except:
+            return None, None
+
+        return json_data, int(info_code)
+
+
 class BdTrafficSituation(object):
     def __init__(self, ak_list=None):
         self.ak_list = ak_list
