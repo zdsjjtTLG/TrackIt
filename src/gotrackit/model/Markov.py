@@ -735,8 +735,8 @@ class HiddenMarkov(object):
 
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
                                           net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
-        seq_len_dict = dict(
-            seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[[net_field.SINGLE_LINK_ID_FIELD]].count())
+        _ = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[[net_field.SINGLE_LINK_ID_FIELD]].count()
+        seq_len_dict = {k:v for k, v in zip(_.index, _[net_field.SINGLE_LINK_ID_FIELD])}
         ft_idx_map = seq_k_candidate_info[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']].copy()
 
         del seq_k_candidate_info['idx']
@@ -1233,7 +1233,8 @@ class HiddenMarkov(object):
             else:
                 pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
                 next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
-                has_path, cost, node_seq = g.has_path(now_from_node, next_from_node, use_cache=True)
+                has_path, cost, node_seq = g.has_path(now_from_node, next_from_node, use_cache=True,
+                                                      weight_name=self.net.weight_field)
                 if has_path:
                     if node_seq[1] != now_to_node:
                         warnings.warn(
