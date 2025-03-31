@@ -1233,7 +1233,7 @@ class HiddenMarkov(object):
             else:
                 pre_seq = int(gps_link_state_df.at[i, gps_field.POINT_SEQ_FIELD])
                 next_seq = int(gps_link_state_df.at[i + 1, gps_field.POINT_SEQ_FIELD])
-                has_path, cost, node_seq = g.has_path(now_from_node, next_from_node, use_cache=True,
+                has_path, node_seq, cost = g.has_path(now_from_node, next_from_node, use_cache=True,
                                                       weight_name=self.net.weight_field)
                 if has_path:
                     if node_seq[1] != now_to_node:
