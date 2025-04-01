@@ -166,7 +166,7 @@ class NetReverse(Reverse):
         self.multi_core_reverse = multi_core_reverse
         self.reverse_core_num = reverse_core_num
 
-    def generate_net_from_request(self, key_list: list[str], binary_path_fldr: str = r'./',
+    def generate_net_from_request(self, key_list: list[str], traffic_mode: str = 'car', binary_path_fldr: str = r'./',
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
                                   region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
@@ -180,8 +180,9 @@ class NetReverse(Reverse):
          - 向开放平台请求路径后分析计算得到路网：构造OD -> 请求路径 -> 二进制存储 -> 路网生产
 
         Args:
-            binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
             key_list: [1]请求设置参数 - 开发者key值列表，必需参数
+            binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
+            traffic_mode: [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             wait_until_recovery: [1]请求设置参数 - 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: [1]请求设置参数 - 是否启用随机策略
             strategy: [1]请求设置参数 - 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
@@ -206,7 +207,7 @@ class NetReverse(Reverse):
         Returns:
             直接在net_out_fldr下生成路网
         """
-        self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
+        self.request_path(key_list=key_list, traffic_mode=traffic_mode, binary_path_fldr=binary_path_fldr,
                           od_file_path=od_file_path,
                           od_df=od_df, region_gdf=region_gdf, od_type=od_type,
                           boundary_buffer=boundary_buffer,
@@ -428,7 +429,7 @@ class NetReverse(Reverse):
                                                    limit_col_name=self.limit_col_name)
         return increment_link, increment_node
 
-    def request_path(self, key_list: list[str], binary_path_fldr: str = r'./',
+    def request_path(self, key_list: list[str], traffic_mode: str = 'car', binary_path_fldr: str = r'./',
                      od_file_path: str = None, od_df: pd.DataFrame = None,
                      region_gdf: gpd.GeoDataFrame = None, od_type: str = 'rand_od', boundary_buffer: float = 2000,
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
@@ -442,8 +443,9 @@ class NetReverse(Reverse):
         - 请求路径存储为二进制文件：构造OD -> 请求 -> 二进制存储
 
         Args:
-            binary_path_fldr: 存储请求路径源文件的目录
             key_list: 开发者key值列表，必需参数
+            traffic_mode: 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
+            binary_path_fldr: 存储请求路径源文件的目录
             wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: 是否启用随机策略
             strategy: 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
@@ -495,7 +497,8 @@ class NetReverse(Reverse):
                                    wait_until_recovery=wait_until_recovery)
 
         # 是否结束请求, 新生产的路网文件
-        if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his, strategy=strategy,
+        if_end_request, new_file_list = path_request_obj.get_path(traffic_mode=traffic_mode,
+                                                                  remove_his=remove_his, strategy=strategy,
                                                                   is_rnd_strategy=is_rnd_strategy)
 
         return if_end_request, new_file_list

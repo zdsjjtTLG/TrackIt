@@ -49,17 +49,21 @@ class GdRoutePlan(object):
         return json_data, int(info_code)
 
     @staticmethod
-    def bike_route_plan(od_id=None, origin=None, destination=None, key: str = None, alternative_route='2'):
+    def sl_route_plan(od_id=None, origin=None, destination=None, key: str = None, alternative_route='2',
+                      mode='bicycling'):
+        """ 参数含义见: https://lbs.amap.com/api/webservice/guide/api/newroute
+        Args:
+            od_id:
+            origin:
+            destination:
+            key:
+            alternative_route:
+            mode: bicycling or walking
+
+        Returns:
+
         """
-        # 参数含义见: https://lbs.amap.com/api/webservice/guide/api/newroute
-        :param key:
-        :param origin:
-        :param destination:
-        :param od_id:
-        :param alternative_route:
-        :return:
-        """
-        api_url = 'https://restapi.amap.com/v5/direction/bicycling'
+        api_url = f'https://restapi.amap.com/v5/direction/{mode}'
         para_dict = {'key': key}
         para_name = ['origin', 'destination', 'alternative_route']
         para_val = [origin, destination, str(alternative_route)]
