@@ -552,15 +552,15 @@ class HiddenMarkov(object):
                                add_single_ft: list[bool] = None, link_f_map: dict = None,
                                link_t_map: dict = None) -> \
             tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
-        import time
-        s = time.time()
+        # import time
+        # s = time.time()
         # K候选
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
                                      top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-        t1 = time.time()
-        print(rf'投影计算: {t1 - s}')
-        print(rf'{len(seq_k_candidate_info)}个候选路段...')
+        # t1 = time.time()
+        # print(rf'投影计算: {t1 - s}')
+        # print(rf'{len(seq_k_candidate_info)}个候选路段...')
         seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         now_source_node = set(seq_k_candidate_info[net_field.FROM_NODE_FIELD])
 
@@ -617,8 +617,8 @@ class HiddenMarkov(object):
             transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
             transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
             transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
-        t2 = time.time()
-        print(rf'组装计算: {t2 - t1}')
+        # t2 = time.time()
+        # print(rf'组装计算: {t2 - t1}')
         now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
             # 先计算所有要计算的path
@@ -646,8 +646,8 @@ class HiddenMarkov(object):
             else:
                 print('st-match fails, there is no speed column in link layer')
                 self.use_st = False
-        t3 = time.time()
-        print(rf'最短路计算: {t3 - t2}')
+        # t3 = time.time()
+        # print(rf'最短路计算: {t3 - t2}')
         if not fmm_cache:
             _done_stp_cost_df['2nd_node'] = -1
             _done_stp_cost_df['-2nd_node'] = -1
@@ -702,16 +702,16 @@ class HiddenMarkov(object):
         if self.use_st:
             self.add_speed_factor(transition_df, self.st_main_coe, self.st_min_factor, final_idx, same_link_idx)
         del transition_df['from_link_f'], transition_df['from_link_t']
-        t4 = time.time()
-        print(t4 - t3)
+        # t4 = time.time()
+        # print(t4 - t3)
         transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
         transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
             -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
         del transition_df[gps_field.ADJ_DIS]
         s2s_route_l = transition_df[[gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ, markov_field.ROUTE_LENGTH,
                                      markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
-        t5 = time.time()
-        print(t5 - t4)
+        # t5 = time.time()
+        # print(t5 - t4)
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
             seq_len_dict, transition_df
 
