@@ -36,7 +36,7 @@ class MapMatch(object):
                  use_st: bool = False, st_main_coe: float = 1.0, st_min_factor: float = 0.1,
                  out_fldr: str = r'./', instant_output: bool = False, user_field_list: list[str] = None,
                  export_html: bool = False, use_gps_source: bool = False,
-                 gps_radius: float = 6.0, export_all_agents: bool = False, visualization_cache_times: int = 10,
+                 gps_radius: float = 6.0, export_all_agents: bool = False, visualization_cache_times: int = 5,
                  multi_core_save: bool = False,  export_geo_res: bool = False, heading_vec_len: float = 15.0,
                  link_width: float = 1.5, node_radius: float = 1.5, match_link_width: float = 5.0,
                  use_para_grid: bool = False, para_grid: ParaGrid = None):

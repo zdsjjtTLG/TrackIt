@@ -619,7 +619,7 @@ class HiddenMarkov(object):
             transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
         # t2 = time.time()
         # print(rf'组装计算: {t2 - t1}')
-        now_source_node = set(transition_df['from_link_f'])
+        # now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
             # 先计算所有要计算的path
             if o_node_field in done_stp_cost_df.columns:
