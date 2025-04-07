@@ -266,6 +266,7 @@ class HiddenMarkov(object):
 
         return True, match_res
 
+    @function_time_cost
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         if use_heading_inf:
@@ -457,6 +458,7 @@ class HiddenMarkov(object):
         if self.net.is_sub_net:
             pass
 
+    @function_time_cost
     def solve(self, use_lop_p: bool = True, initial_ep: dict[int, np.ndarray] = None):
         """
         :param use_lop_p: 是否使用对数概率, 避免浮点数精度下溢
@@ -521,6 +523,7 @@ class HiddenMarkov(object):
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
+    @function_time_cost
     def calc_transition_mat(self, beta: float = 6.0, dis_para: float = 0.1):
         seq_len_dict = self.__seq2seq_len_dict
         self.__transition_df['trans_values'] = \
@@ -753,22 +756,26 @@ class HiddenMarkov(object):
         # seq_k_candidate_info.to_csv(r'F:\PyPrj\TrackIt\data\output\cppmodify\seq_k_candidate.csv', encoding='utf_8_sig',
         #                             index=False)
         # 加上修正add_speed_factor
-        fs, ts, fl, tl, dis_gap, route_l = g.gotrackit_calc(seq_k_candidate_info=seq_k_candidate_info,
-                                                            gps_adj_dis_map=gps_adj_dis_map,
-                                                            use_global_cache=False,
-                                                            not_conn_cost=not_conn_cost,
-                                                            num_thread=num_thread,
-                                                            weight_name=weight_field,
-                                                            cut_off=cut_off)
-        transition_df = pd.DataFrame()
-        transition_df[gps_field.FROM_GPS_SEQ] = fs
-        transition_df[gps_field.TO_GPS_SEQ] = ts
-        transition_df[markov_field.FROM_STATE] = fl
-        transition_df[markov_field.TO_STATE] = tl
-        transition_df[markov_field.DIS_GAP] = dis_gap
-        transition_df[markov_field.ROUTE_LENGTH] = route_l
+        transition_df = g.gotrackit_calc(seq_k_candidate_info=seq_k_candidate_info,
+                                         gps_adj_dis_map=gps_adj_dis_map,
+                                         use_global_cache=False,
+                                         not_conn_cost=not_conn_cost,
+                                         num_thread=num_thread,
+                                         weight_name=weight_field,
+                                         cut_off=cut_off)
+        transition_df.rename(columns={'f': gps_field.FROM_GPS_SEQ, 't': gps_field.TO_GPS_SEQ,
+                                      'fl': markov_field.FROM_STATE, 'tl': markov_field.TO_STATE,
+                                      'gap': markov_field.DIS_GAP, 'rt': markov_field.ROUTE_LENGTH}, inplace=True)
+        print(len(transition_df))
+        # transition_df = pd.DataFrame()
+        # transition_df[gps_field.FROM_GPS_SEQ] = fs
+        # transition_df[gps_field.TO_GPS_SEQ] = ts
+        # transition_df[markov_field.FROM_STATE] = fl
+        # transition_df[markov_field.TO_STATE] = tl
+        # transition_df[markov_field.DIS_GAP] = dis_gap
+        # transition_df[markov_field.ROUTE_LENGTH] = route_l
         # print(transition_df)
-        # transition_df.to_csv(r'cpp.csv', encoding='utf_8_sig', index=False)
+        # transition_df.to_csv(r'zdsy-cpp.csv', encoding='utf_8_sig', index=False)
 
         # sub_net do not share path within different agents
         if is_sub_net or fmm_cache or not cache_path:
@@ -1102,6 +1109,7 @@ class HiddenMarkov(object):
     def speed_factor(gps_speed: np.ndarray = None, road_speed: np.ndarray = None, min_para: float = 0.1) -> np.ndarray:
         return np.maximum(1 - (gps_speed - road_speed) / road_speed, min_para)
 
+    @function_time_cost
     def acquire_res(self, path_completion_method: str = 'alpha') -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(
