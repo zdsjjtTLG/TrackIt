@@ -571,7 +571,7 @@ class HiddenMarkov(object):
 
         del seq_k_candidate_info['idx']
         del pre_seq_candidate
-
+        # seq_k_candidate_info.to_csv(r'seq_k_candidate_info.csv', encoding='utf_8_sig', index=False)
         seq_k_candidate = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD).agg(
             {net_field.SINGLE_LINK_ID_FIELD: list, gps_field.POINT_SEQ_FIELD: list,
              'route_dis': list, net_field.FROM_NODE_FIELD: 'count'}).rename(
@@ -712,6 +712,7 @@ class HiddenMarkov(object):
                                      markov_field.FROM_STATE, markov_field.TO_STATE]].copy()
         # t5 = time.time()
         # print(t5 - t4)
+        # transition_df.to_csv(r'zdsy-py.csv', encoding='utf_8_sig', index=False)
         return adj_seq_path_dict, ft_idx_map, s2s_route_l, seq_k_candidate_info, done_stp_cost_df, \
             seq_len_dict, transition_df
 
