@@ -382,7 +382,6 @@ class Net(object):
     def graph(self) -> gw.CGraph():
         return self.__link.get_graph()
 
-
     def renew_link_head_geo(self, link_list: list[int] = None):
         self.__link.renew_head_of_geo(target_link=link_list,
                                       loc_dict={
@@ -676,51 +675,13 @@ class Net(object):
             except Exception as e:
                 print(repr(e))
 
-        link = self.__link.get_bilateral_link_data()
+        link = self.__link.get_bilateral_slink_data()
         g = self.graph
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
-        del link
-        print(rf'calc fmm cache...')
-        # g.all_pairs(cache=True, cut_off=cut_off, weight=weight, thread_num=thread_num)
-        if self.cache_cn <= 1:
-            done_stp_cost_df = self.single_source_cache(node_list, g, self.cut_off, self.weight_field, self.cache_slice)
-        else:
-            done_stp_cost_df = pd.DataFrame()
-            node_group = cut_group(obj_list=node_list, n=self.cache_cn)
-            pool = multiprocessing.Pool(processes=len(node_group))
-            result_list = []
-            for i in range(0, len(node_group)):
-                result = pool.apply_async(self.single_source_cache,
-                                          args=(node_group[i], g, self.cut_off, self.weight_field, self.cache_slice))
-                result_list.append(result)
-            pool.close()
-            pool.join()
-            for res in result_list:
-                done_stp_cost_df = pd.concat([done_stp_cost_df, res.get()])
-            done_stp_cost_df.reset_index(inplace=True, drop=True)
-        _ = self.__link.get_link_data()[[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
-                                         self.weight_field]].rename(
-            columns={net_field.FROM_NODE_FIELD: o_node_field, net_field.TO_NODE_FIELD: d_node_field,
-                     self.weight_field: cost_field})
-        _[path_field] = _.apply(lambda row: [int(row[o_node_field]), int(row[d_node_field])], axis=1)
-        done_stp_cost_df = pd.concat([_, done_stp_cost_df])
-        del _
-        done_stp_cost_df.drop_duplicates(subset=[o_node_field, d_node_field], keep='first', inplace=True)
-        done_stp_cost_df.reset_index(inplace=True, drop=True)
-        done_stp_cost_df['2nd_node'], done_stp_cost_df['-2nd_node'] = -1, -1
-        normal_path_idx = done_stp_cost_df[cost_field] > 0
-        try:
-            done_stp_cost_df.loc[normal_path_idx, '2nd_node'] = done_stp_cost_df.loc[normal_path_idx, :][
-                path_field].apply(
-                lambda x: x[1])
-            done_stp_cost_df.loc[normal_path_idx, '-2nd_node'] = done_stp_cost_df.loc[normal_path_idx, :][
-                path_field].apply(
-                lambda x: x[-2])
-        except:
-            pass
-        with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
-            pickle.dump(done_stp_cost_df, f)
-        self.set_path_cache(done_stp_cost_df)
+        g.calc_global_cache(o_list=node_list, cut_off=self.cut_off, num_thread=1, weight_name=self.weight_field)
+
+        # with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
+        #     pickle.dump(done_stp_cost_df, f)
 
     @staticmethod
     def slice_save(done_stp_cache: dict = None, done_cost_cache: dict = None, n: int = 3) -> pd.DataFrame:

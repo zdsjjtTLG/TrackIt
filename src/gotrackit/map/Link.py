@@ -222,6 +222,10 @@ class Link(object):
         """获取双向路网数据"""
         return self.link_gdf.copy()
 
+    def get_bilateral_slink_data(self) -> gpd.GeoDataFrame:
+        """获取双向路网数据"""
+        return self.link_gdf
+
     def delete_links(self, link_id_list: list[int] = None) -> gpd.GeoDataFrame:
         del_link_gdf = self.link_gdf.loc[link_id_list, :].copy()
         self.link_gdf.drop(index=link_id_list, inplace=True, axis=0)
