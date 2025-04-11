@@ -470,7 +470,7 @@ class HiddenMarkov(object):
         if self.net.is_sub_net:
             pass
 
-    @function_time_cost
+    # @function_time_cost
     def solve(self, use_lop_p: bool = True, initial_ep: dict[int, np.ndarray] = None):
         """
         :param use_lop_p: 是否使用对数概率, 避免浮点数精度下溢

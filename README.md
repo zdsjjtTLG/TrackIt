@@ -48,19 +48,11 @@ gotrackit是一个基于**改进隐马尔可夫模型**实现的全流程地图�
 
 </div>
 
-**💬版本状态: 2025.02.17 已更新v0.3.18**
+**💬版本状态: 2025.04.15 即将更新v0.3.19**
 
-- 路径匹配可视化：修复GPS点颜色显示错误的BUG
-- 路径匹配模块：[修复issue#34](https://github.com/zdsjjtTLG/TrackIt/issues/34)提及的问题
-- 路径匹配模块：优化对数概率计算、优化内存占用
-- 轨迹处理模块：优化途径点数目与指定值不相符的BUG-[issue#29](https://github.com/zdsjjtTLG/TrackIt/issues/29)
-- 轨迹处理模块：[修复issue#31](https://github.com/zdsjjtTLG/TrackIt/issues/31)提及的问题
-- 路径匹配模块：[新增st-match](https://gotrackit.readthedocs.io/en/latest/UserGuide/路径匹配/#st-match0318)
-- 路网优化模块：[拓扑优化函数新增文档使用说明](https://gotrackit.readthedocs.io/en/latest/UserGuide/路网优化/#_6)
-- 其他代码优化、BUG修复
-
-详情见：[v0.3.18更新](https://gotrackit.readthedocs.io/en/latest/blog/2025/02/07/v0318%E6%9B%B4%E6%96%B0/)
-
+- 路径匹配模块：HMM核心计算部分C++改造，匹配效率大幅度提升
+- 路网逆向模块：新增两种交通模式：步行和骑行
+- 部分BUG修复
 
 
 <div align=center>
