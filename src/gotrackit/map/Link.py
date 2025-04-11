@@ -169,6 +169,9 @@ class Link(object):
     def get_graph(self):
         return self.__graph
 
+    def set_graph(self, g: gw.CGraph):
+        self.__graph = g
+
     def get_shortest_path_length(self, o_node=None, d_node=None) -> tuple[list, float]:
         """
         获取两个节点之间的最短路径和开销
