@@ -289,20 +289,33 @@ class HiddenMarkov(object):
         else:
             self.__done_prj_df[markov_field.USED_HEADING_GAP] = 0
 
-        self.__done_prj_df[markov_field.USED_HEADING_GAP] = \
-            self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(object)
-        self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
-
+        self.__done_prj_df['emp'] = self.emission_probability(dis=self.__done_prj_df[markov_field.PRJ_L].values,
+                                                              sigma=gps_sigma,
+                                                              heading_gap=self.__done_prj_df[
+                                                                  markov_field.USED_HEADING_GAP].values)
+        self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
         emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
-            {markov_field.PRJ_L: np.array, markov_field.USED_HEADING_GAP: np.array}).reset_index(
-            drop=False)
+            {'emp': np.array}).reset_index(drop=False)
+        self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
         self.__emission_mat_dict = {
-            int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
-                                                                           sigma=gps_sigma,
-                                                                           heading_gap=row[
-                                                                               markov_field.USED_HEADING_GAP])
+            int(row[gps_field.POINT_SEQ_FIELD]): row['emp']
             for _, row in
             emission_p_df.iterrows()}
+
+        # self.__done_prj_df[markov_field.USED_HEADING_GAP] = \
+        #     self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(object)
+        # self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
+        #
+        # emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
+        #     {markov_field.PRJ_L: np.array, markov_field.USED_HEADING_GAP: np.array}).reset_index(
+        #     drop=False)
+        # self.__emission_mat_dict = {
+        #     int(row[gps_field.POINT_SEQ_FIELD]): self.emission_probability(dis=row[markov_field.PRJ_L],
+        #                                                                    sigma=gps_sigma,
+        #                                                                    heading_gap=row[
+        #                                                                        markov_field.USED_HEADING_GAP])
+        #     for _, row in
+        #     emission_p_df.iterrows()}
 
     @function_time_cost
     def __generate_candidates(self) -> list[int]:
@@ -533,14 +546,11 @@ class HiddenMarkov(object):
         #                       self.__transition_df.groupby([gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ])}
         # print(rf'calc_transition_mat1:', time.time() - x)
 
-        x = time.time()
         seq_num = np.array([0] + list(seq_len_dict.values()))
-        s2s_num = seq_num[:-1] * seq_num[1:]
-        s2s_num = np.cumsum(s2s_num)
+        s2s_num = np.cumsum(seq_num[:-1] * seq_num[1:])
         ft_transition_dict = {
             self.seq_list[i]: self.__transition_df.loc[s2s_num[i]:s2s_num[i + 1] - 1, 'trans_values'].values.reshape(
                 seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num) - 1)}
-        print(rf'calc_transition_mat2:', time.time() - x)
         self.__ft_transition_dict = ft_transition_dict
 
 
