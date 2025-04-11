@@ -97,7 +97,6 @@ class Net(object):
         self.all_pair_path_df = pd.DataFrame()
         self.__stp_cache = dict() or pd.DataFrame
         self.__done_path_cost = dict() or pd.DataFrame
-        self.__done_stp_cost_df = pd.DataFrame()
         self.__cache_prj_inf = dict()
         self.cache_path = cache_path
         self.cache_id = cache_id
@@ -176,12 +175,6 @@ class Net(object):
     def is_sub_net(self) -> bool:
         return self.__is_sub_net
 
-    def get_path_cache(self) -> pd.DataFrame:
-        return self.__done_stp_cost_df
-
-    def set_path_cache(self, stp_cost_df: pd.DataFrame = None) -> None:
-        self.__done_stp_cost_df = stp_cost_df
-
     def get_prj_cache(self) -> dict:
         return self.__cache_prj_inf
 
@@ -195,8 +188,9 @@ class Net(object):
                         set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'some nodes in the link layer are not recorded in the node layer'
 
-    def init_net(self, stp_cost_cache_df: pd.DataFrame = None, cache_prj_inf: dict = None) -> None:
-        self.__link.create_graph(weight_field=self.weight_field)
+    def init_net(self, cache_prj_inf: dict = None, create_graph: bool = True) -> None:
+        if create_graph:
+            self.__link.create_graph(weight_field=self.weight_field)
         if not self.is_sub_net and self.is_hierarchical:
             try:
                 self.cal_sjoin_cache()
@@ -212,12 +206,8 @@ class Net(object):
                     print(repr(e))
 
         if self.fmm_cache:
-            if self.is_sub_net:
-                self.set_path_cache(stp_cost_cache_df)
-            else:
+            if not self.is_sub_net:
                 self.fmm_path_cache()
-
-
 
     def get_shortest_path_length(self, o_node=1, d_node=2) -> tuple[list, float]:
         """
@@ -375,12 +365,18 @@ class Net(object):
                       link_ft_mapping=self.link_ft_map, link_f_mapping=self.link_f_map, link_t_mapping=self.link_t_map,
                       double_single_mapping=self.bilateral_unidirectional_mapping, cut_off=self.cut_off,
                       delete_circle=False, is_hierarchical=False)
-        sub_net.init_net(stp_cost_cache_df=self.get_path_cache(), cache_prj_inf=self.get_prj_cache())
+        create_graph = False if fmm_cache else True
+        sub_net.init_net(cache_prj_inf=self.get_prj_cache(), create_graph=create_graph)
+        if not create_graph:
+            sub_net.set_graph(self.__link.get_graph())
         return sub_net
 
     @property
     def graph(self) -> gw.CGraph():
         return self.__link.get_graph()
+
+    def set_graph(self, g: gw.CGraph) -> None:
+        self.__link.set_graph(g)
 
     def renew_link_head_geo(self, link_list: list[int] = None):
         self.__link.renew_head_of_geo(target_link=link_list,
@@ -665,11 +661,12 @@ class Net(object):
     def fmm_path_cache(self):
         if self.fmm_cache_fldr is None:
             self.fmm_cache_fldr = r'./'
+
+        self.recalc_cache = True
         if not self.recalc_cache:
             try:
                 with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'rb') as f:
-                    done_stp_cache_df = pickle.load(f)
-                self.set_path_cache(done_stp_cache_df)
+                    self.__link.set_graph(pickle.load(f))
                 print(rf'using local fmm cache...')
                 return None
             except Exception as e:
@@ -679,9 +676,8 @@ class Net(object):
         g = self.graph
         node_list = list(set(link[net_field.FROM_NODE_FIELD]) | set(link[net_field.TO_NODE_FIELD]))
         g.calc_global_cache(o_list=node_list, cut_off=self.cut_off, num_thread=1, weight_name=self.weight_field)
-
         # with open(os.path.join(self.fmm_cache_fldr, rf'{self.cache_name}_path_cache'), 'wb') as f:
-        #     pickle.dump(done_stp_cost_df, f)
+        #     pickle.dump(g, f)
 
     @staticmethod
     def slice_save(done_stp_cache: dict = None, done_cost_cache: dict = None, n: int = 3) -> pd.DataFrame:
