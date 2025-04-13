@@ -326,7 +326,11 @@ def parse_single_path(json_data: dict = None, path_seq: int = 0,
                 road_name = item['road_name']
             except KeyError as e:
                 road_name = '无名道路'
-            tolls = float(item['cost']['tolls'])
+
+            try:
+                tolls = float(item['cost']['tolls'])
+            except KeyError as e:
+                tolls = 0.0
 
             time_cost_list.append(time_cost)
             road_name_list.append(road_name)
