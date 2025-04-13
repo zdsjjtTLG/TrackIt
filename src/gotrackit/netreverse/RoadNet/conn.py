@@ -77,7 +77,7 @@ class Conn(object):
         :param buffer:
         :return:
         """
-        node_gdf['buffer'] = node_gdf[geometry_field].apply(lambda geo: geo.buffer(buffer))
+        node_gdf['buffer'] = node_gdf[geometry_field].buffer(buffer)
         node_gdf.set_geometry('buffer', inplace=True, crs=plain_crs)
         join_df = gpd.sjoin(node_gdf, link_gdf, how='left')
         join_df.reset_index(inplace=True, drop=True)
