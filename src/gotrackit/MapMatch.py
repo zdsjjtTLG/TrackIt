@@ -152,14 +152,14 @@ class MapMatch(object):
 
         self.user_field_list = user_field_list
 
-    def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame, num_thread: int = 1) -> tuple[pd.DataFrame, dict, list]:
+    def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame, thread_num: int = 1) -> tuple[pd.DataFrame, dict, list]:
         """MapMatch类方法 - execute：
 
         - 对输入的gps数据执行路径匹配并且输出匹配结果
         
         Args:
             gps_df: gps数据表对象, 必需参数
-            num_thread: 要使用的线程数
+            thread_num: 要使用的线程数
 
         Returns:
             匹配结果表(pd.DataFrame), 警告信息(dict), 错误信息(list)
@@ -241,10 +241,10 @@ class MapMatch(object):
                                    heading_vec_len=self.heading_vec_len, speed_threshold=self.speed_threshold,
                                    use_st=self.use_st, st_main_coe=self.st_main_coe, st_min_factor=self.st_min_factor)
             if not self.use_para_grid:
-                is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft, num_thread=num_thread)
+                is_success, _match_res_df = hmm_obj.hmm_execute(add_single_ft=add_single_ft, num_thread=thread_num)
             else:
                 is_success, _match_res_df = hmm_obj.hmm_para_grid_execute(add_single_ft=add_single_ft,
-                                                                          agent_id=agent_id)
+                                                                          agent_id=agent_id, num_thread=thread_num)
                 self.para_grid.init_para_grid()
 
             if not is_success:
