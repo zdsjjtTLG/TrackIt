@@ -77,7 +77,7 @@ class Conn(object):
         :param buffer:
         :return:
         """
-        node_gdf['buffer'] = node_gdf[geometry_field].apply(lambda geo: geo.buffer(buffer))
+        node_gdf['buffer'] = node_gdf[geometry_field].buffer(buffer)
         node_gdf.set_geometry('buffer', inplace=True, crs=plain_crs)
         join_df = gpd.sjoin(node_gdf, link_gdf, how='left')
         join_df.reset_index(inplace=True, drop=True)
@@ -101,7 +101,7 @@ class Conn(object):
                                            total=total_len, ncols=100):
             if 'index_right' in n_link_gdf.columns:
                 n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
-            if split_node not in self.net.get_node_data()[node_id_field]:
+            if split_node not in self.net.get_snode_data()[node_id_field]:
                 continue
             if len(n_link_gdf) == 1:
                 target_link = n_link_gdf[link_id_field].to_list()[0]
@@ -110,7 +110,7 @@ class Conn(object):
                         self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
                     join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf,
-                                                   link_gdf=self.net.get_bilateral_link_data().reset_index(
+                                                   link_gdf=self.net.get_bilateral_slink_data().reset_index(
                                                        inplace=False, drop=True),
                                                    buffer=self.buffer)
 
