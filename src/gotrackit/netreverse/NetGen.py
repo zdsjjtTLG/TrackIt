@@ -173,8 +173,8 @@ class NetReverse(Reverse):
                                   log_fldr: str = None, save_log_file: bool = False,
                                   min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                                  wait_until_recovery: bool = False,
-                                  is_rnd_strategy: bool = False, strategy: str = '32') -> None:
+                                  wait_until_recovery: bool = False, is_rnd_strategy: bool = False,
+                                  strategy: str = '32', traffic_mode: str = 'car') -> None:
         """NetReverse类方法 - generate_net_from_request：
 
          - 向开放平台请求路径后分析计算得到路网：构造OD -> 请求路径 -> 二进制存储 -> 路网生产
@@ -184,6 +184,7 @@ class NetReverse(Reverse):
             key_list: [1]请求设置参数 - 开发者key值列表，必需参数
             wait_until_recovery: [1]请求设置参数 - 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: [1]请求设置参数 - 是否启用随机策略
+            traffic_mode: (v0.3.19即将支持) [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             strategy: [1]请求设置参数 - 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
             cache_times: [1]请求设置参数 - 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
             ignore_hh: [1]请求设置参数 - 是否忽略时段限制进行请求
@@ -216,7 +217,7 @@ class NetReverse(Reverse):
                           min_lng=min_lng, min_lat=min_lat,
                           w=w, h=h, od_num=od_num, gap_n=gap_n,
                           min_od_length=min_od_length, wait_until_recovery=wait_until_recovery,
-                          is_rnd_strategy=is_rnd_strategy, strategy=strategy)
+                          is_rnd_strategy=is_rnd_strategy, strategy=strategy, traffic_mode=traffic_mode)
         pickle_file_name_list = os.listdir(binary_path_fldr)
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
@@ -435,8 +436,8 @@ class NetReverse(Reverse):
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                     is_rnd_strategy: bool = False, strategy: str = '32', wait_until_recovery: bool = False) \
-            -> tuple[bool, list[str]]:
+                     is_rnd_strategy: bool = False, strategy: str = '32', traffic_mode: str = 'car',
+                     wait_until_recovery: bool = False) -> tuple[bool, list[str]]:
         """NetReverse类方法 - request_path：
 
         - 请求路径存储为二进制文件：构造OD -> 请求 -> 二进制存储
@@ -446,6 +447,7 @@ class NetReverse(Reverse):
             key_list: 开发者key值列表，必需参数
             wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: 是否启用随机策略
+            traffic_mode: (v0.3.19即将支持)交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             strategy: 路径规划策略编号，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1
             cache_times: 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
             ignore_hh: 是否忽略时段限制进行请求
@@ -496,7 +498,8 @@ class NetReverse(Reverse):
 
         # 是否结束请求, 新生产的路网文件
         if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his, strategy=strategy,
-                                                                  is_rnd_strategy=is_rnd_strategy)
+                                                                  is_rnd_strategy=is_rnd_strategy,
+                                                                  traffic_mode=traffic_mode)
 
         return if_end_request, new_file_list
 
