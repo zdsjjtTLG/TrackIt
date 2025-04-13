@@ -31,7 +31,8 @@ class CarPath(object):
         self.save_log_file = save_log_file
         self.wait_until_recovery = wait_until_recovery
 
-    def get_path(self, remove_his: bool = True, is_rnd_strategy: bool = True, strategy: str = '32'):
+    def get_path(self, traffic_mode: str = 'car', strategy: str = '32',
+                 remove_his: bool = True, is_rnd_strategy: bool = True):
         otr = RequestOnTime(key_list=self.key_list,
                             od_df=self.od_df,
                             input_file_path=self.input_file_path)
@@ -56,7 +57,8 @@ class CarPath(object):
                                                               save_log_file=self.save_log_file,
                                                               key_info_dict=key_info_dict,
                                                               is_rnd_strategy=is_rnd_strategy, strategy=strategy,
-                                                              wait_until_recovery=self.wait_until_recovery)
+                                                              wait_until_recovery=self.wait_until_recovery,
+                                                              traffic_mode=traffic_mode)
             if if_end_request:
                 break
             else:
