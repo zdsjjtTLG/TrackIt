@@ -29,28 +29,33 @@ class RequestOnTime(object):
                       request_hh_field: str = None, ignore_hh: bool = False, log_fldr: str = None,
                       save_log_file: bool = False,
                       remove_his: bool = True, key_info_dict: dict[str, int] = None,
-                      is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False):
+                      is_rnd_strategy: bool = True, strategy: str = '32', traffic_mode: str = 'car',
+                      wait_until_recovery: bool = False):
         """
-        给一个od表, 按照时间进行请求
-        :param out_fldr:
-        :param cache_times:
-        :param id_field:
-        :param file_flag:
-        :param o_x_field:
-        :param o_y_field:
-        :param d_x_field:
-        :param d_y_field:
-        :param way_points_field:
-        :param request_hh_field:
-        :param ignore_hh:
-        :param log_fldr:
-        :param save_log_file:
-        :param remove_his
-        :param key_info_dict:
-        :param is_rnd_strategy
-        :param strategy
-        :param wait_until_recovery
-        :return:
+
+        Args:
+            out_fldr:
+            cache_times:
+            id_field:
+            file_flag:
+            o_x_field:
+            o_y_field:
+            d_x_field:
+            d_y_field:
+            way_points_field:
+            request_hh_field:
+            ignore_hh:
+            log_fldr:
+            save_log_file:
+            remove_his:
+            key_info_dict:
+            is_rnd_strategy:
+            strategy:
+            traffic_mode:
+            wait_until_recovery:
+
+        Returns:
+
         """
 
         console_handler = logging.StreamHandler(sys.stdout)
@@ -136,7 +141,8 @@ class RequestOnTime(object):
                                                                   route_plan_obj=route_plan, ignore_hh=ignore_hh,
                                                                   key_info_dict=key_info_dict,
                                                                   key_list=self.key_list,
-                                                                  is_rnd_strategy=is_rnd_strategy, strategy=strategy)
+                                                                  is_rnd_strategy=is_rnd_strategy, strategy=strategy,
+                                                                  traffic_mode=traffic_mode)
 
             already_request_list.extend(done_list)
             if od_route_dict:
@@ -159,7 +165,8 @@ class RequestOnTime(object):
     def request_hh_df(request_df=None, cache_times=None, request_hh=None,
                       id_field=None, o_x_field='o_x', o_y_field='o_y', d_x_field='d_x', d_y_field='d_y',
                       way_points_field=None, route_plan_obj=None, ignore_hh=True, key_info_dict: dict[str, int] = None,
-                      key_list: list[str] = None, is_rnd_strategy: bool = True, strategy: str = '32'):
+                      key_list: list[str] = None, is_rnd_strategy: bool = True, strategy: str = '32',
+                      traffic_mode: str = 'car'):
         """请求给定表的od, 每达到cache_times次(或者在规定时段内没有请求完或者提前请求完或者达到配额上限)就返回"""
         _count = 0  # 用于计数
         od_route_dict = dict()  # 用于存储请求结果
@@ -168,7 +175,8 @@ class RequestOnTime(object):
         not_conn_error_list = []  # 用于记录搜路失败的od_id
         http_error_num = 0  # 用于记录网络失败的od数目
         http_error_list = []  # 用于记录网络失败的od_id
-
+        use_sl = False if traffic_mode in ['car', 'drive'] else True
+        mode = 'walking' if traffic_mode == 'walk' else 'bicycling'
         for _, row in request_df.iterrows():
             od_id = int(row[id_field])
             o_loc = ','.join([str(np.around(row[o_x_field], decimals=6)), str(np.around(row[o_y_field], 6))])
@@ -180,19 +188,23 @@ class RequestOnTime(object):
             else:
                 way_points = None
             key = key_list[np.random.randint(0, len(key_list))]
-            json_data, info_code = route_plan_obj.car_route_plan(origin=o_loc, destination=d_loc, key=key,
-                                                                 od_id=od_id, waypoints_loc=way_points,
-                                                                 is_rnd_strategy=is_rnd_strategy, strategy=strategy)
+            if not use_sl:
+                json_data, info_code = route_plan_obj.car_route_plan(origin=o_loc, destination=d_loc, key=key,
+                                                                     od_id=od_id, waypoints_loc=way_points,
+                                                                     is_rnd_strategy=is_rnd_strategy, strategy=strategy)
+            else:
+                json_data, info_code = route_plan_obj.sl_route_plan(origin=o_loc, destination=d_loc, key=key,
+                                                                    od_id=od_id, alternative_route=strategy, mode=mode)
 
             if info_code is not None:
                 # 请求成功
                 if info_code == 10000:
-                    logging.info(rf'Success - od: {od_id}, info_code: {info_code}, Request Success, count: {_count}.')
+                    logging.info(rf'Success - od: {od_id}, mode: {traffic_mode}, info_code: {info_code}, Request Success, count: {_count}.')
                     od_route_dict[od_id] = json_data
                     done_list.append(od_id)
                     _count += 1
                 elif info_code in [10003, 10044, 10014, 10019, 10020, 10021, 10029, 10045]:
-                    logging.info(rf'Failure - od: {od_id}, info_code: {info_code}, Quotas Exceeded, count: {_count}.')
+                    logging.info(rf'Failure - od: {od_id}, mode: {traffic_mode}, info_code: {info_code}, Quotas Exceeded, count: {_count}.')
                     key_info_dict[key] += 1
                     if key_info_dict[key] >= 5 and key in key_list:
                         logging.info(rf'A key has reached the quota limit and is abandoned.')
@@ -201,13 +213,13 @@ class RequestOnTime(object):
                         logging.info(rf'All keys have reached the quota limit, stop requesting.')
                         return od_route_dict, done_list, True
                 else:
-                    logging.info(rf'Failure - od: {od_id}, info_code: {info_code}, Planning Error, count: {_count}.')
+                    logging.info(rf'Failure - od: {od_id}, mode: {traffic_mode}, info_code: {info_code}, Planning Error, count: {_count}.')
                     not_conn_error_num += 1
                     not_conn_error_list.append(od_id)
                     done_list.append(od_id)
                     _count += 1
             else:
-                logging.info(rf'Failure - od: {od_id}, info_code: XXXXX, Https Error, count: {_count}.')
+                logging.info(rf'Failure - od: {od_id}, mode: {traffic_mode}, info_code: XXXXX, Https Error, count: {_count}.')
                 # 网络错误
                 http_error_num += 1
                 http_error_list.append(od_id)
