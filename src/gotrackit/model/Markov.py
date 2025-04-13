@@ -1105,7 +1105,7 @@ class HiddenMarkov(object):
                 [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD,
                  net_field.LENGTH_FIELD, net_field.SINGLE_LINK_ID_FIELD, net_field.GEOMETRY_FIELD]].copy()
             # single_link_gdf.reset_index(inplace=True, drop=True)
-            node_gdf = self.net.get_node_data()[[net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD]]
+            node_gdf = self.net.get_snode_data()[[net_field.NODE_ID_FIELD, net_field.GEOMETRY_FIELD]].copy()
 
             # 如果不是子网络则要计算buffer范围内的路网
             if not self.net.is_sub_net:
