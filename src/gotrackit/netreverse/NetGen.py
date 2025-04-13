@@ -448,7 +448,7 @@ class NetReverse(Reverse):
             binary_path_fldr: 存储请求路径源文件的目录
             wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: 是否启用随机策略
-            strategy: [1]请求设置参数 - 路径规划策略参数，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
+            strategy: 路径规划策略参数，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
             cache_times: 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
             ignore_hh: 是否忽略时段限制进行请求
             remove_his: 是否对已经请求的OD重复(指的是在请求被意外中断的情况下，od_id为判断依据)请求
