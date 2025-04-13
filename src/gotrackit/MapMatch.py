@@ -75,7 +75,7 @@ class MapMatch(object):
             st_main_coe: [10]st-match参数 - 主系数
             st_min_factor: [10]st-match参数 - 最小折减系数
             out_fldr: [11]输出设置 - 保存匹配结果的文件目录
-            instant_output: [11]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果
+            instant_output: [11]输出设置 - 是否每匹配完一条轨迹就存储csv匹配结果(多车文件匹配场景下：指定为True可防止内存占用上升)
             user_field_list: [11]输出设置 - gps数据中, 用户想要附带在匹配结果表中输出的额外字段列表
             export_html: [12]HTML输出设置 - 是否输出匹配结果的网页可视化html文件
             use_gps_source: [12]HTML输出设置 - 是否在可视化结果中仅仅使用GPS源数据进行展示
