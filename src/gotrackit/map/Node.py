@@ -50,8 +50,7 @@ class Node(object):
             self.__node_gdf[col] = self.__node_gdf[col].astype(int)
 
     def init_node(self):
-        self.__node_gdf.set_index(node_id_field, inplace=True)
-        self.__node_gdf[node_id_field] = self.__node_gdf.index
+        self.__node_gdf.index = self.__node_gdf[node_id_field].values
 
     def get_node_geo(self, node_id: int = None):
         return self.__node_gdf.at[node_id, geometry_field]
@@ -62,6 +61,9 @@ class Node(object):
 
     def get_node_data(self) -> gpd.GeoDataFrame:
         return self.__node_gdf.copy()
+
+    def get_snode_data(self) -> gpd.GeoDataFrame:
+        return self.__node_gdf
 
     def modify_node_gdf(self, node_id_list: list[int], attr_field_list:list[str], val_list: list[list] = None):
         self.__node_gdf.loc[node_id_list, attr_field_list] = val_list
