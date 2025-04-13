@@ -11,12 +11,9 @@ import pickle
 import numpy as np
 import pandas as pd
 import graphworkc as gw
-import multiprocessing
 from .Link import Link
 from .Node import Node
 import geopandas as gpd
-from itertools import islice
-from ..tools.group import cut_group
 from shapely.geometry import LineString
 from ..tools.geo_process import prj_inf
 from ..tools.grid import get_grid_data
@@ -183,9 +180,9 @@ class Net(object):
 
     def check(self) -> None:
         """检查点层线层的关联一致性"""
-        node_set = set(self.__node.get_node_data().index)
-        link_node_set = set(self.__link.get_bilateral_link_data()[net_field.FROM_NODE_FIELD]) | \
-                        set(self.__link.get_bilateral_link_data()[net_field.TO_NODE_FIELD])
+        node_set = set(self.__node.get_snode_data().index)
+        link_node_set = set(self.__link.get_bilateral_slink_data()[net_field.FROM_NODE_FIELD]) | \
+                        set(self.__link.get_bilateral_slink_data()[net_field.TO_NODE_FIELD])
         assert link_node_set.issubset(node_set), 'some nodes in the link layer are not recorded in the node layer'
 
     def init_net(self, cache_prj_inf: dict = None, create_graph: bool = True) -> None:
@@ -250,11 +247,17 @@ class Net(object):
     def get_node_data(self) -> gpd.GeoDataFrame:
         return self.__node.get_node_data()
 
+    def get_snode_data(self) -> gpd.GeoDataFrame:
+        return self.__node.get_snode_data()
+
     def get_node_geo(self, node_id: int = None) -> Point:
         return self.__node.get_node_geo(node_id)
 
     def get_bilateral_link_data(self) -> gpd.GeoDataFrame:
         return self.__link.get_bilateral_link_data()
+
+    def get_bilateral_slink_data(self) -> gpd.GeoDataFrame:
+        return self.__link.get_bilateral_slink_data()
 
     def get_link_geo(self, link_id: int = None, _type: str = 'single') -> LineString:
         return self.__link.get_link_geo(link_id=link_id, _type=_type)
@@ -355,7 +358,7 @@ class Net(object):
         sub_single_link_gdf.drop_duplicates(subset=[net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         sub_node_list = list(set(sub_single_link_gdf[net_field.FROM_NODE_FIELD]) | \
                              set(sub_single_link_gdf[net_field.TO_NODE_FIELD]))
-        sub_node_gdf = self.__node.get_node_data().loc[sub_node_list, :].copy()
+        sub_node_gdf = self.__node.get_snode_data().loc[sub_node_list, :].copy()
         sub_net = Net(link_gdf=sub_single_link_gdf,
                       node_gdf=sub_node_gdf,
                       weight_field=weight_field,
@@ -427,8 +430,8 @@ class Net(object):
         link_file_name = '_'.join([flag_name, 'link']) if flag_name is not None and flag_name != '' else 'link'
         node_file_name = '_'.join([flag_name, 'node']) if flag_name is not None and flag_name != '' else 'node'
 
-        export_link_gdf = self.__link.link_gdf.to_crs(export_crs)
-        export_node_gdf = self.__node.get_node_data().to_crs(export_crs)
+        export_link_gdf = self.__link.link_gdf.to_crs(export_crs, inplace=False)
+        export_node_gdf = self.__node.get_snode_data().to_crs(export_crs, inplace=False)
 
         export_link_gdf.reset_index(inplace=True, drop=True)
         export_node_gdf.reset_index(inplace=True, drop=True)
@@ -870,7 +873,7 @@ class Net(object):
                 self.renew_link_tail_geo(link_list=[modified_link[0]])
                 self.renew_link_head_geo(link_list=[modified_link[1]])
             else:
-                road_node_o = self.__node.get_node_data()
+                road_node_o = self.__node.get_snode_data()
                 nearest_node = road_node_o.iloc[road_node_o.geometry.distance(stop_point).argmin()]
                 break_pts.at[index, node_id_field] = nearest_node[node_id_field]
 
