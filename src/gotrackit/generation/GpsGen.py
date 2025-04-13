@@ -46,7 +46,7 @@ class Route(object):
 
     @o_node.setter
     def o_node(self, value: int = None):
-        if value not in list(self.net.get_node_data().index):
+        if value not in list(self.net.get_snode_data().index):
             raise ValueError
         self._o_node = value
 
@@ -56,7 +56,7 @@ class Route(object):
 
     @d_node.setter
     def d_node(self, value: int = None):
-        if value not in list(self.net.get_node_data().index):
+        if value not in list(self.net.get_snode_data().index):
             raise ValueError
         self._d_node = value
 
