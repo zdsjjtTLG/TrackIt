@@ -688,7 +688,9 @@ class NetReverse(Reverse):
         # is_init_link: 划分后是否重新初始化路网对象
         # method: alpha 或者 beta, 前一种方法可保留与划分前的link的映射关系(_parent_link字段)
         my_net.divide_links(divide_l=divide_l, min_l=min_l, is_init_link=False, method='alpha')
-        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(drop=True)
+        link, node = \
+            my_net.get_bilateral_slink_data().reset_index(drop=True, inplace=False), \
+            my_net.get_snode_data().reset_index(drop=True, inplace=False)
         link = link.to_crs('EPSG:4326')
         node = node.to_crs('EPSG:4326')
         return link, node
@@ -711,8 +713,9 @@ class NetReverse(Reverse):
         my_net = Net(link_gdf=link_gdf,
                      node_gdf=node_gdf, create_single=False, delete_circle=False, plane_crs=plain_crs)
         my_net.process_circle()
-        link, node = my_net.get_bilateral_link_data().reset_index(drop=True), my_net.get_node_data().reset_index(
-            drop=True)
+        link, node = \
+            my_net.get_bilateral_slink_data().reset_index(drop=True, inplace=False), \
+            my_net.get_snode_data().reset_index(drop=True, inplace=False)
         link = link.to_crs('EPSG:4326')
         node = node.to_crs('EPSG:4326')
         return link, node
