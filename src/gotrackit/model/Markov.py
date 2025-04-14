@@ -1640,6 +1640,8 @@ class HiddenMarkov(object):
     def del_ft_trans(self):
         del self.__transition_df
         self.__transition_df = pd.DataFrame()
+        del self.__done_prj_df
+        self.__done_prj_df = pd.DataFrame()
         del self.__adj_seq_path_dict
         self.__adj_seq_path_dict = dict()
 
