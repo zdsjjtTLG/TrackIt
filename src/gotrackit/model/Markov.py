@@ -552,12 +552,18 @@ class HiddenMarkov(object):
         #
         # self.__ft_transition_dict = ft_transition_dict
 
-        seq_num = np.array([0] + list(seq_len_dict.values()))
+        # seq_num = np.array([0] + list(seq_len_dict.values()))
+        # s2s_num = np.cumsum(seq_num[:-1] * seq_num[1:])
+        # ft_transition_dict = {
+        #     self.seq_list[i]: self.__transition_df.loc[s2s_num[i]:s2s_num[i + 1] - 1, 'trans_values'].values.reshape(
+        #         seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num) - 1)}
+        # self.__ft_transition_dict = ft_transition_dict
+
+        seq_num = np.array(list(seq_len_dict.values()))
         s2s_num = np.cumsum(seq_num[:-1] * seq_num[1:])
-        ft_transition_dict = {
-            self.seq_list[i]: self.__transition_df.loc[s2s_num[i]:s2s_num[i + 1] - 1, 'trans_values'].values.reshape(
-                seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num) - 1)}
-        self.__ft_transition_dict = ft_transition_dict
+        vals = np.split(self.__transition_df['trans_values'].values, s2s_num[:-1])
+        self.__ft_transition_dict = {self.seq_list[i]: vals[i].reshape(
+            seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num))}
 
     def generate_transition_st(self, single_link_ft_df: pd.DataFrame = None,
                                pre_seq_candidate: pd.DataFrame = None,
@@ -571,28 +577,29 @@ class HiddenMarkov(object):
                                add_single_ft: list[bool] = None, link_f_map: dict = None,
                                link_t_map: dict = None) -> \
             tuple[dict, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
-        # import time
-        # s = time.time()
+        import time
+        s = time.time()
         # K候选
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
                                      top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-        # t1 = time.time()
-        # print(rf'投影计算: {t1 - s}')
-        # print(rf'{len(seq_k_candidate_info)}个候选路段...')
+        t1 = time.time()
+        print(rf'投影计算: {t1 - s}')
+        print(rf'{len(seq_k_candidate_info)}个候选路段...')
         seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         now_source_node = set(seq_k_candidate_info[net_field.FROM_NODE_FIELD])
 
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
                                           net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
+        seq_k_candidate_info.reset_index(inplace=True, drop=True)
+        _ = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[[net_field.SINGLE_LINK_ID_FIELD]].count()
+        seq_len_dict = dict(zip(_.index, _[net_field.SINGLE_LINK_ID_FIELD]))
 
         del pre_seq_candidate
         # seq_k_candidate_info.to_csv(r'seq_k_candidate_info.csv', encoding='utf_8_sig', index=False)
         seq_k_candidate = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD).agg(
             {net_field.SINGLE_LINK_ID_FIELD: list, gps_field.POINT_SEQ_FIELD: list,
-             'route_dis': list, net_field.FROM_NODE_FIELD: 'count'}).rename(
-            columns={gps_field.POINT_SEQ_FIELD: 'g_s', net_field.FROM_NODE_FIELD: 'count'})
-        seq_len_dict = {s: l for s, l in zip(seq_k_candidate.index, seq_k_candidate['count'])}
+             'route_dis': list}).rename(columns={gps_field.POINT_SEQ_FIELD: 'g_s'})
         seq_k_candidate.rename(columns={net_field.SINGLE_LINK_ID_FIELD: markov_field.FROM_STATE,
                                         'route_dis': 'from_route_dis',
                                         'g_s': gps_field.FROM_GPS_SEQ}, inplace=True)
@@ -614,7 +621,9 @@ class HiddenMarkov(object):
         from_state['from_route_dis'] = from_state['from_route_dis'].astype(float)
         to_state['to_route_dis'] = to_state['to_route_dis'].astype(float)
 
+        aa = time.time()
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
+        print(time.time() - aa, 'merge1')
         del from_state, to_state
         transition_df.reset_index(inplace=True, drop=True)
         col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
@@ -633,8 +642,8 @@ class HiddenMarkov(object):
             transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
             transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
             transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
-        # t2 = time.time()
-        # print(rf'组装计算: {t2 - t1}')
+        t2 = time.time()
+        print(rf'组装计算: {t2 - t1}')
         # now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
             # 先计算所有要计算的path
@@ -662,8 +671,8 @@ class HiddenMarkov(object):
             else:
                 print('st-match fails, there is no speed column in link layer')
                 self.use_st = False
-        # t3 = time.time()
-        # print(rf'最短路计算: {t3 - t2}')
+        t3 = time.time()
+        print(rf'最短路计算: {t3 - t2}')
         if not fmm_cache:
             _done_stp_cost_df['2nd_node'] = -1
             _done_stp_cost_df['-2nd_node'] = -1
@@ -680,8 +689,12 @@ class HiddenMarkov(object):
                         lambda x: x[-2])
                 except:
                     pass
+        t31 = time.time()
+        print(rf'apply计算：{t31 - t3}')
         transition_df = pd.merge(transition_df, _done_stp_cost_df, left_on=['from_link_f', 'to_link_f'],
                                  right_on=[o_node_field, d_node_field], how='left')
+        t32 = time.time()
+        print(rf'merge计算：{t32 - t31}"')
         del _done_stp_cost_df
         del transition_df[o_node_field], transition_df[d_node_field]
         # sub_net do not share path within different agents
@@ -718,14 +731,14 @@ class HiddenMarkov(object):
         if self.use_st:
             self.add_speed_factor(transition_df, self.st_main_coe, self.st_min_factor, final_idx, same_link_idx)
         del transition_df['from_link_f'], transition_df['from_link_t']
-        # t4 = time.time()
-        # print(t4 - t3)
+        t4 = time.time()
+        print(t4 - t32)
         transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
         transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
             -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
         del transition_df[gps_field.ADJ_DIS]
-        # t5 = time.time()
-        # print(t5 - t4)
+        t5 = time.time()
+        print(t5 - t4)
         # transition_df.to_csv(r'zdsy-py.csv', encoding='utf_8_sig', index=False)
         return adj_seq_path_dict, seq_k_candidate_info, done_stp_cost_df, seq_len_dict, transition_df
 
