@@ -571,6 +571,7 @@ class HiddenMarkov(object):
 
         seq_k_candidate_info['idx'] = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[
                                           net_field.SINGLE_LINK_ID_FIELD].rank(method='min').astype(np.int64) - 1
+        seq_k_candidate_info.reset_index(drop=True, inplace=True)
         _ = seq_k_candidate_info.groupby(gps_field.POINT_SEQ_FIELD)[[net_field.SINGLE_LINK_ID_FIELD]].count()
         seq_len_dict = {k:v for k, v in zip(_.index, _[net_field.SINGLE_LINK_ID_FIELD])}
 
@@ -580,7 +581,6 @@ class HiddenMarkov(object):
         if is_sub_net or fmm_cache or not cache_path:
             g.del_temp_cache()
 
-        seq_k_candidate_info.reset_index(drop=True, inplace=True)
         # seq_k_candidate_info.to_csv(r'F:\PyPrj\TrackIt\data\output\cppmodify\seq_k_candidate.csv', encoding='utf_8_sig',
         #                             index=False)
         # 加上修正add_speed_factor
