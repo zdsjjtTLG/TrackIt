@@ -264,6 +264,7 @@ class HiddenMarkov(object):
 
         return True, match_res
 
+    @function_time_cost
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         if use_heading_inf:
@@ -530,6 +531,7 @@ class HiddenMarkov(object):
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
+    @function_time_cost
     def calc_transition_mat(self, beta: float = 6.0, dis_para: float = 0.1):
         seq_len_dict = self.__seq2seq_len_dict
         self.__transition_df['trans_values'] = \
@@ -1042,6 +1044,7 @@ class HiddenMarkov(object):
     def speed_factor(gps_speed: np.ndarray = None, road_speed: np.ndarray = None, min_para: float = 0.1) -> np.ndarray:
         return np.maximum(1 - (gps_speed - road_speed) / road_speed, min_para)
 
+    @function_time_cost
     def acquire_res(self, path_completion_method: str = 'alpha') -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(
