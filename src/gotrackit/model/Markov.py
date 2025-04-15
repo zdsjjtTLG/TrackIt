@@ -293,14 +293,18 @@ class HiddenMarkov(object):
                                                               sigma=gps_sigma,
                                                               heading_gap=self.__done_prj_df[
                                                                   markov_field.USED_HEADING_GAP].values)
-        self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
-        emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
-            {'emp': np.array}).reset_index(drop=False)
+        vals = np.split(self.__done_prj_df['emp'].values, np.cumsum(list(self.__seq2seq_len_dict.values()))[:-1])
         self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
-        self.__emission_mat_dict = {
-            int(row[gps_field.POINT_SEQ_FIELD]): row['emp']
-            for _, row in
-            emission_p_df.iterrows()}
+        self.__emission_mat_dict = dict(zip(self.seq_list, vals))
+
+        # self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
+        # emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
+        #     {'emp': np.array}).reset_index(drop=False)
+        # self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
+        # self.__emission_mat_dict = {
+        #     int(row[gps_field.POINT_SEQ_FIELD]): row['emp']
+        #     for _, row in
+        #     emission_p_df.iterrows()}
 
         # self.__done_prj_df[markov_field.USED_HEADING_GAP] = \
         #     self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(object)
@@ -531,12 +535,18 @@ class HiddenMarkov(object):
         #                       self.__transition_df.groupby([gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ])}
         # print(rf'calc_transition_mat1:', time.time() - x)
 
-        seq_num = np.array([0] + list(seq_len_dict.values()))
+        # seq_num = np.array([0] + list(seq_len_dict.values()))
+        # s2s_num = np.cumsum(seq_num[:-1] * seq_num[1:])
+        # ft_transition_dict = {
+        #     self.seq_list[i]: self.__transition_df.loc[s2s_num[i]:s2s_num[i + 1] - 1, 'trans_values'].values.reshape(
+        #         seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num) - 1)}
+        # self.__ft_transition_dict = ft_transition_dict
+
+        seq_num = np.array(list(seq_len_dict.values()))
         s2s_num = np.cumsum(seq_num[:-1] * seq_num[1:])
-        ft_transition_dict = {
-            self.seq_list[i]: self.__transition_df.loc[s2s_num[i]:s2s_num[i + 1] - 1, 'trans_values'].values.reshape(
-                seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num) - 1)}
-        self.__ft_transition_dict = ft_transition_dict
+        vals = np.split(self.__transition_df['trans_values'].values, s2s_num[:-1])
+        self.__ft_transition_dict = {self.seq_list[i]: vals[i].reshape(
+            seq_len_dict[self.seq_list[i]], seq_len_dict[self.seq_list[i + 1]]) for i in range(len(s2s_num))}
 
     def generate_transition_st_gc(self, pre_seq_candidate: pd.DataFrame = None,
                                   gps_adj_dis_map: dict = None,
