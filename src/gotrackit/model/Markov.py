@@ -292,14 +292,20 @@ class HiddenMarkov(object):
                                                               sigma=gps_sigma,
                                                               heading_gap=self.__done_prj_df[
                                                                   markov_field.USED_HEADING_GAP].values)
-        self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
-        emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
-            {'emp': np.array}).reset_index(drop=False)
+
+        vals = np.split(self.__done_prj_df['emp'].values, np.cumsum(list(self.__seq2seq_len_dict.values()))[:-1])
         self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
-        self.__emission_mat_dict = {
-            int(row[gps_field.POINT_SEQ_FIELD]): row['emp']
-            for _, row in
-            emission_p_df.iterrows()}
+        self.__emission_mat_dict = dict(zip(self.seq_list, vals))
+
+        # self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
+        # emission_p_df = self.__done_prj_df.groupby(gps_field.POINT_SEQ_FIELD).agg(
+        #     {'emp': np.array}).reset_index(drop=False)
+        # self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
+        # self.__emission_mat_dict = {
+        #     int(row[gps_field.POINT_SEQ_FIELD]): row['emp']
+        #     for _, row in
+        #     emission_p_df.iterrows()}
+
         # self.__done_prj_df[markov_field.USED_HEADING_GAP] = \
         #     self.__done_prj_df[markov_field.USED_HEADING_GAP].astype(object)
         # self.__done_prj_df[markov_field.PRJ_L] = self.__done_prj_df[markov_field.PRJ_L].astype(object)
