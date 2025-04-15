@@ -468,7 +468,7 @@ class OnLineMapMatch(MapMatch):
     def execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame,
                 gps_already_plain: bool = False, time_gap_threshold: float = 1800.0,
                 dis_gap_threshold: float = 600.0,
-                overlapping_window: int = 3) -> tuple[pd.DataFrame, dict, list]:
+                overlapping_window: int = 3, thread_num: int = 1) -> tuple[pd.DataFrame, dict, list]:
         """OnLineMapMatch类方法 - execute：
 
         - 对输入的gps数据执行实时路径匹配并且输出匹配结果
@@ -479,6 +479,7 @@ class OnLineMapMatch(MapMatch):
             time_gap_threshold: 时间阈值，如果某agent的当前批GPS数据的最早定位时间，和上批次GPS数据的最晚定位时间的差值超过该值，则不参考历史概率链进行匹配计算
             dis_gap_threshold: 距离阈值，如果某agent的当前批GPS数据的最早定位点，和上批次GPS数据的最晚定位点的距离超过该值，则不参考历史概率链进行匹配计算
             overlapping_window: 重叠窗口长度，和历史GPS数据的重叠窗口
+            thread_num: 线程数
 
         Returns:
             匹配结果表(pd.DataFrame), 警告信息(dict), 错误信息(list)
@@ -590,7 +591,7 @@ class OnLineMapMatch(MapMatch):
 
             is_success, _match_res_df = \
                 hmm_obj.hmm_rt_execute(add_single_ft=self.add_single_ft, last_em_para=his_emission,
-                                       last_seq_list=last_seq_list, his_ft_idx_map=his_ft_idx_map)
+                                       last_seq_list=last_seq_list, his_ft_idx_map=his_ft_idx_map, num_thread=thread_num)
             if not is_success:
                 error_list.append(agent_id)
                 continue

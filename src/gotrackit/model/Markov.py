@@ -137,8 +137,8 @@ class HiddenMarkov(object):
         return True, match_res
 
     def hmm_rt_execute(self, add_single_ft: list[bool] = None, last_em_para: dict = None,
-                       last_seq_list: list[int] = None, his_ft_idx_map: pd.DataFrame = None) -> \
-            tuple[bool, pd.DataFrame]:
+                       last_seq_list: list[int] = None, his_ft_idx_map: pd.DataFrame = None,
+                       num_thread: int = 1) -> tuple[bool, pd.DataFrame]:
         try:
             is_success = self.__generate_st(add_single_ft=add_single_ft, num_thread=num_thread)
         except Exception as e:
