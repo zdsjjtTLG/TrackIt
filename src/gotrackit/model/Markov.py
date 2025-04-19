@@ -264,7 +264,7 @@ class HiddenMarkov(object):
 
         return True, match_res
 
-    @function_time_cost
+    # @function_time_cost
     def __calc_emission(self, use_heading_inf: bool = True, omitted_l: float = 6.0, gps_sigma: float = 30.0):
         # 计算每个观测点的生成概率, 这是在计算状态转移概率之后, 已经将关联不到的GPS点删除了
         if use_heading_inf:
@@ -378,24 +378,17 @@ class HiddenMarkov(object):
         preliminary_candidate_link['prj_p'] = preliminary_candidate_link['single_link_geo'].interpolate(
             preliminary_candidate_link['route_dis'].values)
         preliminary_candidate_link.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
+
         line_vec_list = [line_vec(line=single_link_geo, distance=dis, l_length=l_length) for
                          single_link_geo, dis, l_length in
                          zip(preliminary_candidate_link['single_link_geo'],
                              preliminary_candidate_link['route_dis'], preliminary_candidate_link['length'])]
         prj_df = pd.DataFrame(line_vec_list, columns=[net_field.X_DIFF, net_field.Y_DIFF])
-        # prj_info_list = [prj_inf(p=geo, line=single_link_geo) for geo, single_link_geo in
-        #                  zip(preliminary_candidate_link[gps_field.GEOMETRY_FIELD],
-        #                      preliminary_candidate_link['single_link_geo'])]
-        # prj_df = pd.DataFrame(prj_info_list,
-        #                       columns=['prj_p', 'prj_dis', 'route_dis', 'l_length', 'split_line',
-        #                                net_field.X_DIFF, net_field.Y_DIFF])
-        # del prj_df['split_line']
-        # del preliminary_candidate_link['quick_stl']
         prj_df[net_field.VEC_LEN] = np.sqrt(prj_df[net_field.X_DIFF] ** 2 + prj_df[net_field.Y_DIFF] ** 2)
         preliminary_candidate_link = pd.merge(preliminary_candidate_link, prj_df, left_index=True,
                                               right_index=True)
-        k_candidate_link = preliminary_candidate_link
         del prj_df
+        k_candidate_link = preliminary_candidate_link
         return k_candidate_link
     @staticmethod
     def filter_k_candidates_by_cache(preliminary_candidate_link: gpd.GeoDataFrame or pd.DataFrame = None,
@@ -537,7 +530,7 @@ class HiddenMarkov(object):
             self.net.set_path_cache(stp_cost_df=done_stp_cost_df)
         return True
 
-    @function_time_cost
+    # @function_time_cost
     def calc_transition_mat(self, beta: float = 6.0, dis_para: float = 0.1):
         seq_len_dict = self.__seq2seq_len_dict
         self.__transition_df['trans_values'] = \
@@ -577,15 +570,15 @@ class HiddenMarkov(object):
                                add_single_ft: list[bool] = None, link_f_map: dict = None,
                                link_t_map: dict = None) -> \
             tuple[dict, pd.DataFrame, pd.DataFrame, dict, pd.DataFrame]:
-        import time
-        s = time.time()
+        # import time
+        # s = time.time()
         # K候选
         seq_k_candidate_info = \
             self.filter_k_candidates(preliminary_candidate_link=pre_seq_candidate, using_cache=fmm_cache,
                                      top_k=self.top_k, cache_prj_inf=cache_prj_inf)
-        t1 = time.time()
-        print(rf'投影计算: {t1 - s}')
-        print(rf'{len(seq_k_candidate_info)}个候选路段...')
+        # t1 = time.time()
+        # print(rf'投影计算: {t1 - s}')
+        # print(rf'{len(seq_k_candidate_info)}个候选路段...')
         seq_k_candidate_info.sort_values(by=[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         now_source_node = set(seq_k_candidate_info[net_field.FROM_NODE_FIELD])
 
@@ -621,9 +614,9 @@ class HiddenMarkov(object):
         from_state['from_route_dis'] = from_state['from_route_dis'].astype(float)
         to_state['to_route_dis'] = to_state['to_route_dis'].astype(float)
 
-        aa = time.time()
+        # aa = time.time()
         transition_df = pd.merge(from_state, to_state, on='g', how='outer')
-        print(time.time() - aa, 'merge1')
+        # print(time.time() - aa, 'merge1')
         del from_state, to_state
         transition_df.reset_index(inplace=True, drop=True)
         col = [markov_field.FROM_STATE, markov_field.TO_STATE, gps_field.FROM_GPS_SEQ, gps_field.TO_GPS_SEQ]
@@ -642,8 +635,8 @@ class HiddenMarkov(object):
             transition_df['from_link_t'] = transition_df[markov_field.FROM_STATE].apply(lambda x: link_t_map[x])
             transition_df['to_link_f'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_f_map[x])
             transition_df['to_link_t'] = transition_df[markov_field.TO_STATE].apply(lambda x: link_t_map[x])
-        t2 = time.time()
-        print(rf'组装计算: {t2 - t1}')
+        # t2 = time.time()
+        # print(rf'组装计算: {t2 - t1}')
         # now_source_node = set(transition_df['from_link_f'])
         if not fmm_cache:
             # 先计算所有要计算的path
@@ -671,8 +664,8 @@ class HiddenMarkov(object):
             else:
                 print('st-match fails, there is no speed column in link layer')
                 self.use_st = False
-        t3 = time.time()
-        print(rf'最短路计算: {t3 - t2}')
+        # t3 = time.time()
+        # print(rf'最短路计算: {t3 - t2}')
         if not fmm_cache:
             _done_stp_cost_df['2nd_node'] = -1
             _done_stp_cost_df['-2nd_node'] = -1
@@ -689,12 +682,12 @@ class HiddenMarkov(object):
                         lambda x: x[-2])
                 except:
                     pass
-        t31 = time.time()
-        print(rf'apply计算：{t31 - t3}')
+        # t31 = time.time()
+        # print(rf'apply计算：{t31 - t3}')
         transition_df = pd.merge(transition_df, _done_stp_cost_df, left_on=['from_link_f', 'to_link_f'],
                                  right_on=[o_node_field, d_node_field], how='left')
-        t32 = time.time()
-        print(rf'merge计算：{t32 - t31}"')
+        # t32 = time.time()
+        # print(rf'merge计算：{t32 - t31}"')
         del _done_stp_cost_df
         del transition_df[o_node_field], transition_df[d_node_field]
         # sub_net do not share path within different agents
@@ -731,14 +724,14 @@ class HiddenMarkov(object):
         if self.use_st:
             self.add_speed_factor(transition_df, self.st_main_coe, self.st_min_factor, final_idx, same_link_idx)
         del transition_df['from_link_f'], transition_df['from_link_t']
-        t4 = time.time()
-        print(t4 - t32)
+        # t4 = time.time()
+        # print(t4 - t32)
         transition_df[markov_field.DIS_GAP] = not_conn_cost * 1.0
         transition_df.loc[final_idx, markov_field.DIS_GAP] = np.abs(
             -transition_df.loc[final_idx, markov_field.ROUTE_LENGTH] + transition_df.loc[final_idx, gps_field.ADJ_DIS])
         del transition_df[gps_field.ADJ_DIS]
-        t5 = time.time()
-        print(t5 - t4)
+        # t5 = time.time()
+        # print(t5 - t4)
         # transition_df.to_csv(r'zdsy-py.csv', encoding='utf_8_sig', index=False)
         return adj_seq_path_dict, seq_k_candidate_info, done_stp_cost_df, seq_len_dict, transition_df
 
@@ -1063,7 +1056,7 @@ class HiddenMarkov(object):
     def speed_factor(gps_speed: np.ndarray = None, road_speed: np.ndarray = None, min_para: float = 0.1) -> np.ndarray:
         return np.maximum(1 - (gps_speed - road_speed) / road_speed, min_para)
 
-    @function_time_cost
+    # @function_time_cost
     def acquire_res(self, path_completion_method: str = 'alpha') -> gpd.GeoDataFrame():
         # 观测序列 -> (观测序列, single_link)
         state_idx_df = pd.DataFrame(
