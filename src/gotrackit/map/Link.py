@@ -242,9 +242,10 @@ class Link(object):
                      length_field: length_list,
                      dir_field: dir_val, geometry_field: geo}
         attr_dict.update(kwargs)
-        self.link_gdf = pd.concat(
-            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)])
-        self.link_gdf.index = self.link_gdf[link_id_field]
+        new_item = gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)
+        new_item.index = link_id
+        new_item.dropna(axis='columns', inplace=True, how='all')
+        self.link_gdf = pd.concat([self.link_gdf, new_item])
 
     def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
         assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
