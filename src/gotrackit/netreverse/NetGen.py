@@ -650,7 +650,8 @@ class NetReverse(Reverse):
         return clean_link_geo(gdf=gdf, plain_crs=plain_crs, l_threshold=l_threshold)
 
     @staticmethod
-    def remapping_link_node_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame, node_gdf: gpd.GeoDataFrame or pd.DataFrame):
+    def remapping_link_node_id(link_gdf: gpd.GeoDataFrame or pd.DataFrame, node_gdf: gpd.GeoDataFrame or pd.DataFrame,
+                               start_link_id: int = 1, start_node_id: int = 1):
         """NetReverse类静态方法 - remapping_link_node_id：
 
         - ID重映射：为link、node层映射新的ID编号, 在原对象上直接修改
@@ -658,11 +659,13 @@ class NetReverse(Reverse):
         Args:
             link_gdf: 线层gdf
             node_gdf: 线层gdf
+            start_node_id: 起始node_id编号
+            start_link_id: 起始link_id编号
 
         Returns:
             None
         """
-        remapping_id(link_gdf=link_gdf, node_gdf=node_gdf)
+        remapping_id(link_gdf=link_gdf, node_gdf=node_gdf, start_link_id=start_link_id, start_node_id=start_node_id)
 
     @staticmethod
     def divide_links(link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame, plain_crs: str = 'EPSG:3857',
