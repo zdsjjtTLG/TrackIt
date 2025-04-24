@@ -241,9 +241,16 @@ class Link(object):
                      length_field: length_list,
                      dir_field: dir_val, geometry_field: geo}
         attr_dict.update(kwargs)
-        self.link_gdf = pd.concat(
-            [self.link_gdf, gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)])
-        self.link_gdf.index = self.link_gdf[link_id_field]
+        new_item = gpd.GeoDataFrame(attr_dict, geometry=geometry_field, crs=self.link_gdf.crs)
+        new_item.index = link_id
+        new_item.dropna(axis='columns', inplace=True, how='all')
+        self.link_gdf = pd.concat([self.link_gdf, new_item])
+        # try:
+        #     self.link_gdf = pd.concat([self.link_gdf, new_item])
+        #     print('a')
+        # except:
+        #     new_item.dropna(axis='columns', inplace=True, how='all')
+        #     self.link_gdf = pd.concat([self.link_gdf, new_item])
 
     def append_link_gdf(self, link_gdf: gpd.GeoDataFrame = None) -> None:
         assert set(link_gdf[link_id_field]) & set(self.link_gdf[link_id_field]) == set()
@@ -337,6 +344,9 @@ class Link(object):
         else:
             return self.link_gdf.at[link_id, net_field.FROM_NODE_FIELD], self.link_gdf.at[
                 link_id, net_field.TO_NODE_FIELD]
+
+    def renew_index(self):
+        self.link_gdf.index = self.link_gdf[link_id_field].values
 
     def get_geo_by_ft(self, from_node: int = None, to_node: int = None) -> LineString:
         return self.__single_link_gdf.at[self.__ft_link_mapping[(from_node, to_node)], net_field.GEOMETRY_FIELD]
