@@ -281,7 +281,8 @@ class NetReverse(Reverse):
 
     @staticmethod
     def create_node_from_link(link_gdf: gpd.GeoDataFrame, update_link_field_list: list[str] = None,
-                              using_from_to: bool = False, fill_dir: int = 0, plain_crs: str = 'EPSG:32650',
+                              using_from_to: bool = False, drop_dup_ft: bool = True, fill_dir: int = 0,
+                              plain_crs: str = 'EPSG:3857',
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
                               out_fldr: str | None = r'./', save_streets_before_modify_minimum: bool = False,
@@ -296,6 +297,7 @@ class NetReverse(Reverse):
             out_fldr: 输出文件的存储目录
             update_link_field_list: 需要更新的字段列表, 生产拓扑关联后需要更新的线层基本字段，从(link_id, from_node, to_node, dir, length)中选取
             using_from_to: 是否使用输入线层中的from_node字段和to_node字段
+            drop_dup_ft: 是否删除(from_node, to_node)重合的link
             fill_dir: 用于填充dir方向字段的值，如果update_link_field_list中包含dir字段，那么该参数需要传入值，允许的值为1或者0
             plain_crs: 所使用的平面投影坐标系
             ignore_merge_rule: 是否忽略极小间隔优化的规则
@@ -324,7 +326,8 @@ class NetReverse(Reverse):
                                     out_fldr=out_fldr,
                                     net_file_type=net_file_type,
                                     save_streets_after_modify_minimum=save_streets_after_modify_minimum,
-                                    save_streets_before_modify_minimum=save_streets_before_modify_minimum)
+                                    save_streets_before_modify_minimum=save_streets_before_modify_minimum,
+                                    drop_dup_ft=drop_dup_ft)
         return link_gdf, node_gdf, node_group_status_gdf
 
     def topology_optimization(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame) -> \
