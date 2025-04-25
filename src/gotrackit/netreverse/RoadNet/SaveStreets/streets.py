@@ -23,7 +23,8 @@ link_required_field_list = [net_field.LINK_ID_FIELD, net_field.DIRECTION_FIELD, 
 
 
 def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field_list: list[str] = None,
-                            using_from_to: bool = False, fill_dir: int = 0, plain_prj: str = 'EPSG:32650',
+                            using_from_to: bool = False, fill_dir: int = 0, plain_prj: str = 'EPSG:3857',
+                            drop_dup_ft: bool = True,
                             ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                             execute_modify: bool = True, auxiliary_judge_field: str = None,
                             out_fldr: str = None, save_streets_before_modify_minimum: bool = False,
@@ -35,6 +36,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
     :param link_gdf: gpd.GeoDataFrame, 路网线层gdf数据
     :param using_from_to: bool, 是否使用输入线层中的from_node字段和to_node字段
     :param fill_dir: int, 填充所有的dir为1 or 0
+    :param drop_dup_ft:
     :param update_link_field_list: List[str], List[str], 需要更新的字段列表(只能从6个必需字段中选取, geometry不可选)
     :param plain_prj: str, 要使用的平面投影坐标系EPSG:32650
     :param execute_modify: 是否执行极小间隔节点优化
@@ -69,7 +71,7 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
 
     # 3.更新线层数据
     link_gdf = update_link(link_gdf=link_gdf, node_gdf=node_gdf, update_link_field_list=update_link_field_list,
-                           origin_crs=origin_crs, plain_prj=plain_prj, fill_dir=fill_dir)
+                           origin_crs=origin_crs, plain_prj=plain_prj, fill_dir=fill_dir, drop_dup_ft=drop_dup_ft)
 
     # 去除没有link连接的节点
     drop_no_use_nodes(link_gdf, node_gdf)
@@ -84,7 +86,8 @@ def generate_node_from_link(link_gdf: gpd.GeoDataFrame = None, update_link_field
         link_gdf, node_gdf, node_group_status_gdf = modify_minimum(plain_prj=plain_prj, node_gdf=node_gdf,
                                                                    link_gdf=link_gdf,
                                                                    buffer=modify_minimum_buffer,
-                                                                   ignore_merge_rule=ignore_merge_rule)
+                                                                   ignore_merge_rule=ignore_merge_rule,
+                                                                   drop_dup_ft=drop_dup_ft)
 
     if save_streets_after_modify_minimum:
         save_file(data_item=link_gdf, file_type=net_file_type, out_fldr=out_fldr, file_name='LinkAfterModify')
@@ -143,12 +146,13 @@ def generate_node(link_gdf: gpd.GeoDataFrame = None, using_from_to: bool = False
 
 @function_time_cost
 def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origin_crs='EPSG:4326',
-                plain_prj='EPSG:32650', fill_dir: int = 0) -> gpd.GeoDataFrame:
+                drop_dup_ft: bool = True, plain_prj='EPSG:3857', fill_dir: int = 0) -> gpd.GeoDataFrame:
     """
     根据link的地理信息和节点的地理信息生成from_node和to_node字段, 在传入的gdf上直接修改, epsg:4326, 同时更新length字段
     :param link_gdf: gpd.GeoDataFrame, 线层数据
     :param node_gdf: gpd.GeoDataFrame, 点层数据
     :param update_link_field_list: List[str], 需要更新的字段列表(只能从6个必需字段中选取, geometry不可选)
+    :param drop_dup_ft:
     :param origin_crs: str
     :param plain_prj: str
     :param  fill_dir: int
@@ -216,12 +220,15 @@ def update_link(link_gdf=None, node_gdf=None, update_link_field_list=None, origi
     link_gdf.drop(index=link_gdf[(link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]) &
                                  (link_gdf[net_field.LENGTH_FIELD] <= 1e-7)].index,
                   inplace=True, axis=0)
+    if drop_dup_ft:
+        link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], keep='first',
+                                 inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
     return link_gdf[link_required_field_list + non_required_col_list + [net_field.GEOMETRY_FIELD]]
 
 
 @function_time_cost
-def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = None,
+def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = None, drop_dup_ft: bool = True,
                    link_gdf: gpd.GeoDataFrame = None, buffer: float = 1.0, auxiliary_judge_field: str = 'road_name',
                    ignore_merge_rule: bool = False) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
@@ -229,6 +236,7 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
     :param plain_prj:
     :param node_gdf:
     :param link_gdf:
+    :param drop_dup_ft:
     :param buffer:
     :param auxiliary_judge_field:
     :param ignore_merge_rule:
@@ -320,8 +328,9 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         alter_link_gdf[net_field.TO_NODE_FIELD] = alter_link_gdf[net_field.TO_NODE_FIELD].apply(
             lambda x: get_val(map_dict=node_map_dict,
                               k=x))
-        alter_link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], inplace=True,
-                                       keep='first')
+        if drop_dup_ft:
+            alter_link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], inplace=True,
+                                           keep='first')
         alter_link_gdf.drop(index=alter_link_gdf[alter_link_gdf[net_field.FROM_NODE_FIELD] ==
                                                  alter_link_gdf[net_field.TO_NODE_FIELD]].index, inplace=True, axis=0)
         link_gdf = link_gdf.drop(index=link_gdf[alter_index].index, axis=0, inplace=False)
@@ -352,9 +361,10 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=False)
 
-        link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], keep='first',
-                                 inplace=True)
-        link_gdf.reset_index(inplace=True, drop=True)
+        if drop_dup_ft:
+            link_gdf.drop_duplicates(subset=[net_field.FROM_NODE_FIELD, net_field.TO_NODE_FIELD], keep='first',
+                                     inplace=True)
+            link_gdf.reset_index(inplace=True, drop=True)
 
         # 去除没有link连接的节点
         drop_no_use_nodes(link_gdf, node_gdf)
