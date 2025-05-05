@@ -72,12 +72,14 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
                  inplace=True, axis=0)
     join_df.reset_index(inplace=True, drop=True)
 
-    # 计算相交率
-    join_df['inter_ratio'] = \
-        join_df.apply(lambda x: x['link_buffer'].intersection(x['right_link_buffer']).area / x['link_buffer'].area, axis=1)
+    if not join_df.empty:
+        # 计算相交率
+        join_df['inter_ratio'] = \
+            join_df.apply(lambda x: x['link_buffer'].intersection(x['right_link_buffer']).area / x['link_buffer'].area, axis=1)
 
-    join_df = join_df[join_df['inter_ratio'] >= dup_link_buffer_ratio / 100].copy()
-    join_df.reset_index(inplace=True, drop=True)
+        join_df = join_df[join_df['inter_ratio'] >= dup_link_buffer_ratio / 100].copy()
+        join_df.reset_index(inplace=True, drop=True)
+
     if join_df.empty:
         link_gdf.drop(columns=['link_buffer'], inplace=True, axis=1)
         link_gdf.set_geometry(geometry_field, crs=plain_crs, inplace=True)
