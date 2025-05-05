@@ -62,7 +62,7 @@ def get_merged_link_seq(link_gdf=None, judge_col_name=None, ignore_dir=False, al
                                          d_graph=d_graph)
 
     if merged_df is None:
-        return None, None
+        return None
     else:
         # 添加一个link_seq_str字段, 需要用到
         # group, link_seq, link_seq_str
@@ -86,7 +86,7 @@ def get_merged_link_seq(link_gdf=None, judge_col_name=None, ignore_dir=False, al
 
             # 经过方向限制后可能没有可合并的路段
             if merged_df is None:
-                return None, None
+                return None
             else:
                 # 开始考虑属性限制
                 if judge_col_name is None:
@@ -103,7 +103,7 @@ def get_merged_link_seq(link_gdf=None, judge_col_name=None, ignore_dir=False, al
                                                  restrict_angle=restrict_angle,
                                                  min_length=min_length)
                     if merged_df is None:
-                        return None, None
+                        return None
                     else:
                         return merged_df
 
