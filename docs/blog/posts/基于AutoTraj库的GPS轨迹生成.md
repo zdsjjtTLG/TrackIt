@@ -27,7 +27,7 @@ authors:
 ## 核心功能说明
 
 - **获取经纬度**：给定起点、终点坐标，调用高德、百度、`OpenRouteService`（简称`amap`、`baidu`、`ors`）的相关接口或方法获取起终点之间的路线（路线上各个点的经纬度坐标）
-- **计算航向角**：根据相邻点的坐标采用公式计算`direction`，正北为0，顺时针递增（0~360.0）
+- **计算航向角**：根据相邻点的坐标采用公式计算`direction`，正北为0，顺时针递增(0~360)
 - **生成速度及时间戳**：进一步通过行驶状态模拟生成速度、时间戳字段，得到字段齐全的轨迹点，可用于轨迹分析（例如识别停留、低速段），轨迹重合率计算等
 
 ## 输入及输出
@@ -301,7 +301,7 @@ data['locatetime'] = data['timestamp'].apply(lambda x: int(x.timestamp() * 1000)
 一个可用于轨迹可视化的`Geojson`示例文件（包含起点、终点、轨迹线）：
 [示例文件](https://github.com/qyanswerai/AutoTraj/blob/master/data/result_data/gps_data/1745330067766.html)
 
-## Folium
+### Folium
 
 > **使用`Folium`进行轨迹的可视化：绘制轨迹、起终点、增加测距功能等（简单的交互）**
 
