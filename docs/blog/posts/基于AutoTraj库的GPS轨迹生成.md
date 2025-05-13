@@ -21,8 +21,7 @@ authors:
 **项目地址：[https://github.com/qyanswerai/AutoTraj](https://github.com/qyanswerai/AutoTraj)**
 
 <figure markdown="span">
-  ![Image title](../images/v0.3.18/trans_p_a.png)
-  <figcaption>转移概率计算1</figcaption>
+  ![Image title](../images/AutoTraj/map.png)
 </figure>
 
 ## 核心功能说明
@@ -181,16 +180,17 @@ authors:
                         }
 }
 ```
+
 <figure markdown="span">
-  ![Image title](../images/v0.3.18/trans_p_a.png)
-  <figcaption>转移概率计算1</figcaption>
+  ![Image title](../images/AutoTraj/sankey.png)
+  <figcaption>桑基图</figcaption>
 </figure>
 
 以300个轨迹点为例，生成的速度值如下图所示：
 
 <figure markdown="span">
-  ![Image title](../images/v0.3.18/trans_p_a.png)
-  <figcaption>转移概率计算1</figcaption>
+  ![Image title](../images/AutoTraj/plot.png)
+  <figcaption>速度变化图</figcaption>
 </figure>
 
 ## 轨迹可视化
@@ -209,8 +209,7 @@ authors:
 	- 可视化结果为与`file_name`相同的`html`文件，可使用浏览器打开
 
 <figure markdown="span">
-  ![Image title](../images/v0.3.18/trans_p_a.png)
-  <figcaption>转移概率计算1</figcaption>
+  ![Image title](../images/AutoTraj/map.png)
 </figure>
 
 ## 补充说明
@@ -299,12 +298,13 @@ data['locatetime'] = data['timestamp'].apply(lambda x: int(x.timestamp() * 1000)
 	- `features`中可以记录点`Point`、线`LineString`等信息
 	- `type`（值为`Feature`）和`geometry`（地理属性）是必要的，其他信息可以放在`properties`中
 
-一个可用于轨迹可视化的`Geojson`文件如下所示（包含起点、终点、轨迹线）：
-[https://github.com/qyanswerai/AutoTraj/blob/master/data/result_data/gps_data/1745330067766.html](https://github.com/qyanswerai/AutoTraj/blob/master/data/result_data/gps_data/1745330067766.html)
+一个可用于轨迹可视化的`Geojson`示例文件（包含起点、终点、轨迹线）：
+[示例文件](https://github.com/qyanswerai/AutoTraj/blob/master/data/result_data/gps_data/1745330067766.html)
 
 ## Folium
 
 > **使用`Folium`进行轨迹的可视化：绘制轨迹、起终点、增加测距功能等（简单的交互）**
+
 > - **要求坐标系为`WGS84`**
 > - **纬度在前，经度在后**
 
