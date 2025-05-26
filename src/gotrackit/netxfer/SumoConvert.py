@@ -20,6 +20,7 @@ from ..GlobalVal import NetField, GpsField
 from ..WrapsFunc import function_time_cost
 from shapely.geometry import LineString, Point, Polygon
 from ..tools.common import avoid_duplicate_cols
+from ..tools.coord_trans import LngLatTransfer
 from ..MatchResAna import del_dup_links
 
 net_field = NetField()
@@ -185,7 +186,7 @@ class SumoConvert(object):
         return edge_df
 
     @function_time_cost
-    def get_net_shp(self, net_path: str, crs: str = None, core_num: int = 1, l_threshold: float = 1.0) -> \
+    def get_net_shp(self, net_path: str, core_num: int = 1, l_threshold: float = 1.0) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """SumoConvert类静态方法 - get_net_shp
 
@@ -193,7 +194,7 @@ class SumoConvert(object):
 
         Args:
             net_path: net.xml路网文件路径
-            crs: 坐标系，一般net.xml文件会带有该信息，不用指定
+            core_num:
             l_threshold: 线型简化阈值(米)
 
         Returns:
@@ -207,11 +208,15 @@ class SumoConvert(object):
         try:
             prj4_str = location_ele.get('projParameter')
         except:
-            prj4_str = None
+            raise ValueError('There is no projParameter in net.xml file')
 
-        if crs is None:
-            assert prj4_str is not None
-            crs = 'EPSG:' + prj4_2_crs(prj4_str=prj4_str)
+
+        code = prj4_2_crs(prj4_str=prj4_str)
+        if code is None:
+            crs, no_crs_flag = None, True
+        else:
+            crs, no_crs_flag = rf'EPSG:{code}', False
+
         try:
             x_offset, y_offset = list(map(float, location_ele.get('netOffset').split(',')))
         except:
@@ -242,7 +247,7 @@ class SumoConvert(object):
             result_list = []
             for i in range(len(edge_ele_group)):
                 result = pool.apply_async(self.parse_elements,
-                                          args=(edge_ele_group[i], junction_ele_group[i], conn_ele_group[i], x_offset, y_offset))
+                                          args=(edge_ele_group[i], junction_ele_group[i], conn_ele_group[i], x_offset, y_offset, prj4_str, no_crs_flag))
                 result_list.append(result)
             pool.close()
             pool.join()
@@ -265,48 +270,64 @@ class SumoConvert(object):
             lane_gdf, avg_edge_gdf, junction_gdf, conn_df = self.parse_elements(edge_ele_list=all_edge_ele,
                                                                                 junction_ele_list=all_junction_ele,
                                                                                 conn_ele_list=all_conn_ele,
-                                                                                x_offset=x_offset, y_offset=y_offset)
+                                                                                x_offset=x_offset, y_offset=y_offset,
+                                                                                proj=prj4_str, no_crs_flag=no_crs_flag)
 
-        junction_gdf = gpd.GeoDataFrame(junction_gdf, geometry=geometry_field, crs=crs)
-        lane_gdf = gpd.GeoDataFrame(lane_gdf, geometry=geometry_field, crs=crs)
         avg_edge_gdf.drop(index=avg_edge_gdf[avg_edge_gdf['function'] == 'internal'].index, axis=0, inplace=True)
-        avg_edge_gdf = gpd.GeoDataFrame(avg_edge_gdf, geometry=geometry_field, crs=crs)
+
+        # crs convert
+        if no_crs_flag:
+            crs = 'EPSG:3857'
+            if not lane_gdf.empty:
+                lane_gdf = gpd.GeoDataFrame(lane_gdf, geometry='geometry', crs='EPSG:4326')
+            if not avg_edge_gdf.empty:
+                avg_edge_gdf = gpd.GeoDataFrame(avg_edge_gdf, geometry='geometry', crs='EPSG:4326')
+            if not junction_gdf.empty:
+                junction_gdf = gpd.GeoDataFrame(junction_gdf, geometry='geometry', crs='EPSG:4326')
+            lane_gdf = lane_gdf.to_crs(crs)
+            avg_edge_gdf = avg_edge_gdf.to_crs(crs)
+            junction_gdf = junction_gdf.to_crs(crs)
 
         try:
-            lane_gdf[geometry_field] = lane_gdf[geometry_field].remove_repeated_points(l_threshold)
-            avg_edge_gdf[geometry_field] = avg_edge_gdf[geometry_field].remove_repeated_points(l_threshold)
+            lane_gdf[geometry_field] = gpd.GeoSeries(lane_gdf[geometry_field]).remove_repeated_points(l_threshold)
+            avg_edge_gdf[geometry_field] = gpd.GeoSeries(avg_edge_gdf[geometry_field]).remove_repeated_points(
+                l_threshold)
         except:
-            lane_gdf[geometry_field] = lane_gdf[geometry_field].simplify(l_threshold / 5)
-            avg_edge_gdf[geometry_field] = avg_edge_gdf[geometry_field].simplify(l_threshold / 5)
-        try:
-            lane_gdf[geometry_field] = lane_gdf[geometry_field].simplify(1e-5)
-            avg_edge_gdf[geometry_field] = avg_edge_gdf[geometry_field].simplify(1e-5)
-        except:
-            pass
+            lane_gdf[geometry_field] = gpd.GeoSeries(lane_gdf[geometry_field]).simplify(l_threshold / 5)
+            avg_edge_gdf[geometry_field] = gpd.GeoSeries(avg_edge_gdf[geometry_field]).simplify(l_threshold / 5)
 
         lane_polygon_gdf = lane_gdf[lane_gdf['function'] != 'internal'].copy()
         lane_polygon_gdf[geometry_field] = \
             lane_polygon_gdf.apply(lambda item:
                                    get_off_polygon(l=item[geometry_field],
                                                    off_line_l=(item[
-                                                                   LANE_WIDTH_KEY] - 0.01) / 2),
+                                                                   LANE_WIDTH_KEY] - 1e-7) / 2),
                                    axis=1)
         conn_df = self.process_conn(pre_conn_df=conn_df)
 
-        conn_gdf = self.tess_lane(conn_df=conn_df, lane_gdf=lane_gdf)
-        conn_gdf = conn_gdf.explode(ignore_index=True)
+        if not no_crs_flag:
+            junction_gdf = gpd.GeoDataFrame(junction_gdf, geometry=geometry_field, crs=crs)
+            lane_gdf = gpd.GeoDataFrame(lane_gdf, geometry=geometry_field, crs=crs)
+            avg_edge_gdf = gpd.GeoDataFrame(avg_edge_gdf, geometry=geometry_field, crs=crs)
+            lane_polygon_gdf = gpd.GeoDataFrame(lane_polygon_gdf, geometry=geometry_field, crs=crs)
 
-        avg_conn = conn_gdf.drop_duplicates(subset=['from_edge', 'to_edge'], keep='first')[['from_edge', 'to_edge']]
-        avg_edge_geo_map = {edge: geo for edge, geo in zip(avg_edge_gdf['edge_id'], avg_edge_gdf[geometry_field])}
-        avg_conn[geometry_field] = avg_conn.apply(
-            lambda row: LineString([list(avg_edge_geo_map[row['from_edge']].coords)[-1],
-                                    list(avg_edge_geo_map[row['to_edge']].coords)[0]]), axis=1,
-            result_type='expand')
-        del avg_conn['from_edge'], avg_conn['to_edge']
-        avg_conn['function'] = 'conn'
-        avg_conn = gpd.GeoDataFrame(avg_conn, geometry=geometry_field, crs=avg_edge_gdf.crs)
-        avg_edge_gdf = pd.concat([avg_edge_gdf, avg_conn])
-        avg_edge_gdf.reset_index(inplace=True, drop=True)
+        if not conn_df.empty:
+            conn_gdf = self.tess_lane(conn_df=conn_df, lane_gdf=lane_gdf)
+            conn_gdf = conn_gdf.explode(ignore_index=True)
+            avg_conn = conn_gdf.drop_duplicates(subset=['from_edge', 'to_edge'], keep='first')[['from_edge', 'to_edge']]
+            avg_edge_geo_map = {edge: geo for edge, geo in zip(avg_edge_gdf['edge_id'], avg_edge_gdf[geometry_field])}
+            avg_conn[geometry_field] = avg_conn.apply(
+                lambda row: LineString([list(avg_edge_geo_map[row['from_edge']].coords)[-1],
+                                        list(avg_edge_geo_map[row['to_edge']].coords)[0]]), axis=1,
+                result_type='expand')
+            del avg_conn['from_edge'], avg_conn['to_edge']
+            avg_conn['function'] = 'conn'
+            avg_conn = gpd.GeoDataFrame(avg_conn, geometry=geometry_field, crs=avg_edge_gdf.crs)
+            avg_edge_gdf = pd.concat([avg_edge_gdf, avg_conn])
+            avg_edge_gdf.reset_index(inplace=True, drop=True)
+        else:
+            conn_gdf = gpd.GeoDataFrame()
+
         return lane_gdf, junction_gdf, lane_polygon_gdf, avg_edge_gdf, conn_gdf
 
     @staticmethod
@@ -326,7 +347,8 @@ class SumoConvert(object):
         return conn_gdf
 
     def parse_elements(self, edge_ele_list: list[ET.Element] = None, junction_ele_list: list[ET.Element] = None,
-                       conn_ele_list: list[ET.Element] = None, x_offset: float = 0.0, y_offset: float = 0.0) \
+                       conn_ele_list: list[ET.Element] = None, x_offset: float = 0.0, y_offset: float = 0.0,
+                       proj: str = None, no_crs_flag: bool = False) \
             -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
 
@@ -336,6 +358,8 @@ class SumoConvert(object):
             conn_ele_list:
             x_offset:
             y_offset:
+            proj:
+            no_crs_flag:
 
         Returns:
 
@@ -343,7 +367,7 @@ class SumoConvert(object):
         lane_item_list, avg_edge_item_list = list(), list()
         for edge_ele in edge_ele_list:
             _lane_item_list, avg_edge_item = self.parse_net_edge(net_edge_obj=edge_ele, x_offset=x_offset,
-                                                                 y_offset=y_offset)
+                                                                 y_offset=y_offset, proj=proj, no_crs_flag=no_crs_flag)
             lane_item_list.extend(_lane_item_list)
             avg_edge_item_list.append(avg_edge_item)
         lane_df = pd.DataFrame(lane_item_list,
@@ -358,7 +382,8 @@ class SumoConvert(object):
 
         junction_item_list = list()
         for junction_ele in junction_ele_list:
-            junction_item = self.parse_net_junction(junction_obj=junction_ele, x_offset=x_offset, y_offset=y_offset)
+            junction_item = self.parse_net_junction(junction_obj=junction_ele, x_offset=x_offset, y_offset=y_offset,
+                                                    proj=proj, no_crs_flag=no_crs_flag)
             junction_item_list.append(junction_item)
 
         junction_df = pd.DataFrame(junction_item_list, columns=[JUNCTION_ID_KEY, JUNCTION_TYPE_KEY,
@@ -373,17 +398,18 @@ class SumoConvert(object):
         return lane_df, avg_edge_df, junction_df, conn_df
 
     @staticmethod
-    def parse_net_edge(net_edge_obj: ET.Element = None, x_offset: float = 0.0, y_offset: float = 0.0) -> \
-            tuple[
-                list[list[str, str, str, str, int, float, float, float, LineString, str]],
-                list[str, str, str, str, LineString, float]
-            ]:
+    def parse_net_edge(net_edge_obj: ET.Element = None, x_offset: float = 0.0, y_offset: float = 0.0,
+                       proj: str = None, no_crs_flag: bool = False) -> \
+            tuple[list[list[str, str, str, str, int, float, float, float, LineString, str]],
+                  list[str, str, str, str, LineString, float]]:
         """
 
         Args:
             net_edge_obj:
             x_offset:
             y_offset:
+            proj:
+            no_crs_flag:
 
         Returns:
 
@@ -415,11 +441,17 @@ class SumoConvert(object):
             lane_speed_list.append(lane_speed)
             lane_shape = [list(map(float, xy.split(','))) for xy in lane_shape.split(' ')]
             lane_shape = np.array(lane_shape) - np.array([x_offset, y_offset])
+
+            # 需要先转化为lng和lat
+            if no_crs_flag:
+                c = LngLatTransfer()
+                lane_shape_x, lane_shape_y = c.loc_convert(lane_shape[:, 0], lane_shape[:, 1], con_type='p-g', proj=proj)
+                lane_shape = [[x, y] for x, y in zip(lane_shape_x, lane_shape_y)]
             avg_line_shape_list.append(lane_shape)
             lane_shape = LineString(lane_shape)
 
             if lane_length is None:
-                lane_length = lane_shape.length
+                lane_length = 0.0
 
             lane_item_list.append(
                 [edge_id, edge_from, edge_to, edge_function, int(lane_index), float(lane_speed),
@@ -444,14 +476,16 @@ class SumoConvert(object):
         return lane_item_list, [edge_id, edge_from, edge_to, edge_function, avg_center_line, avg_speed, lane_num]
 
     @staticmethod
-    def parse_net_junction(junction_obj: ET.Element = None, x_offset: float = 0.0,
-                           y_offset: float = 0.0) -> list[str, str, float, float, Polygon]:
+    def parse_net_junction(junction_obj: ET.Element = None, x_offset: float = 0.0, y_offset: float = 0.0,
+                           proj: str = None, no_crs_flag: bool = False) -> list[str, str, float, float, Polygon]:
         """
 
         Args:
             junction_obj:
             x_offset:
             y_offset:
+            proj:
+            no_crs_flag:
 
         Returns:
 
@@ -463,18 +497,31 @@ class SumoConvert(object):
             junction_x, junction_y = float(junction_x) - x_offset, float(junction_y) - y_offset
         except TypeError:
             pass
+
+        buffer = 1.0
+        if no_crs_flag:
+            c = LngLatTransfer()
+            junction_x, junction_y = c.loc_convert(junction_x, junction_y, con_type='p-g', proj=proj)
+            buffer = 1e-5
+
         if junction_type == 'internal':
-            junction_shape = Polygon(list(Point(junction_x, junction_y).buffer(1.5).exterior.coords))
+            junction_shape = Polygon(list(Point(junction_x, junction_y).buffer(buffer).exterior.coords))
         else:
-            junction_shape = [np.array(list(map(float, xy.split(',')))) -
-                              np.array([x_offset, y_offset]) for xy in junction_shape.split(' ')]
+            junction_shape = np.array(
+                [np.array(list(map(float, xy.split(',')))) for xy in junction_shape.split(' ')]) - np.array(
+                [x_offset, y_offset])
+            if no_crs_flag:
+                c = LngLatTransfer()
+                junction_shape_x, junction_shape_y = c.loc_convert(junction_shape[:, 0], junction_shape[:, 1],
+                                                                   con_type='p-g', proj=proj)
+                junction_shape = [[x, y] for x, y in zip(junction_shape_x, junction_shape_y)]
             _l = len(junction_shape)
             if _l >= 3:
                 junction_shape = Polygon(junction_shape)
             elif _l == 2:
-                junction_shape = LineString(junction_shape).buffer(1.0)
+                junction_shape = LineString(junction_shape).buffer(buffer)
             else:
-                junction_shape = LineString(list(Point(junction_x, junction_y).buffer(1.5).exterior.coords))
+                junction_shape = LineString(list(Point(junction_x, junction_y).buffer(buffer).exterior.coords))
 
         return [junction_id, junction_type, junction_x, junction_y, junction_shape]
 
@@ -903,7 +950,7 @@ def element(name: str = None, k: str = None, v: str = None):
         ele.set(k, v)
     return ele
 
-def prj4_2_crs(prj4_str: str = None) -> str:
+def prj4_2_crs(prj4_str: str = None) -> str | None:
     """
 
     Args:
@@ -912,10 +959,13 @@ def prj4_2_crs(prj4_str: str = None) -> str:
     Returns:
 
     """
-    # crs = pyproj.CRS(prj4_str)
-    # x = crs.to_epsg()
-    # return str(x)
-    return str(pyproj.CRS(prj4_str).to_epsg())
+    try:
+        _code = pyproj.CRS(prj4_str).to_epsg()
+        if _code is not None:
+            return str(_code)
+    except:
+        _code = None
+    return _code
 
 def iter_agents(routes_root, match_res_df, edge_id_field):
     """
@@ -1041,5 +1091,4 @@ def dual2single(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
     for col in [from_node_field, to_node_field, length_field]:
         cols_list.remove(col)
     return net[[from_node_field, to_node_field, length_field] + cols_list]
-
 
