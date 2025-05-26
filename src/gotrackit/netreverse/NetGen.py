@@ -56,7 +56,7 @@ class NetReverse(Reverse):
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
-                 save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False,
+                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = True, save_tpr_link: bool = False,
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
@@ -89,6 +89,7 @@ class NetReverse(Reverse):
             save_streets_before_modify_minimum: [3]拓扑生成参数 - 是否保存优化前的结果
             save_streets_after_modify_minimum: [3]拓扑生成参数 - 是否保存优化后的结果
             save_tpr_link: [3]拓扑生成参数 - 是否保存优化后且进行方向处理的文件
+            use_tp_opt: [4]拓扑优化参数 - 是否执行拓扑优化
             limit_col_name: [4]拓扑优化参数 - 路段合并时，用于限制路段合并的线层属性字段，默认road_name，如果你要使用其他字段来限制合并，请自定义该参数
             ignore_dir: [4]拓扑优化参数 - 路段合并时，是否忽略行车方向
             allow_ring: [4]拓扑优化参数 - 是否允许路段合并后出现环
@@ -130,6 +131,7 @@ class NetReverse(Reverse):
         self.save_tpr_link = save_tpr_link
 
         # merge
+        self.use_tp_opt = use_tp_opt
         self.limit_col_name = limit_col_name
         self.ignore_dir = ignore_dir
         self.allow_ring = allow_ring
@@ -522,7 +524,7 @@ class NetReverse(Reverse):
             split_path_gdf_dict = {region: gdf.reset_index(drop=True) for region, gdf in
                                    split_path_gdf.groupby('region_id')}
             self.__generate_net_from_split_path_parallel(split_path_gdf_dict=split_path_gdf_dict)
-    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
+    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame, use_tp_opt: bool = True):
         """
 
         :param split_path_gdf:
@@ -552,7 +554,7 @@ class NetReverse(Reverse):
                                  conn_buffer=self.conn_buffer,
                                  conn_period=self.conn_period,
                                  multi_core_merge=self.multi_core_merge,
-                                 core_num=self.merge_core_num)
+                                 core_num=self.merge_core_num, use_tp_opt=use_tp_opt)
 
     def __generate_net_from_split_path_parallel(self, split_path_gdf_dict: dict[int, gpd.GeoDataFrame]):
         """
@@ -582,7 +584,7 @@ class NetReverse(Reverse):
                                             self.is_process_dup_link, self.process_dup_link_buffer, self.min_length,
                                             self.dup_link_buffer_ratio,
                                             self.net_file_type, self.is_modify_conn, self.conn_buffer,
-                                            self.conn_period))
+                                            self.conn_period, self.use_tp_opt))
             result_list.append(result)
         pool.close()
         pool.join()
