@@ -9,6 +9,7 @@ import math
 import os.path
 import shapely
 import numpy as np
+from pyproj import Proj
 import geopandas as gpd
 from shapely.geometry import Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, LinearRing
 
@@ -110,6 +111,24 @@ class LngLatTransfer(object):
         lng, lat = self.wgs84_to_gcj(lng, lat)
         return self.gcj_to_bd(lng, lat)
 
+    @staticmethod
+    def plane_to_geo(proj: str, x: float | np.ndarray, y: float | np.ndarray):
+        """
+        将任意坐标系的坐标转化为经纬度
+        Args:
+            proj:
+            x:
+            y:
+
+        Returns:
+
+        """
+        if proj is None:
+            raise ValueError('param: proj is None')
+        proj = Proj(proj)
+        lon, lat = proj(x, y, inverse=True)
+        return lon, lat
+
     def transform_lat(self, lng: float or np.ndarray, lat: float or np.ndarray) -> float:
         ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + \
               0.1 * lng * lat + 0.2 * np.sqrt(np.fabs(lng))
@@ -133,15 +152,16 @@ class LngLatTransfer(object):
         return ret
 
     def loc_convert(self, lng: float or np.ndarray, lat: float or np.ndarray,
-                    con_type: str = 'gc-bd') -> tuple[float, float]:
+                    con_type: str = 'gc-bd', proj: str = None) -> tuple[float | np.ndarray, float | np.ndarray]:
         """LngLatTransfer类方法 - loc_convert：
 
-        - 单点地理坐标坐标转换：支持百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        - 单点地理坐标坐标转换：支持百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换 以及 任意投影坐标到经纬度的转换
 
         Args:
             lng: 经度
             lat: 纬度
-            con_type: 转换类型, gc-bd或者gc-84或者84-gc或者84-bd或者bd-84或者bd-gc
+            con_type: 转换类型, gc-bd或者gc-84或者84-gc或者84-bd或者bd-84或者bd-gc或者p-g
+            proj:
 
         Returns:
             转换后的经度, 转换后的纬度
@@ -158,24 +178,28 @@ class LngLatTransfer(object):
             return self.bd_to_wgs84(lng, lat)
         elif con_type == 'bd-gc':
             return self.bd_to_gcj(lng, lat)
+        elif con_type == 'p-g':
+            return self.plane_to_geo(proj, lng, lat)
         else:
             return lng, lat
 
-    def obj_convert(self, geo_obj: shapely.geometry, con_type: str = None, ignore_z: bool = True) -> shapely.geometry:
+    def obj_convert(self, geo_obj: shapely.geometry, con_type: str = None, ignore_z: bool = True,
+                    proj: str = None) -> shapely.geometry:
         """LngLatTransfer类方法 - obj_convert：
 
-        - 几何对象的地理坐标坐标转换：支持几何对象在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换
+        - 几何对象的地理坐标坐标转换：支持几何对象在百度、WGS-84、GCJ-02(高德、火星)坐标之间的相互转换、投影坐标到经纬度的转换
 
         Args:
             geo_obj: 几何对象(点, 线, 面)
-            con_type: 转换类型, gc-bd或者gc-84或者84-gc或者84-bd或者bd-84或者bd-gc
+            con_type: 转换类型, gc-bd或者gc-84或者84-gc或者84-bd或者bd-84或者bd-gc或者p-g
             ignore_z: 是否忽略Z坐标
+            proj: 待转化坐标的投影参数
 
         Returns:
             转换后的几何对象
         """
         if isinstance(geo_obj, (MultiPolygon, MultiLineString, MultiPoint)):
-            convert_obj_list = [self.obj_convert(geo, con_type=con_type) for geo in geo_obj.geoms]
+            convert_obj_list = [self.obj_convert(geo, con_type=con_type, proj=proj) for geo in geo_obj.geoms]
             if isinstance(geo_obj, MultiPolygon):
                 return MultiPolygon(convert_obj_list) if len(convert_obj_list) > 1 else convert_obj_list[0]
             elif isinstance(geo_obj, MultiLineString):
@@ -187,28 +211,32 @@ class LngLatTransfer(object):
         else:
             if isinstance(geo_obj, (LineString, LinearRing)):
                 coords_list = self.get_coords(obj=geo_obj, ignore_z=ignore_z)
-                return LineString(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
+                return LineString(self.xfer_coords(coords_list=coords_list[0], con_type=con_type,
+                                                   ignore_z=ignore_z, proj=proj))
             elif isinstance(geo_obj, Polygon):
                 coords_list = self.get_coords(obj=geo_obj, ignore_z=ignore_z)
                 if len(coords_list) > 1:
-                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z),
-                                   holes=[self.xfer_coords(coords_list=ring_coord, con_type=con_type, ignore_z=ignore_z)
+                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type,
+                                                    ignore_z=ignore_z, proj=proj),
+                                   holes=[self.xfer_coords(coords_list=ring_coord, con_type=con_type,
+                                                           ignore_z=ignore_z, proj=proj)
                                           for ring_coord in coords_list[1:]])
                 else:
-                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type, ignore_z=ignore_z))
+                    return Polygon(self.xfer_coords(coords_list=coords_list[0], con_type=con_type,
+                                                    ignore_z=ignore_z, proj=proj))
             elif isinstance(geo_obj, Point):
                 if ignore_z:
-                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type))
+                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type, proj))
                 else:
-                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type) + (geo_obj.z,))
+                    return Point(self.loc_convert(geo_obj.x, geo_obj.y, con_type, proj) + (geo_obj.z,))
             else:
                 raise ValueError(r'Only LineString or Polygon or Point or LineRing are allowed')
 
-    def xfer_coords(self, coords_list: list = None, con_type: str = None, ignore_z: bool = True):
+    def xfer_coords(self, coords_list: list = None, con_type: str = None, ignore_z: bool = True, proj: str = None):
         if ignore_z:
-            return [self.loc_convert(x, y, con_type) for (x, y) in coords_list]
+            return [self.loc_convert(x, y, con_type, proj) for (x, y) in coords_list]
         else:
-            return [self.loc_convert(x, y, con_type) + (z,) for (x, y, z) in coords_list]
+            return [self.loc_convert(x, y, con_type, proj) + (z,) for (x, y, z) in coords_list]
 
     @staticmethod
     def get_coords(obj=None, ignore_z: bool = True):
