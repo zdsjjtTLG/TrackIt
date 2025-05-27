@@ -1652,11 +1652,12 @@ class HiddenMarkov(object):
     def get_ft_idx_map(self):
         return self.__done_prj_df[[gps_field.POINT_SEQ_FIELD, net_field.SINGLE_LINK_ID_FIELD, 'idx']]
 
-    def del_ft_trans(self):
+    def del_ft_trans(self, del_prj_df: bool = True):
         del self.__transition_df
         self.__transition_df = pd.DataFrame()
-        del self.__done_prj_df
-        self.__done_prj_df = pd.DataFrame()
+        if del_prj_df:
+            del self.__done_prj_df
+            self.__done_prj_df = pd.DataFrame()
         del self.__adj_seq_path_dict
         self.__adj_seq_path_dict = dict()
 

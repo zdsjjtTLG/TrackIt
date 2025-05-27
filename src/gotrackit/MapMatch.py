@@ -593,7 +593,7 @@ class OnLineMapMatch(MapMatch):
             if not is_success:
                 error_list.append(agent_id)
                 continue
-            hmm_obj.del_ft_trans()
+            hmm_obj.del_ft_trans(del_prj_df=False)
 
             self.his_hmm_dict[agent_id] = hmm_obj
 
