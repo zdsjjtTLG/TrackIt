@@ -26,7 +26,7 @@ GoTrackIt由[杭州浙诚数据科技有限公司]-数据分析团队开发，�
 
 !!! note 
     
-    这个项目正处在频繁的升级迭代期， 当前版本v0.3.18， 请用户及时更新.
+    这个项目正处在频繁的升级迭代期， 当前版本v0.3.19， 请用户及时更新.
 
 <figure markdown="span">
   ![Image title](../_static/images/MapMatch.PNG)
