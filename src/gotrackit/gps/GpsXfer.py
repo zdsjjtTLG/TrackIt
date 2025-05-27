@@ -79,6 +79,15 @@ class Route2Gps(object):
         return self.path_gdf[[agent_id_field, lng_field, lat_field, time_field]]
 
 def line2gps(path_gdf: gpd.GeoDataFrame = None):
+    """convert linestring to point(x, y)
+
+    Args:
+        path_gdf:
+
+    Returns:
+
+    """
+    path_gdf = pd.DataFrame(path_gdf)
     path_gdf[geometry_field] = path_gdf[geometry_field].apply(lambda line: list(line.coords))
     gps_df = pd.DataFrame(path_gdf).explode(column=[geometry_field], ignore_index=True)
     gps_df[lng_field] = gps_df[geometry_field].apply(lambda t: t[0])
