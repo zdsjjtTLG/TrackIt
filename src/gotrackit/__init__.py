@@ -3,5 +3,5 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
-__version__ = '0.3.20'
+__version__ = '0.3.19'
 __author__ = 'TangKai'
