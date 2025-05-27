@@ -95,7 +95,7 @@ if __name__ == '__main__':
 >>> trans = LngLatTransfer()
 >>> gdf = gpd.read_file(r'./data/XXX.geojson')
 >>> gdf = gdf.to_crs('EPSG:4326')
->>> new_gdf = trans.geo_convert(gdf=gdf, ignore_z=True, con_type='84-gc')
+>>> new_gdf = trans.gdf_convert(gdf=gdf, ignore_z=True, con_type='84-gc')
 ```
 ### 文件转换
 使用[file_convert]函数：
