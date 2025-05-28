@@ -184,7 +184,7 @@ class NetReverse(Reverse):
         Args:
             key_list: [1]请求设置参数 - 开发者key值列表，必需参数
             binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
-            traffic_mode: (v0.3.19即将支持) [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
+            traffic_mode: [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             wait_until_recovery: [1]请求设置参数 - 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: [1]请求设置参数 - 是否启用随机策略
             strategy: [1]请求设置参数 - 路径规划策略参数，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
@@ -449,7 +449,7 @@ class NetReverse(Reverse):
 
         Args:
             key_list: 开发者key值列表，必需参数
-            traffic_mode: (v0.3.19即将支持)交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
+            traffic_mode: 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             binary_path_fldr: 存储请求路径源文件的目录
             wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: 是否启用随机策略
