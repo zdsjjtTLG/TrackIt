@@ -590,6 +590,7 @@ class NetReverse(Reverse):
         pool.join()
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
+                    drop_dup_ft: bool = True, drop_circle: bool = True, use_geometry: bool = False,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """NetReverse类方法 - modify_conn：
@@ -599,6 +600,9 @@ class NetReverse(Reverse):
         Args:
             link_gdf: 线层gdf, 要求输入必须为EPSG:4326
             node_gdf: 点层gdf, 要求输入必须为EPSG:4326
+            drop_circle: 是否删除环
+            drop_dup_ft: 是否删除相同(from_node, to_node)的路段
+            use_geometry: 删除相同(from_node, to_node)的路段时，否启用几何检测
             book_mark_name: 空间书签名称
             generate_mark: 是否生成空间书签，在net_out_fldr下生成
             link_name_field: 参数暂未启用
@@ -611,7 +615,8 @@ class NetReverse(Reverse):
                   delete_circle=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         link_gdf, node_gdf = conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name,
-                                          generate_mark=generate_mark)
+                                          generate_mark=generate_mark, drop_dup_ft=drop_dup_ft,
+                                          drop_circle=drop_circle, use_geometry=use_geometry)
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
         save_file(data_item=link_gdf, file_type=self.net_file_type, file_name='modifiedConnLink',
