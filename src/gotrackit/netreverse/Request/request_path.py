@@ -31,8 +31,8 @@ class CarPath(object):
         self.save_log_file = save_log_file
         self.wait_until_recovery = wait_until_recovery
 
-    def get_path(self, traffic_mode: str = 'car', strategy: str = '32',
-                 remove_his: bool = True, is_rnd_strategy: bool = True):
+    def get_path(self, traffic_mode: str = 'car', remove_his: bool = True, is_rnd_strategy: bool = True,
+                 strategy: str = '32'):
         otr = RequestOnTime(key_list=self.key_list,
                             od_df=self.od_df,
                             input_file_path=self.input_file_path)
@@ -42,7 +42,8 @@ class CarPath(object):
             assert set(self.od_df[hh_field]).issubset({i for i in range(0, 24)}), rf'{hh_field}字段的值有误!'
         key_info_dict = {k: 0 for k in self.key_list}
         while True:
-            if_end_request, new_file_list = otr.start_request(out_fldr=self.out_fldr,
+            if_end_request, new_file_list = otr.start_request(traffic_mode=traffic_mode,
+                                                              out_fldr=self.out_fldr,
                                                               cache_times=self.cache_times,
                                                               id_field=od_id_field,
                                                               ignore_hh=self.ignore_hh,
@@ -57,8 +58,7 @@ class CarPath(object):
                                                               save_log_file=self.save_log_file,
                                                               key_info_dict=key_info_dict,
                                                               is_rnd_strategy=is_rnd_strategy, strategy=strategy,
-                                                              wait_until_recovery=self.wait_until_recovery,
-                                                              traffic_mode=traffic_mode)
+                                                              wait_until_recovery=self.wait_until_recovery)
             if if_end_request:
                 break
             else:
