@@ -110,7 +110,7 @@ class Conn(object):
                         self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
                     join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf,
-                                                   link_gdf=self.net.get_bilateral_slink_data().reset_index(
+                                                   link_gdf=self.net.get_bilateral_link_data().reset_index(
                                                        inplace=False, drop=True),
                                                    buffer=self.buffer)
 
@@ -141,8 +141,8 @@ class Conn(object):
                     self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)
 
                 join_gdf = self.get_doubt_item(node_gdf=temp_node_gdf,
-                                               link_gdf=self.net.get_bilateral_link_data().reset_index(drop=True,
-                                                                                                       inplace=False))
+                                               link_gdf=self.net.get_bilateral_slink_data().reset_index(drop=True,
+                                                                                                        inplace=False))
 
                 self.done_split_link[target_link] += 1
                 if join_gdf.empty:
@@ -195,14 +195,20 @@ class Conn(object):
         self.done_split_link[target_link_id] = 1
 
     def execute(self, out_fldr: str = None, file_name: str = 'space_bookmarks', generate_mark: bool = False,
+                drop_dup_ft: bool = True, drop_circle: bool = True, use_geometry: bool = False,
                 link_name_field: str = 'road_name') -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
 
-        :param out_fldr:
-        :param file_name:
-        :param generate_mark:
-        :param link_name_field:
-        :return: crs - EPSG:4326
+        Args:
+            out_fldr:
+            file_name:
+            generate_mark:
+            drop_dup_ft:
+            drop_circle:
+            use_geometry:
+            link_name_field:
+        Returns: crs - EPSG:4326
+
         """
         # check the conn problem
         self.check(out_fldr=out_fldr, file_name=file_name, generate_mark=generate_mark)
@@ -213,7 +219,8 @@ class Conn(object):
         self.net.check_ln_consistency()
 
         # drop dup road
-        self.net.drop_dup_ft_road()
+        if drop_dup_ft:
+            self.net.drop_dup_ft_road()
 
         # merger_double_link
         # self.net.merger_double_link()
@@ -222,9 +229,9 @@ class Conn(object):
 
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
-        link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.net.planar_crs, node_gdf=node_gdf,
+        link_gdf, node_gdf, _ = modify_minimum(plain_prj=self.net.planar_crs, node_gdf=node_gdf, drop_dup_ft=drop_dup_ft,
                                                link_gdf=link_gdf, buffer=0.3, ignore_merge_rule=True)
-        link_gdf = merge_double_link(link_gdf=link_gdf)
+        link_gdf = merge_double_link(link_gdf=link_gdf, drop_circle=drop_circle, use_geometry=use_geometry)
         link_gdf = link_gdf.to_crs(self.net.geo_crs)
         node_gdf = node_gdf.to_crs(self.net.geo_crs)
 
