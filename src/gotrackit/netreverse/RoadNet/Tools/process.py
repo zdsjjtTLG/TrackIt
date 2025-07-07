@@ -3,6 +3,7 @@
 # @Author  : TangKai
 # @Team    : ZheChengData
 
+import shapely
 import pandas as pd
 import geopandas as gpd
 from itertools import chain
@@ -26,50 +27,63 @@ required_field_list = [link_id_field, length_field, direction_field,
 
 
 @function_time_cost
-def merge_double_link(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
-    """
-    same crs as input
-    输入的link的dir只能为0 or 1
-    将那些连接在同一from_node和to_node上的合并为dir为0的
-    :param link_gdf:
-    :return:
+def merge_double_link(link_gdf: gpd.GeoDataFrame = None, drop_circle: bool = True,
+                      use_geometry: bool = False) -> gpd.GeoDataFrame:
+    """将那些连接在同一from_node和to_node上的合并为dir为0的, 输入的link的dir只能为0 or 1
+
+    Args:
+        link_gdf:
+        drop_circle:
+        use_geometry: 是否启用几何比较
+
+    Returns: gdf(same crs as input)
+
     """
     origin_crs = link_gdf.crs
 
-    # 消除from_node = to_node的记录
-    link_gdf.drop(index=link_gdf[link_gdf[from_node_id_field] == link_gdf[to_node_id_field]].index, inplace=True, axis=0)
+    if drop_circle:
+        idx1 = link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]
+        link_gdf.drop(index=link_gdf[idx1].index, inplace=True, axis=0)
+    else:
+        idx1 = (link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]) & \
+               (link_gdf[net_field.GEOMETRY_FIELD].length <= 1e-7)
+        link_gdf.drop(index=link_gdf[idx1].index, inplace=True, axis=0)
 
-    # 按照from_node, to_node去重
-    link_gdf.drop_duplicates(subset=[from_node_id_field, to_node_id_field], keep='first', inplace=True)
+    # del dup link
+    if use_geometry:
+        link_gdf = link_gdf.to_crs('EPSG:3857')
+        link_gdf['__l__'] = link_gdf[net_field.GEOMETRY_FIELD].length.astype(int)
+        link_gdf['__n__'] = shapely.get_num_points(link_gdf[net_field.GEOMETRY_FIELD])
+        link_gdf.drop_duplicates(subset=[from_node_id_field, to_node_id_field, '__l__', '__n__'],
+                                 keep='first', inplace=True)
+        link_gdf = link_gdf.to_crs(origin_crs)
+    else:
+        link_gdf.drop_duplicates(subset=[from_node_id_field, to_node_id_field], keep='first', inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
 
-    link_gdf['ft'] = link_gdf.apply(lambda x: tuple(sorted([x[from_node_id_field], x[to_node_id_field]])), axis=1)
-    link_gdf['true_ft'] = link_gdf.apply(lambda x: (x[from_node_id_field], x[to_node_id_field]), axis=1)
+    if use_geometry:
+        link_gdf['ft'] = link_gdf.apply(lambda x:
+                                        tuple(sorted([x[from_node_id_field], x[to_node_id_field]])) +
+                                        (x['__n__'], x['__l__']), axis=1)
+    else:
+        link_gdf['ft'] = link_gdf.apply(lambda x:
+                                        tuple(sorted([x[from_node_id_field], x[to_node_id_field]])), axis=1)
+    if use_geometry:
+        del link_gdf['__n__']
+        del link_gdf['__l__']
     dup_ft_list = link_gdf[link_gdf['ft'].duplicated()]['ft'].to_list()
-
     dup_link_index = link_gdf[link_gdf['ft'].isin(dup_ft_list)].index
     dup_link_gdf = link_gdf.loc[dup_link_index, :].copy()
     link_gdf.drop(index=dup_link_index, axis=0, inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
 
-    # merge_link_gdf = gpd.GeoDataFrame([], columns=list(dup_link_gdf.columns))
-    # for ft, df in dup_link_gdf.groupby('ft'):
-    #     # df必然有两条记录
-    #     assert len(df) == 2, 'df记录数有误......'
-    #     df.reset_index(inplace=True, drop=True)
-    #
-    #     attr_dict = {col: df.at[0, col] for col in list(df.columns)}
-    #     attr_dict[direction_field] = 0
-    #     merge_link_gdf.loc[len(merge_link_gdf), :] = attr_dict
-
     merge_link_gdf = dup_link_gdf.drop_duplicates(subset=['ft'], keep='first').copy()
     del dup_link_gdf
     merge_link_gdf[direction_field] = 0
-
     merge_link_gdf.set_geometry(geometry_field, crs=origin_crs, inplace=True)
     link_gdf = pd.concat([link_gdf, merge_link_gdf])
     link_gdf = gpd.GeoDataFrame(link_gdf, geometry=geometry_field, crs=origin_crs)
-    link_gdf.drop(columns=['ft', 'true_ft'], axis=1, inplace=True)
+    link_gdf.drop(columns=['ft'], axis=1, inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
     for col in [link_id_field, from_node_id_field, to_node_id_field, direction_field]:
         link_gdf[col] = link_gdf[col].astype(int)

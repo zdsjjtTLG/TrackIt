@@ -56,7 +56,7 @@ class NetReverse(Reverse):
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
-                 save_streets_after_modify_minimum: bool = False, save_tpr_link: bool = False,
+                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = True, save_tpr_link: bool = False,
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
@@ -89,6 +89,7 @@ class NetReverse(Reverse):
             save_streets_before_modify_minimum: [3]拓扑生成参数 - 是否保存优化前的结果
             save_streets_after_modify_minimum: [3]拓扑生成参数 - 是否保存优化后的结果
             save_tpr_link: [3]拓扑生成参数 - 是否保存优化后且进行方向处理的文件
+            use_tp_opt: [4]拓扑优化参数 - 是否执行拓扑优化
             limit_col_name: [4]拓扑优化参数 - 路段合并时，用于限制路段合并的线层属性字段，默认road_name，如果你要使用其他字段来限制合并，请自定义该参数
             ignore_dir: [4]拓扑优化参数 - 路段合并时，是否忽略行车方向
             allow_ring: [4]拓扑优化参数 - 是否允许路段合并后出现环
@@ -130,6 +131,7 @@ class NetReverse(Reverse):
         self.save_tpr_link = save_tpr_link
 
         # merge
+        self.use_tp_opt = use_tp_opt
         self.limit_col_name = limit_col_name
         self.ignore_dir = ignore_dir
         self.allow_ring = allow_ring
@@ -166,26 +168,26 @@ class NetReverse(Reverse):
         self.multi_core_reverse = multi_core_reverse
         self.reverse_core_num = reverse_core_num
 
-    def generate_net_from_request(self, key_list: list[str], binary_path_fldr: str = r'./',
+    def generate_net_from_request(self, key_list: list[str], traffic_mode: str = 'car', binary_path_fldr: str = r'./',
                                   od_file_path: str = None, od_df: pd.DataFrame = None,
                                   region_gdf: gpd.GeoDataFrame = None, od_type='rand_od', boundary_buffer: float = 2000,
                                   cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                                   log_fldr: str = None, save_log_file: bool = False,
                                   min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                                   od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                                  wait_until_recovery: bool = False, is_rnd_strategy: bool = False,
-                                  strategy: str = '32', traffic_mode: str = 'car') -> None:
+                                  wait_until_recovery: bool = False,
+                                  is_rnd_strategy: bool = False, strategy: str = '32') -> None:
         """NetReverse类方法 - generate_net_from_request：
 
          - 向开放平台请求路径后分析计算得到路网：构造OD -> 请求路径 -> 二进制存储 -> 路网生产
 
         Args:
-            binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
             key_list: [1]请求设置参数 - 开发者key值列表，必需参数
+            binary_path_fldr: [1]请求设置参数 - 存储请求路径源文件的目录
+            traffic_mode: [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             wait_until_recovery: [1]请求设置参数 - 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: [1]请求设置参数 - 是否启用随机策略
-            traffic_mode: (v0.3.19即将支持) [1]请求设置参数 - 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
-            strategy: [1]请求设置参数 - 策略编号，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
+            strategy: [1]请求设置参数 - 路径规划策略参数，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
             cache_times: [1]请求设置参数 - 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
             ignore_hh: [1]请求设置参数 - 是否忽略时段限制进行请求
             remove_his: [1]请求设置参数 - 是否对已经请求的OD重复(指的是在请求被意外中断的情况下，od_id为判断依据)请求
@@ -207,7 +209,7 @@ class NetReverse(Reverse):
         Returns:
             直接在net_out_fldr下生成路网
         """
-        self.request_path(key_list=key_list, binary_path_fldr=binary_path_fldr,
+        self.request_path(key_list=key_list, traffic_mode=traffic_mode, binary_path_fldr=binary_path_fldr,
                           od_file_path=od_file_path,
                           od_df=od_df, region_gdf=region_gdf, od_type=od_type,
                           boundary_buffer=boundary_buffer,
@@ -217,7 +219,7 @@ class NetReverse(Reverse):
                           min_lng=min_lng, min_lat=min_lat,
                           w=w, h=h, od_num=od_num, gap_n=gap_n,
                           min_od_length=min_od_length, wait_until_recovery=wait_until_recovery,
-                          is_rnd_strategy=is_rnd_strategy, strategy=strategy, traffic_mode=traffic_mode)
+                          is_rnd_strategy=is_rnd_strategy, strategy=strategy)
         pickle_file_name_list = os.listdir(binary_path_fldr)
         self.generate_net_from_pickle(binary_path_fldr=binary_path_fldr,
                                       pickle_file_name_list=pickle_file_name_list)
@@ -281,7 +283,7 @@ class NetReverse(Reverse):
 
     @staticmethod
     def create_node_from_link(link_gdf: gpd.GeoDataFrame, update_link_field_list: list[str] = None,
-                              using_from_to: bool = False, fill_dir: int = 0, drop_dup_ft: bool = True,
+                              using_from_to: bool = False, drop_dup_ft: bool = True, fill_dir: int = 0,
                               plain_crs: str = 'EPSG:3857',
                               ignore_merge_rule: bool = True, modify_minimum_buffer: float = 0.8,
                               execute_modify: bool = True, auxiliary_judge_field: str = None,
@@ -297,7 +299,7 @@ class NetReverse(Reverse):
             out_fldr: 输出文件的存储目录
             update_link_field_list: 需要更新的字段列表, 生产拓扑关联后需要更新的线层基本字段，从(link_id, from_node, to_node, dir, length)中选取
             using_from_to: 是否使用输入线层中的from_node字段和to_node字段
-            drop_dup_ft: 是否删除(from_node, to_node)相同的link
+            drop_dup_ft: 是否删除(from_node, to_node)重合的link
             fill_dir: 用于填充dir方向字段的值，如果update_link_field_list中包含dir字段，那么该参数需要传入值，允许的值为1或者0
             plain_crs: 所使用的平面投影坐标系
             ignore_merge_rule: 是否忽略极小间隔优化的规则
@@ -432,25 +434,25 @@ class NetReverse(Reverse):
                                                    limit_col_name=self.limit_col_name)
         return increment_link, increment_node
 
-    def request_path(self, key_list: list[str], binary_path_fldr: str = r'./',
+    def request_path(self, key_list: list[str], traffic_mode: str = 'car', binary_path_fldr: str = r'./',
                      od_file_path: str = None, od_df: pd.DataFrame = None,
                      region_gdf: gpd.GeoDataFrame = None, od_type: str = 'rand_od', boundary_buffer: float = 2000,
                      cache_times: int = 300, ignore_hh: bool = True, remove_his: bool = True,
                      log_fldr: str = None, save_log_file: bool = False,
                      min_lng: float = None, min_lat: float = None, w: float = 2000, h: float = 2000,
                      od_num: int = 100, gap_n: int = 1000, min_od_length: float = 1200.0,
-                     is_rnd_strategy: bool = False, strategy: str = '32', traffic_mode: str = 'car',
-                     wait_until_recovery: bool = False) -> tuple[bool, list[str]]:
+                     is_rnd_strategy: bool = False, strategy: str = '32', wait_until_recovery: bool = False) \
+            -> tuple[bool, list[str]]:
         """NetReverse类方法 - request_path：
 
         - 请求路径存储为二进制文件：构造OD -> 请求 -> 二进制存储
 
         Args:
-            binary_path_fldr: 存储请求路径源文件的目录
             key_list: 开发者key值列表，必需参数
+            traffic_mode: 交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
+            binary_path_fldr: 存储请求路径源文件的目录
             wait_until_recovery: 如果配额超限，是否一直等待直至配额恢复
             is_rnd_strategy: 是否启用随机策略
-            traffic_mode: (v0.3.19即将支持)交通模式, 目前支持驾车(car)、骑行(bike)和步行(walk)
             strategy: 路径规划策略参数，若模式为驾车，取值请访问: https://lbs.amap.com/api/webservice/guide/api/newroute#s1；若模式为步行或骑行, 则取值为1、2、3，代表返回的方案数
             cache_times: 路径文件缓存数，即每请求cache_times次缓存一次数据到binary_path_fldr下
             ignore_hh: 是否忽略时段限制进行请求
@@ -500,9 +502,9 @@ class NetReverse(Reverse):
                                    wait_until_recovery=wait_until_recovery)
 
         # 是否结束请求, 新生产的路网文件
-        if_end_request, new_file_list = path_request_obj.get_path(remove_his=remove_his, strategy=strategy,
-                                                                  is_rnd_strategy=is_rnd_strategy,
-                                                                  traffic_mode=traffic_mode)
+        if_end_request, new_file_list = path_request_obj.get_path(traffic_mode=traffic_mode,
+                                                                  remove_his=remove_his, strategy=strategy,
+                                                                  is_rnd_strategy=is_rnd_strategy)
 
         return if_end_request, new_file_list
 
@@ -522,7 +524,7 @@ class NetReverse(Reverse):
             split_path_gdf_dict = {region: gdf.reset_index(drop=True) for region, gdf in
                                    split_path_gdf.groupby('region_id')}
             self.__generate_net_from_split_path_parallel(split_path_gdf_dict=split_path_gdf_dict)
-    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
+    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame, use_tp_opt: bool = True):
         """
 
         :param split_path_gdf:
@@ -552,7 +554,7 @@ class NetReverse(Reverse):
                                  conn_buffer=self.conn_buffer,
                                  conn_period=self.conn_period,
                                  multi_core_merge=self.multi_core_merge,
-                                 core_num=self.merge_core_num)
+                                 core_num=self.merge_core_num, use_tp_opt=use_tp_opt)
 
     def __generate_net_from_split_path_parallel(self, split_path_gdf_dict: dict[int, gpd.GeoDataFrame]):
         """
@@ -582,12 +584,13 @@ class NetReverse(Reverse):
                                             self.is_process_dup_link, self.process_dup_link_buffer, self.min_length,
                                             self.dup_link_buffer_ratio,
                                             self.net_file_type, self.is_modify_conn, self.conn_buffer,
-                                            self.conn_period))
+                                            self.conn_period, self.use_tp_opt))
             result_list.append(result)
         pool.close()
         pool.join()
 
     def modify_conn(self, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
+                    drop_dup_ft: bool = True, drop_circle: bool = True, use_geometry: bool = False,
                     book_mark_name: str = 'test', link_name_field: str = 'road_name', generate_mark: bool = False) -> \
             tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """NetReverse类方法 - modify_conn：
@@ -597,6 +600,9 @@ class NetReverse(Reverse):
         Args:
             link_gdf: 线层gdf, 要求输入必须为EPSG:4326
             node_gdf: 点层gdf, 要求输入必须为EPSG:4326
+            drop_circle: 是否删除环
+            drop_dup_ft: 是否删除相同(from_node, to_node)的路段
+            use_geometry: 删除相同(from_node, to_node)的路段时，否启用几何检测
             book_mark_name: 空间书签名称
             generate_mark: 是否生成空间书签，在net_out_fldr下生成
             link_name_field: 参数暂未启用
@@ -609,7 +615,8 @@ class NetReverse(Reverse):
                   delete_circle=False)
         conn = Conn(net=net, check_buffer=self.conn_buffer)
         link_gdf, node_gdf = conn.execute(out_fldr=self.net_out_fldr, file_name=book_mark_name,
-                                          generate_mark=generate_mark)
+                                          generate_mark=generate_mark, drop_dup_ft=drop_dup_ft,
+                                          drop_circle=drop_circle, use_geometry=use_geometry)
         link_gdf.reset_index(inplace=True, drop=True)
         node_gdf.reset_index(inplace=True, drop=True)
         save_file(data_item=link_gdf, file_type=self.net_file_type, file_name='modifiedConnLink',
@@ -661,9 +668,9 @@ class NetReverse(Reverse):
 
         Args:
             link_gdf: 线层gdf
-            node_gdf: 线层gdf
-            start_node_id: 起始node_id编号
-            start_link_id: 起始link_id编号
+            node_gdf: 点层gdf
+            start_link_id: 起始link_id
+            start_node_id: 起始node_id
 
         Returns:
             None
