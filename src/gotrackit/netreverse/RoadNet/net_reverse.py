@@ -40,7 +40,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
                  dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp', modify_conn: bool = True,
-                 conn_buffer: float = 0.8, conn_period: str = 'final'):
+                 conn_buffer: float = 0.8, conn_period: str = 'final', use_tp_opt: bool = True):
     """
     路网逆向主程序, 输入拆分好且去重的path_gdf(EPSG:4326), output: EPSG:4326
     :param path_gdf:
@@ -70,6 +70,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     :param modify_conn: 是否修复联通性
     :param conn_buffer: 修复联通性的buffer
     :param conn_period: 在哪个阶段执行联通性修复? 取值 final or start, final表示在拓扑优化之后执行, start表示在拓扑优化之前执行
+    :param use_tp_opt: 是否合并路段
     :return:
     """
     if save_tpr_link or save_split_link or save_streets_before_modify_minimum or save_streets_after_modify_minimum:
@@ -121,28 +122,32 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
             link_gdf, new_node = conn.execute(out_fldr=out_fldr, file_name=flag_name + '_conn', generate_mark=True)
             # net.export_net(export_crs='EPSG:4326', out_fldr=out_fldr, file_type='shp',
             #                flag_name='modifiedConn')
-    # 5.拓扑优化
-    print(rf'##########   {flag_name} - Topology Optimization')
-    final_link, final_node, dup_info_dict = optimize_net.optimize(link_gdf=link_gdf, node_gdf=new_node,
-                                                                  ignore_dir=False, limit_col_name=limit_col_name,
-                                                                  save_preliminary=save_preliminary,
-                                                                  out_fldr=out_fldr,
-                                                                  plain_prj=plain_prj,
-                                                                  restrict_angle=restrict_angle,
-                                                                  restrict_length=restrict_length,
-                                                                  accu_l_threshold=accu_l_threshold,
-                                                                  angle_threshold=angle_threshold,
-                                                                  process_dup_link_buffer=process_dup_link_buffer,
-                                                                  is_process_dup_link=is_process_dup_link,
-                                                                  allow_ring=False,
-                                                                  modify_minimum_buffer=modify_minimum_buffer,
-                                                                  min_length=min_length,
-                                                                  dup_link_buffer_ratio=dup_link_buffer_ratio,
-                                                                  multi_core=multi_core_merge, core_num=core_num)
-
-    if save_done_topo:
-        save_file(data_item=final_link, out_fldr=out_fldr, file_name='DoneTopoLink', file_type=net_file_type)
-        save_file(data_item=final_node, out_fldr=out_fldr, file_name='DoneTopoNode', file_type=net_file_type)
+    if use_tp_opt:
+        # 5.拓扑优化
+        print(rf'##########   {flag_name} - Topology Optimization')
+        final_link, final_node, dup_info_dict = optimize_net.optimize(link_gdf=link_gdf, node_gdf=new_node,
+                                                                      ignore_dir=False, limit_col_name=limit_col_name,
+                                                                      save_preliminary=save_preliminary,
+                                                                      out_fldr=out_fldr,
+                                                                      plain_prj=plain_prj,
+                                                                      restrict_angle=restrict_angle,
+                                                                      restrict_length=restrict_length,
+                                                                      accu_l_threshold=accu_l_threshold,
+                                                                      angle_threshold=angle_threshold,
+                                                                      process_dup_link_buffer=process_dup_link_buffer,
+                                                                      is_process_dup_link=is_process_dup_link,
+                                                                      allow_ring=False,
+                                                                      modify_minimum_buffer=modify_minimum_buffer,
+                                                                      min_length=min_length,
+                                                                      dup_link_buffer_ratio=dup_link_buffer_ratio,
+                                                                      multi_core=multi_core_merge, core_num=core_num)
+        generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
+        if save_done_topo:
+            save_file(data_item=final_link, out_fldr=out_fldr, file_name='DoneTopoLink', file_type=net_file_type)
+            save_file(data_item=final_node, out_fldr=out_fldr, file_name='DoneTopoNode', file_type=net_file_type)
+    else:
+        final_link = link_gdf
+        final_node = new_node
 
     if modify_conn:
         if conn_period == 'final':
@@ -157,5 +162,4 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
         pass
     save_file(data_item=final_link, out_fldr=out_fldr, file_name='FinalLink', file_type=net_file_type)
     save_file(data_item=final_node, out_fldr=out_fldr, file_name='FinalNode', file_type=net_file_type)
-    generate_book_mark(name_loc_dict=dup_info_dict, prj_name=flag_name, input_fldr=out_fldr)
     return final_link, final_node
