@@ -23,39 +23,36 @@ class RequestOnTime(object):
         else:
             self.od_df = pd.read_csv(input_file_path)
 
-    def start_request(self, out_fldr: str = None, cache_times: int = 2000, id_field: str = None,
+    def start_request(self, traffic_mode: str = 'car', out_fldr: str = None, cache_times: int = 2000,
+                      id_field: str = None,
                       file_flag: str = None, o_x_field: str = 'o_x', o_y_field: str = 'o_y',
                       d_x_field: str = 'd_x', d_y_field: str = 'd_y', way_points_field: str = None,
                       request_hh_field: str = None, ignore_hh: bool = False, log_fldr: str = None,
                       save_log_file: bool = False,
                       remove_his: bool = True, key_info_dict: dict[str, int] = None,
-                      is_rnd_strategy: bool = True, strategy: str = '32', traffic_mode: str = 'car',
-                      wait_until_recovery: bool = False):
+                      is_rnd_strategy: bool = True, strategy: str = '32', wait_until_recovery: bool = False):
         """
-
-        Args:
-            out_fldr:
-            cache_times:
-            id_field:
-            file_flag:
-            o_x_field:
-            o_y_field:
-            d_x_field:
-            d_y_field:
-            way_points_field:
-            request_hh_field:
-            ignore_hh:
-            log_fldr:
-            save_log_file:
-            remove_his:
-            key_info_dict:
-            is_rnd_strategy:
-            strategy:
-            traffic_mode:
-            wait_until_recovery:
-
-        Returns:
-
+        给一个od表, 按照时间进行请求
+        :param traffic_mode:
+        :param out_fldr:
+        :param cache_times:
+        :param id_field:
+        :param file_flag:
+        :param o_x_field:
+        :param o_y_field:
+        :param d_x_field:
+        :param d_y_field:
+        :param way_points_field:
+        :param request_hh_field:
+        :param ignore_hh:
+        :param log_fldr:
+        :param save_log_file:
+        :param remove_his
+        :param key_info_dict:
+        :param is_rnd_strategy
+        :param strategy
+        :param wait_until_recovery
+        :return:
         """
 
         console_handler = logging.StreamHandler(sys.stdout)
@@ -154,7 +151,7 @@ class RequestOnTime(object):
             # 配额达到上限
             if is_end:
                 if wait_until_recovery:
-                    logging.info(rf'开始休眠等待配额恢复...')
+                    logging.info(rf'start sleeping and wait for quota to be restored...')
                     time.sleep(3600)
                     self.key_list = self.origin_key_list.copy()
                     key_info_dict = {k: 0 for k in self.key_list}
@@ -195,7 +192,6 @@ class RequestOnTime(object):
             else:
                 json_data, info_code = route_plan_obj.sl_route_plan(origin=o_loc, destination=d_loc, key=key,
                                                                     od_id=od_id, alternative_route=strategy, mode=mode)
-
             if info_code is not None:
                 # 请求成功
                 if info_code == 10000:
