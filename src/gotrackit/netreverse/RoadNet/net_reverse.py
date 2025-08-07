@@ -40,7 +40,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
                  save_done_topo: bool = False,
                  is_process_dup_link: bool = True, process_dup_link_buffer: float = 0.8, min_length: float = 50.0,
                  dup_link_buffer_ratio: float = 60.0, net_file_type: str = 'shp', modify_conn: bool = True,
-                 conn_buffer: float = 0.8, conn_period: str = 'final', use_tp_opt: bool = True):
+                 conn_buffer: float = 0.8, conn_period: str = 'final', use_tp_opt: bool = False):
     """
     路网逆向主程序, 输入拆分好且去重的path_gdf(EPSG:4326), output: EPSG:4326
     :param path_gdf:
