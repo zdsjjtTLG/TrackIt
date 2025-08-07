@@ -56,7 +56,7 @@ class NetReverse(Reverse):
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
-                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = True, save_tpr_link: bool = False,
+                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = False, save_tpr_link: bool = False,
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
@@ -554,7 +554,7 @@ class NetReverse(Reverse):
                                  conn_buffer=self.conn_buffer,
                                  conn_period=self.conn_period,
                                  multi_core_merge=self.multi_core_merge,
-                                 core_num=self.merge_core_num, use_tp_opt=use_tp_opt)
+                                 core_num=self.merge_core_num, use_tp_opt=self.use_tp_opt)
 
     def __generate_net_from_split_path_parallel(self, split_path_gdf_dict: dict[int, gpd.GeoDataFrame]):
         """

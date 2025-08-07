@@ -16,6 +16,13 @@ def generate_book_mark(name_loc_dict: dict = None, prj_name: str = None, input_f
             os.remove(os.path.join(input_fldr, rf'{prj_name}.xml'))
         except FileNotFoundError:
             pass
+
+    if not os.path.exists(input_fldr):
+        try:
+            os.makedirs(input_fldr)
+        except Exception as e:
+            print(repr(e))
+
     if rf'{prj_name}.xml' in os.listdir(input_fldr):
         # append
         tree = ET.parse(os.path.join(input_fldr, rf'{prj_name}.xml'))
