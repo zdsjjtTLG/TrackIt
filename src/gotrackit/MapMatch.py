@@ -280,7 +280,8 @@ class MapMatch(object):
                                  out_fldr=self.out_fldr, flag_name=self.flag_name,
                                  multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
                                  dup_threshold=self.dup_threshold)
-        return pd.concat(all_agent_match_res, ignore_index=True), may_error_list, error_list
+        match_res = pd.concat(all_agent_match_res, ignore_index=True) if all_agent_match_res else pd.DataFrame()
+        return match_res, may_error_list, error_list
 
     def multi_core_execute(self, gps_df: pd.DataFrame | gpd.GeoDataFrame, core_num: int = 2) -> \
             tuple[pd.DataFrame, dict, list]:

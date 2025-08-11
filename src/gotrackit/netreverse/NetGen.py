@@ -56,7 +56,7 @@ class NetReverse(Reverse):
                  cut_slice: bool = False, slice_num: int = 5, generate_rod: bool = False, min_rod_length: float = 5.0,
                  restrict_region_gdf: gpd.GeoDataFrame = None, save_split_link: bool = False,
                  modify_minimum_buffer: float = 0.8, save_streets_before_modify_minimum: bool = False,
-                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = False, save_tpr_link: bool = False,
+                 save_streets_after_modify_minimum: bool = False, use_tp_opt: bool = True, save_tpr_link: bool = False,
                  limit_col_name: str = 'road_name', ignore_dir: bool = False,
                  allow_ring: bool = False, restrict_angle: bool = True, restrict_length: bool = True,
                  accu_l_threshold: float = 200.0, angle_threshold: float = 35.0, min_length: float = 50.0,
@@ -524,7 +524,7 @@ class NetReverse(Reverse):
             split_path_gdf_dict = {region: gdf.reset_index(drop=True) for region, gdf in
                                    split_path_gdf.groupby('region_id')}
             self.__generate_net_from_split_path_parallel(split_path_gdf_dict=split_path_gdf_dict)
-    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame, use_tp_opt: bool = True):
+    def __generate_net_from_split_path(self, split_path_gdf: gpd.GeoDataFrame):
         """
 
         :param split_path_gdf:
@@ -682,7 +682,7 @@ class NetReverse(Reverse):
                      divide_l: float = 70.0, min_l: float = 1.0) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """NetReverse类静态方法 - divide_links：
 
-        - 对标准路网执行划分(打断)：路段将长度大于divide_l的路段进行切分，同时更新点层
+        - 对标准路网执行划分(打断)：路段将长度大于divide_l的路段进行切分，同时更新点层。该函数会将双向行驶路段合并为dir=0的单条路段
 
         Args:
             link_gdf: 线层gdf, 要求输入必须为EPSG:4326
