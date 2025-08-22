@@ -769,6 +769,7 @@ class NetReverse(Reverse):
             'there are abnormal values in the dir field. Only 0 and 1 are allowed.'
 
         # 创建single_link
+        link_gdf = link_gdf.explode(ignore_index=True)
         single_link_gdf = create_single_link(link_gdf=link_gdf)
         if self.limit_col_name not in single_link_gdf.columns:
             single_link_gdf[self.limit_col_name] = 'XX路'
