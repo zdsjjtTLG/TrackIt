@@ -144,8 +144,9 @@ def create_single_link(link_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if neg_link.empty:
         return link_gdf
     else:
-        neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
-            lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+        # neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].apply(
+        #     lambda line_geo: LineString(list(line_geo.coords)[::-1]))
+        neg_link[net_field.GEOMETRY_FIELD] = neg_link[net_field.GEOMETRY_FIELD].reverse()
 
         single_link_gdf = pd.concat([link_gdf, neg_link])
         single_link_gdf.reset_index(inplace=True, drop=True)
