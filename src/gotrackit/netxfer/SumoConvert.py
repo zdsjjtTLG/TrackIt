@@ -719,7 +719,7 @@ class SumoConvert(object):
 
     @staticmethod
     def generate_plain_node(node_gdf: gpd.GeoDataFrame = None, junction_gdf: gpd.GeoDataFrame = None,
-                            x_offset: float = 0.0, y_offset: float = 0.0):
+                            x_offset: float = 0.0, y_offset: float = 0.0, origin_bounds:tuple=None):
         """
 
         Args:
@@ -727,6 +727,7 @@ class SumoConvert(object):
             junction_gdf:
             x_offset:
             y_offset:
+            origin_bounds:
 
         Returns:
 
@@ -743,9 +744,9 @@ class SumoConvert(object):
         nodes_root = ET.Element('nodes')
         location_ele = ET.Element('location')
         location_ele.set("netOffset", rf"{x_offset},{y_offset}")
-        location_ele.set("convBoundary", rf"{min_x},{min_y},{max_x},{max_y}")
-        location_ele.set("origBoundary", "-10000000000.00,-10000000000.00,10000000000.00,10000000000.00")
-        location_ele.set('projParameter', str(CRS.from_user_input(node_gdf.crs).to_proj4()))
+        location_ele.set("convBoundary", rf"0,0,{max_x-min_x},{max_y-min_y}")
+        location_ele.set("origBoundary", rf"{origin_bounds[0]},{origin_bounds[1]},{origin_bounds[2]},{origin_bounds[3]}")
+        location_ele.set('projParameter', str(CRS.from_user_input(node_gdf.crs).to_proj4()).replace(' +type=crs', ''))
         print(str(CRS.from_user_input(node_gdf.crs).to_proj4()))
         # 以根节点创建文档树
         tree = ET.ElementTree(nodes_root)
@@ -811,17 +812,23 @@ class SumoConvert(object):
         if SPREAD_TYPE not in single_link_gdf.columns:
             single_link_gdf[SPREAD_TYPE] = 'right'
 
+        bound = node_gdf.bounds
+
+        origin_minx, origin_miny, origin_maxx, origin_max_y = bound['minx'].min(), bound['miny'].min(), bound[
+            'maxx'].max(), bound['maxy'].max()
         single_link_gdf = single_link_gdf.to_crs(plain_crs)
         node_gdf = node_gdf.to_crs(plain_crs)
-        if x_offset == 0:
-            x_offset = -node_gdf[geometry_field].x.min()
-        if y_offset == 0:
-            y_offset = -node_gdf[geometry_field].y.min()
+        # if x_offset == 0:
+            # x_offset = -node_gdf[geometry_field].x.min()
+            # x_offset = 0
+        # if y_offset == 0:
+            # y_offset = -node_gdf[geometry_field].y.min()
+            # y_offset = 0
         single_link_gdf[net_field.LINK_ID_FIELD] = [i for i in range(1, len(single_link_gdf) + 1)]
         edge_tree = self.generate_plain_edge(link_gdf=single_link_gdf, use_lane_ele=use_lane_ele,
                                              lane_info_reverse=lane_info_reverse)
         node_tree = self.generate_plain_node(node_gdf=node_gdf, x_offset=x_offset, y_offset=y_offset,
-                                             junction_gdf=junction_gdf)
+                                             junction_gdf=junction_gdf, origin_bounds=(origin_minx, origin_miny, origin_maxx, origin_max_y))
         edge_tree.write(os.path.join(out_fldr, rf'{flag_name}.edg.xml'))
         node_tree.write(os.path.join(out_fldr, rf'{flag_name}.nod.xml'))
         self.generate_net_from_plain(sumo_home_fldr=sumo_home_fldr,
@@ -1080,7 +1087,7 @@ def dual2single(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
         # net_zero_negs[geometry_field] = net_zero_negs[geometry_field].apply(lambda l: LineString(list(l.coords)[::-1]))
         net_zero_negs[geometry_field] = net_zero_negs[geometry_field].reverse()
 
-    net = pd.concat([net_poss, net_zero_poss, net_negs, net_zero_negs]).reset_index(drop=True)
+    net = pd.concat([net_poss, net_zero_poss, net_negs, net_zero_negs], ignore_index=True)
 
     # 恢复冲突字段
     rename_dict_reverse = dict((v, k) for k, v in rename_dict.items())
