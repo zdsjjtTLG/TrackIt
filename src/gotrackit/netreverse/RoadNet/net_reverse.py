@@ -79,6 +79,7 @@ def generate_net(path_gdf: gpd.GeoDataFrame = None, out_fldr: str = None,
     if modify_minimum_buffer <= conn_buffer:
         modify_minimum_buffer = conn_buffer + 0.1
 
+    path_gdf = path_gdf.explode(ignore_index=True)
     path_gdf_after_split = path_gdf
 
     if save_split_link:
