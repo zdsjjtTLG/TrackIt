@@ -38,7 +38,7 @@ class KeplerVis(object):
             zoom: 缩放层级, 默认15
             cen_loc: 地图中心点经纬度坐标(WGS-84坐标系)
             show_roads: 是否在底图上显示路网图层
-            map_style: 地图风格, 可选dark, light, muted, muted_night, satellite(keplergl<0.3.7版本), 可选dark-matter、positron、voyager(keplergl≥0.3.7版本)
+            map_style: 地图风格, 若keplergl版本 <0.3.7：可选dark, light, muted, muted_night, satellite；若keplergl版本≥0.3.7：可选dark-matter、positron、voyager
 
         """
         self.user_config = kepler_config.get_glb_map_config()
