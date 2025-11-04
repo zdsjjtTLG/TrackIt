@@ -623,13 +623,16 @@ class SumoConvert(object):
         node_config, edge_config = rf'--node-files={plain_node_path}', rf'--edge-files={plain_edge_path}'
         offset_config = rf'--offset.x {x_offset}  --offset.y {y_offset}'
         output_config = rf'--output-file={os.path.join(out_fldr, out_file_name)}'
+        radius_config = rf'--default.junctions.radius=5'
         if plain_conn_path is None:
             conn_config = r''
         else:
-            conn_config = rf'--connection-files={plain_node_path}'
-
+            conn_config = rf'--connection-files={plain_conn_path}'
+        # print(rf'{os.path.join(sumo_home_fldr, net_convert_fldr)} {node_config} {edge_config} {conn_config} {offset_config} {radius_config} {output_config} --junctions.join-dist {join_dist}')
         os.system(
-            rf'{os.path.join(sumo_home_fldr, net_convert_fldr)} {node_config} {edge_config} {conn_config} {offset_config} {output_config} --junctions.join-dist {join_dist}')
+            rf'{os.path.join(sumo_home_fldr, net_convert_fldr)} {node_config} {edge_config} {conn_config} {offset_config} {radius_config} {output_config} --junctions.join-dist {join_dist}')
+        # os.system(
+        #     rf'{os.path.join(sumo_home_fldr, net_convert_fldr)} {node_config} {edge_config} {conn_config} {offset_config} {output_config} --junctions.join-dist {join_dist}')
 
     @staticmethod
     def generate_plain_edge(link_gdf: gpd.GeoDataFrame = None, use_lane_ele: bool = False,
@@ -719,7 +722,7 @@ class SumoConvert(object):
 
     @staticmethod
     def generate_plain_node(node_gdf: gpd.GeoDataFrame = None, junction_gdf: gpd.GeoDataFrame = None,
-                            x_offset: float = 0.0, y_offset: float = 0.0, origin_bounds:tuple=None):
+                            x_offset: float = 0.0, y_offset: float = 0.0, origin_bounds: tuple = None):
         """
 
         Args:
@@ -775,39 +778,35 @@ class SumoConvert(object):
         del node_gdf['_x_'], node_gdf['_y_']
         return tree
 
-    def generate_hd_map(self, sumo_home_fldr: str, link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
+    def generate_hd_map(self, sumo_home_fldr: str, single_link_gdf: gpd.GeoDataFrame, node_gdf: gpd.GeoDataFrame,
                         junction_gdf: gpd.GeoDataFrame = None,
                         use_lane_ele: bool = False, lane_info_reverse: bool = True, join_dist: float = 10.0,
                         x_offset: float = 0.0, y_offset: float = 0.0, out_fldr: str = r'./',
-                        flag_name: str = 'prj', plain_crs: str = 'EPSG:3857', is_single_link: bool = False):
-        """SumoConvert类方法 - generate_hd_map(v0.3.18提供)
+                        flag_name: str = 'prj', plain_crs: str = 'EPSG:3857',
+                        use_conn: bool = True, conn_tree: ET.ElementTree = None) -> gpd.GeoDataFrame:
+        """SumoConvert类方法 - generate_hd_map
 
         - 基于宏观路网生产.net.xml高精地图文件
 
         Args:
             sumo_home_fldr: sumo安装目录
-            link_gdf: 路网线层
+            single_link_gdf: 路网线层
             node_gdf: 路网点层
-            is_single_link: 路网线层是否是单向表示
             junction_gdf: 节点面域
             use_lane_ele: 是否启用车道信息自定义
+            x_offset: x坐标偏移值
+            y_offset: y坐标偏移值
             lane_info_reverse: 是否反转车道索引
             join_dist: 路口合并阈值, 米
             out_fldr: .net.xml路网输出目录
             flag_name: .net.xml路网的名称
             plain_crs: 平面投影坐标系
+            use_conn: 是否手动指定路口连接关系
+            conn_tree: 路口连接对象信息
 
         Returns:
 
         """
-        if not is_single_link:
-            if rf'{SPREAD_TYPE}_ab' not in link_gdf.columns and rf'{SPREAD_TYPE}_ba' not in link_gdf.columns:
-                link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 0, SPREAD_TYPE] = 'right'
-                link_gdf.loc[link_gdf[net_field.DIRECTION_FIELD] == 1, SPREAD_TYPE] = 'center'
-            single_link_gdf = dual2single(link_gdf=link_gdf)
-            single_link_gdf[link_id_field] = [i + 1 for i in range(len(single_link_gdf))]
-        else:
-            single_link_gdf = link_gdf
 
         if SPREAD_TYPE not in single_link_gdf.columns:
             single_link_gdf[SPREAD_TYPE] = 'right'
@@ -828,14 +827,29 @@ class SumoConvert(object):
         edge_tree = self.generate_plain_edge(link_gdf=single_link_gdf, use_lane_ele=use_lane_ele,
                                              lane_info_reverse=lane_info_reverse)
         node_tree = self.generate_plain_node(node_gdf=node_gdf, x_offset=x_offset, y_offset=y_offset,
-                                             junction_gdf=junction_gdf, origin_bounds=(origin_minx, origin_miny, origin_maxx, origin_max_y))
+                                             junction_gdf=junction_gdf, origin_bounds=(origin_minx, origin_miny,
+                                                                                       origin_maxx, origin_max_y))
         edge_tree.write(os.path.join(out_fldr, rf'{flag_name}.edg.xml'))
         node_tree.write(os.path.join(out_fldr, rf'{flag_name}.nod.xml'))
+
+        if use_conn:
+            conn_tree.write(os.path.join(out_fldr, rf'{flag_name}.con.xml'))
+            plain_conn_path = os.path.join(out_fldr, rf'{flag_name}.con.xml')
+        else:
+            plain_conn_path = None
+
         self.generate_net_from_plain(sumo_home_fldr=sumo_home_fldr,
                                      plain_edge_path=os.path.join(out_fldr, rf'{flag_name}.edg.xml'),
-                                     plain_node_path=os.path.join(out_fldr, rf'{flag_name}.nod.xml'), x_offset=x_offset,
+                                     plain_node_path=os.path.join(out_fldr, rf'{flag_name}.nod.xml'),
+                                     plain_conn_path=plain_conn_path,
+                                     x_offset=x_offset,
                                      y_offset=y_offset, join_dist=join_dist, out_fldr=out_fldr,
                                      out_file_name=flag_name)
+
+        return single_link_gdf
+
+    def dual2single(self):
+        pass
 
     @staticmethod
     def match2rou(match_res_df: pd.DataFrame | gpd.GeoDataFrame, edge_id_field: str = 'edge_id',
@@ -878,6 +892,37 @@ class SumoConvert(object):
 
     def generate_sim(self):
         pass
+
+    @staticmethod
+    def generate_conn_file(conn_list) -> ET.ElementTree:
+        """
+        生成路口连接对象
+        Args:
+            conn_list:
+
+        Returns:
+
+        """
+        # 创建根节点
+        conn_root = ET.Element('connections')
+
+        # 以根节点创建文档树
+        tree = ET.ElementTree(conn_root)
+
+        # 设置根节点的属性
+        conn_root.set('version', "1.16")
+        conn_root.set('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
+        conn_root.set('xsi:noNamespaceSchemaLocation', "http://sumo.dlr.de/xsd/connections_file.xsd")
+        # new child node
+        for from_edge, to_edge, from_lane, to_lane, _, _ in conn_list:
+            conn_ele = ET.Element('connection')
+            conn_ele.set('from', str(from_edge))
+            conn_ele.set('to', str(to_edge))
+            conn_ele.set('fromLane', str(from_lane))
+            conn_ele.set('toLane', str(to_lane))
+            conn_root.append(conn_ele)
+        return tree
+
 
     @staticmethod
     def get_prj_info(net_path: str = None, crs: str = None, ) -> tuple[float, float, str]:
