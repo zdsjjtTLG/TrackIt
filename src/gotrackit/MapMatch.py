@@ -490,13 +490,13 @@ class OnLineMapMatch(MapMatch):
         user_field_list = GpsPointsGdf.check(gps_points_df=gps_df, user_field_list=self.user_field_list)
         may_error_list = dict()
         error_list = list()
-        match_res_df = pd.DataFrame()
+        all_agent_match_res = list()
         hmm_res_list = []  # save hmm_res
         gps_df.dropna(subset=[agent_id_field], inplace=True)
         agent_num = len(gps_df[gps_field.AGENT_ID_FIELD].unique())
         if agent_num == 0:
             print('after removing the rows with empty values in the agent_id column, the gps data is empty...')
-            return match_res_df, may_error_list, error_list
+            return pd.DataFrame(), may_error_list, error_list
 
         # 对每辆车的轨迹进行匹配
         agent_count = 0
@@ -606,7 +606,7 @@ class OnLineMapMatch(MapMatch):
                 _match_res_df.to_csv(os.path.join(self.out_fldr, rf'{agent_id}_match_res.csv'),
                                      encoding='utf_8_sig', index=False)
             else:
-                match_res_df = pd.concat([match_res_df, _match_res_df])
+                all_agent_match_res.append(_match_res_df)
 
             # if export files
             if self.export_html or self.export_geo_res:
@@ -628,4 +628,5 @@ class OnLineMapMatch(MapMatch):
                                  out_fldr=self.out_fldr, flag_name=self.flag_name,
                                  multi_core_save=self.multi_core_save, sub_net_buffer=self.sub_net_buffer,
                                  dup_threshold=self.dup_threshold)
+        match_res_df = pd.concat(all_agent_match_res, ignore_index=True) if all_agent_match_res else pd.DataFrame()
         return match_res_df, may_error_list, error_list
