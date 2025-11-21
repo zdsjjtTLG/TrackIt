@@ -790,7 +790,7 @@ class SumoConvert(object):
 
         Args:
             sumo_home_fldr: sumo安装目录
-            single_link_gdf: 路网线层
+            single_link_gdf: 路网线层(单向路段表达形式)
             node_gdf: 路网点层
             junction_gdf: 节点面域
             use_lane_ele: 是否启用车道信息自定义
