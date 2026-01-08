@@ -122,7 +122,7 @@ gotrackit是一个基于**改进隐马尔可夫模型**实现的全流程地图�
 </div>
 
 
-## 1. 简介
+## 1 简介
 GoTrackIt由[杭州浙诚数据科技有限公司](https://www.zhechengdata.com/)-数据分析团队开发，我们基于改进的隐马尔可夫模型(HMM)实现了连续GPS点位的概率建模，利用这个包可以轻松对GPS数据进行地图匹配，本开源包的特点如下:
 
 **😻数据无忧**
@@ -146,7 +146,7 @@ GoTrackIt由[杭州浙诚数据科技有限公司](https://www.zhechengdata.com/
 
 
 
-### 1.1. 如何安装gotrackit
+### 1.1 如何安装gotrackit
 
 #### __使用pip安装__
 
@@ -175,19 +175,19 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 - [QGIS路网拓扑显示、底图加载、样式复用、map保存](https://www.bilibili.com/video/BV1Sq421F7QX)
 
 
-### 1.3. 如何引用gotrackit
+### 1.3 如何引用gotrackit
 
 Tang,K.(2023, December 20)._GoTrackIt_.Retrieved from https://github.com/zdsjjtTLG/TrackIt
 
 
-### 1.4. BUG提交
+### 1.4 BUG提交
 
 如果确定是BUG，请提交在以下页面：
 
 [BUG提交页面](https://github.com/zdsjjtTLG/TrackIt/issues)
 
 
-## 2. 贡献者名单
+## 2 贡献者名单
 
 在GoTrackIt的迭代发展过程中，他们对GoTrackIt提出了很多宝贵的意见，带来了大量实用的设计思路，助力GotTrackIt成为更加普及的开源项目！
 
@@ -203,12 +203,12 @@ Tang,K.(2023, December 20)._GoTrackIt_.Retrieved from https://github.com/zdsjjtT
 - 参考了Paul Newson、John Krumm的论文：[Hidden Markov Map Matching Through Noise and Sparseness](https://dl.acm.org/doi/10.1145/1653771.1653818)
 - 参考了武汉大学YangCan的论文：[Fast map matching, an algorithm integrating hidden Markov model with precomputation](https://www.tandfonline.com/doi/full/10.1080/13658816.2017.1400548)
 
-## 3. 地图匹配定义
+## 3 地图匹配定义
 
 ![car_gps.png](docs/_static/images/MapMatch.PNG)
 
 
-## 4. 地图匹配应用场景
+## 4 地图匹配应用场景
 
 ![car_gps.png](docs/_static/images/application.PNG)
 
