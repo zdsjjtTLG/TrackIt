@@ -7,6 +7,7 @@
 
 import numpy as np
 import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
