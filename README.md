@@ -177,11 +177,8 @@ pip install --upgrade  -i https://pypi.org/simple/ gotrackit
 
 ### 1.3. 如何引用gotrackit
 
-如果你想在文章中引用gotrackit，请附上以下链接：
+Tang,K.(2023, December 20)._GoTrackIt_.Retrieved from https://github.com/zdsjjtTLG/TrackIt
 
-``` shell
-https://github.com/zdsjjtTLG/TrackIt
-```
 
 ### 1.4. BUG提交
 
