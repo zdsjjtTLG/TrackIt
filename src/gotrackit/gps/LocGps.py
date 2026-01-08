@@ -405,14 +405,15 @@ class GpsPointsGdf(object):
     def calc_diff_heading(self):
         if self.done_diff_heading:
             return None
-        self.__gps_points_gdf['next_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(-1).fillna(
-            self.__gps_points_gdf[gps_field.PLAIN_X])
-        self.__gps_points_gdf['next_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(-1).fillna(
-            self.__gps_points_gdf[gps_field.PLAIN_Y])
-        self.__gps_points_gdf['pre_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(1).fillna(
-            self.__gps_points_gdf[gps_field.PLAIN_X])
-        self.__gps_points_gdf['pre_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(1).fillna(
-            self.__gps_points_gdf[gps_field.PLAIN_Y])
+        self.pre_next_diff()
+        # self.__gps_points_gdf['next_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(-1).fillna(
+        #     self.__gps_points_gdf[gps_field.PLAIN_X])
+        # self.__gps_points_gdf['next_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(-1).fillna(
+        #     self.__gps_points_gdf[gps_field.PLAIN_Y])
+        # self.__gps_points_gdf['pre_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(1).fillna(
+        #     self.__gps_points_gdf[gps_field.PLAIN_X])
+        # self.__gps_points_gdf['pre_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(1).fillna(
+        #     self.__gps_points_gdf[gps_field.PLAIN_Y])
         self.__gps_points_gdf[gps_field.X_DIFF] = self.__gps_points_gdf['next_x'] - self.__gps_points_gdf['pre_x']
         self.__gps_points_gdf[gps_field.Y_DIFF] = self.__gps_points_gdf['next_y'] - self.__gps_points_gdf['pre_y']
         del self.__gps_points_gdf['next_x'], self.__gps_points_gdf['next_y'], \
@@ -421,6 +422,15 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf[gps_field.VEC_LEN] = np.sqrt(
             self.__gps_points_gdf[gps_field.X_DIFF] ** 2 + self.__gps_points_gdf[gps_field.Y_DIFF] ** 2)
         self.done_diff_heading = True
+    def pre_next_diff(self):
+        self.__gps_points_gdf['next_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(-1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_X])
+        self.__gps_points_gdf['next_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(-1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_Y])
+        self.__gps_points_gdf['pre_x'] = self.__gps_points_gdf[gps_field.PLAIN_X].shift(1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_X])
+        self.__gps_points_gdf['pre_y'] = self.__gps_points_gdf[gps_field.PLAIN_Y].shift(1).fillna(
+            self.__gps_points_gdf[gps_field.PLAIN_Y])
 
     @property
     def gps_gdf(self) -> gpd.GeoDataFrame:
