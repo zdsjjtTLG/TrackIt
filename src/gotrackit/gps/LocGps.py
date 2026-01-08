@@ -702,7 +702,7 @@ class GpsPointsGdf(object):
         """only support one agent"""
         return self.__gps_points_gdf.at[self.__gps_points_gdf.head(1).index[0], gps_field.POINT_SEQ_FIELD]
 
-    def not_same_agent_idx(self) -> bool:
+    def not_same_agent_idx(self) -> pd.Series(bool):
         next_agent_field = '__next'
         # 前序agent_id
         self.__gps_points_gdf[next_agent_field] = self.__gps_points_gdf[agent_field].shift(-1).fillna(
