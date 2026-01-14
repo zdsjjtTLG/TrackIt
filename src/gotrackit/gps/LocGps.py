@@ -765,6 +765,187 @@ class GpsPointsGdf(object):
             self.__gps_points_gdf.reset_index(inplace=True, drop=True)
         return self
 
+    def simplify_trajectory_alpha(self, l_threshold: float = 5.0):
+        """类方法 - simplify_trajectory_alpha：
+
+        - 简化轨迹：利用道格拉斯-普克算法进行抽稀，并按原始轨迹里程-时间映射插值时间戳，仅保留关键节点。
+
+        Args:
+            l_threshold: 抽稀阈值(米)
+
+        Returns:
+            self
+        """
+        if self.__gps_points_gdf.empty:
+            return self
+
+        origin_crs = self.__gps_points_gdf.crs
+        origin_gps_dtypes = self.__gps_points_gdf.dtypes
+        origin_user_gps_info = self.__user_gps_info.copy() if not self.__user_gps_info.empty else pd.DataFrame()
+
+        agent_count = self.__gps_points_gdf.groupby(agent_field)[[time_field]].count().rename(columns={time_field: 'c'})
+        one_agent = list(agent_count[agent_count['c'] <= 1].index)
+
+        process_trajectory = self.__gps_points_gdf[~self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
+        keep_trajectory = self.__gps_points_gdf[self.__gps_points_gdf[agent_field].isin(one_agent)].copy()
+
+        if not keep_trajectory.empty:
+            keep_trajectory = keep_trajectory[[agent_field, time_field, geometry_field, gps_field.POINT_SEQ_FIELD]].copy()
+            keep_trajectory[ori_seq_field] = keep_trajectory[gps_field.POINT_SEQ_FIELD]
+            del keep_trajectory[gps_field.POINT_SEQ_FIELD]
+            keep_trajectory = gpd.GeoDataFrame(keep_trajectory, geometry=geometry_field, crs=origin_crs)
+
+        new_points_list = []
+
+        if not process_trajectory.empty:
+            process_trajectory = process_trajectory[[agent_field, time_field, geometry_field, gps_field.POINT_SEQ_FIELD]].copy()
+            process_trajectory.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
+            process_trajectory.reset_index(inplace=True, drop=True)
+
+            agent_time_seq_dict = dict()
+            agent_ts_profile_dict = dict()
+            for aid, g in process_trajectory.groupby(agent_field, sort=False):
+                origin_times = g[time_field].values
+                origin_seqs = g[gps_field.POINT_SEQ_FIELD].values
+
+                origin_line = LineString(g[geometry_field].tolist())
+                origin_s = np.zeros(len(g), dtype=float)
+                if len(g) >= 2:
+                    cur_s = 0.0
+                    prev_p = g.iloc[0][geometry_field]
+                    for i in range(1, len(g)):
+                        cur_p = g.iloc[i][geometry_field]
+                        cur_s += prev_p.distance(cur_p)
+                        origin_s[i] = cur_s
+                        prev_p = cur_p
+
+                origin_s_fixed = origin_s.copy()
+                eps = 1e-6
+                for i in range(1, len(origin_s_fixed)):
+                    if origin_s_fixed[i] <= origin_s_fixed[i - 1]:
+                        origin_s_fixed[i] = origin_s_fixed[i - 1] + eps
+
+                is_dt = np.issubdtype(np.asarray(origin_times).dtype, np.datetime64)
+                if is_dt:
+                    origin_time_num = origin_times.astype('datetime64[ns]').astype(np.int64)
+                else:
+                    origin_time_num = np.asarray(origin_times, dtype=float)
+
+                agent_time_seq_dict[aid] = (origin_times, origin_seqs)
+                agent_ts_profile_dict[aid] = (origin_line, origin_s_fixed, origin_time_num, is_dt)
+
+            line_gdf = process_trajectory.groupby(agent_field)[[geometry_field]].agg({geometry_field: list}).reset_index(
+                drop=False)
+            line_gdf[geometry_field] = line_gdf[geometry_field].apply(lambda p: LineString(p))
+            line_gdf = gpd.GeoDataFrame(line_gdf, geometry=geometry_field, crs=origin_crs)
+            line_gdf[geometry_field] = line_gdf[geometry_field].simplify(l_threshold)
+
+            for _, row in line_gdf.iterrows():
+                aid = row[agent_field]
+                line = row[geometry_field]
+                if line is None or line.is_empty or not hasattr(line, 'coords'):
+                    continue
+
+                coords = list(line.coords)
+                if not coords:
+                    continue
+
+                origin_times, origin_seqs = agent_time_seq_dict.get(aid, (None, None))
+                if origin_times is None or len(origin_times) == 0:
+                    continue
+
+                origin_ts_profile = agent_ts_profile_dict.get(aid, None)
+                if origin_ts_profile is None:
+                    continue
+                origin_line, origin_s_fixed, origin_time_num, is_dt = origin_ts_profile
+                s_max = float(origin_s_fixed[-1]) if len(origin_s_fixed) else 0.0
+
+                for coord in coords:
+                    p = Point(coord)
+                    s_star = float(origin_line.project(p)) if origin_line is not None and not origin_line.is_empty else 0.0
+                    if s_star < 0.0:
+                        s_star = 0.0
+                    if s_max > 0.0 and s_star > s_max:
+                        s_star = s_max
+
+                    time_num_star = float(np.interp(s_star, origin_s_fixed, origin_time_num))
+                    if is_dt:
+                        new_time = pd.to_datetime(np.int64(time_num_star), unit='ns')
+                    else:
+                        new_time = time_num_star
+
+                    if np.issubdtype(np.asarray(origin_times).dtype, np.datetime64):
+                        new_time_value = np.datetime64(new_time)
+                    else:
+                        new_time_value = new_time
+
+                    pos = int(np.searchsorted(origin_times, new_time_value, side='left'))
+                    if pos <= 0:
+                        src_seq = origin_seqs[0]
+                    elif pos >= len(origin_times):
+                        src_seq = origin_seqs[-1]
+                    else:
+                        left_t, right_t = origin_times[pos - 1], origin_times[pos]
+                        if np.abs(new_time_value - left_t) <= np.abs(right_t - new_time_value):
+                            src_seq = origin_seqs[pos - 1]
+                        else:
+                            src_seq = origin_seqs[pos]
+
+                    new_points_list.append({
+                        agent_field: aid,
+                        time_field: new_time,
+                        geometry_field: Point(coord),
+                        ori_seq_field: src_seq,
+                    })
+
+        if not new_points_list and keep_trajectory.empty:
+            self.__gps_points_gdf = gpd.GeoDataFrame(columns=self.__gps_points_gdf.columns, crs=origin_crs)
+            return self
+
+        if new_points_list:
+            new_gdf = gpd.GeoDataFrame(new_points_list, geometry=geometry_field, crs=origin_crs)
+            if not keep_trajectory.empty:
+                self.__gps_points_gdf = pd.concat([new_gdf, keep_trajectory])
+            else:
+                self.__gps_points_gdf = new_gdf
+        else:
+            self.__gps_points_gdf = keep_trajectory
+
+        self.__gps_points_gdf = gpd.GeoDataFrame(self.__gps_points_gdf, geometry=geometry_field, crs=origin_crs)
+        self.__gps_points_gdf.sort_values(by=[agent_field, time_field], ascending=[True, True], inplace=True)
+        self.__gps_points_gdf.reset_index(inplace=True, drop=True)
+
+        self.add_seq_field(gps_points_gdf=self.__gps_points_gdf, multi_agents=self.multi_agents)
+        self.__gps_points_gdf[gps_field.PLAIN_X] = self.__gps_points_gdf[geometry_field].x
+        self.__gps_points_gdf[gps_field.PLAIN_Y] = self.__gps_points_gdf[geometry_field].y
+
+        cast_cols = [c for c in origin_gps_dtypes.index if c in self.__gps_points_gdf.columns and c != geometry_field]
+        if cast_cols:
+            self.__gps_points_gdf[cast_cols] = self.__gps_points_gdf[cast_cols].astype(origin_gps_dtypes[cast_cols].to_dict())
+
+        if not origin_user_gps_info.empty:
+            origin_user = origin_user_gps_info.rename(columns={gps_field.POINT_SEQ_FIELD: ori_seq_field})
+            user_gps_info = pd.merge(
+                self.__gps_points_gdf[[agent_field, gps_field.POINT_SEQ_FIELD, ori_seq_field]],
+                origin_user,
+                on=[agent_field, ori_seq_field],
+                how='left',
+            )
+            del user_gps_info[ori_seq_field]
+            user_gps_info[gps_field.LOC_TYPE] = 'd'
+            if one_agent:
+                user_gps_info.loc[user_gps_info[agent_field].isin(one_agent), gps_field.LOC_TYPE] = 's'
+            origin_user_dtypes = origin_user_gps_info.dtypes
+            user_cast_cols = [c for c in origin_user_dtypes.index if c in user_gps_info.columns]
+            if user_cast_cols:
+                user_gps_info[user_cast_cols] = user_gps_info[user_cast_cols].astype(origin_user_dtypes[user_cast_cols].to_dict())
+            self.__user_gps_info = user_gps_info
+
+        if ori_seq_field in self.__gps_points_gdf.columns:
+            del self.__gps_points_gdf[ori_seq_field]
+
+        return self
+
     def trajectory_data(self, export_crs: str = 'EPSG:4326', _type: str = "gdf") -> gpd.GeoDataFrame or pd.DataFrame:
         """类方法 - trajectory_data
 
