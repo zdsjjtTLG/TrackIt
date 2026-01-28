@@ -354,6 +354,8 @@ class NetReverse(Reverse):
                 add_built_in = True
             else:
                 self.limit_col_name = None
+        else:
+            link_gdf[self.limit_col_name] = link_gdf[self.limit_col_name].fillna('None')
         link_gdf = merge_double_link(link_gdf=link_gdf)
         link_gdf, node_gdf, dup_info_dict = optimize(link_gdf=link_gdf, node_gdf=node_gdf,
                                                      ignore_dir=self.ignore_dir,
