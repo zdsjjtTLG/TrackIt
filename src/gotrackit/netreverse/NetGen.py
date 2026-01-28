@@ -90,7 +90,7 @@ class NetReverse(Reverse):
             save_streets_after_modify_minimum: [3]拓扑生成参数 - 是否保存优化后的结果
             save_tpr_link: [3]拓扑生成参数 - 是否保存优化后且进行方向处理的文件
             use_tp_opt: [4]拓扑优化参数 - 是否执行拓扑优化
-            limit_col_name: [4]拓扑优化参数 - 路段合并时，用于限制路段合并的线层属性字段，默认road_name，如果你要使用其他字段来限制合并，请自定义该参数
+            limit_col_name: [4]拓扑优化参数 - 路段合并时，用于限制路段合并的线层属性字段(不允许有空值)，默认road_name，如果你要使用其他字段来限制合并，请自定义该参数
             ignore_dir: [4]拓扑优化参数 - 路段合并时，是否忽略行车方向
             allow_ring: [4]拓扑优化参数 - 是否允许路段合并后出现环
             restrict_angle: [4]拓扑优化参数 - 是否启用最大转角限制来约束路段合并
