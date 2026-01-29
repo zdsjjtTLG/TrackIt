@@ -831,8 +831,42 @@ class GpsPointsGdf(object):
                 else:
                     origin_time_num = np.asarray(origin_times, dtype=float)
 
+                if len(origin_s_fixed) >= 2:
+                    step_dist = np.diff(origin_s_fixed)
+                    base_step = float(np.median(step_dist)) if len(step_dist) else 0.0
+                else:
+                    base_step = 0.0
+
+                base_w_fwd = base_step * 3.0 if base_step > 0.0 else 0.0
+                base_w_back = max(base_step * 0.5, 1.0) if base_step > 0.0 else 1.0
+
+                if len(origin_s_fixed) >= 2:
+                    if is_dt:
+                        dt_sec = np.diff(origin_time_num).astype(np.float64) / 1e9
+                    else:
+                        dt_sec = np.diff(origin_time_num).astype(np.float64)
+                    valid = dt_sec > 0
+                    if np.any(valid):
+                        spd = np.diff(origin_s_fixed)[valid] / dt_sec[valid]
+                        if spd.size:
+                            max_speed = float(np.percentile(spd, 95))
+                            median_dt = float(np.median(dt_sec[valid]))
+                            base_w_fwd = max(base_w_fwd, max_speed * median_dt)
+
+                seg_info = []
+                if len(g) >= 2:
+                    coords = g[geometry_field].tolist()
+                    for i in range(1, len(coords)):
+                        s0 = float(origin_s_fixed[i - 1])
+                        s1 = float(origin_s_fixed[i])
+                        if s1 <= s0:
+                            continue
+                        seg_line = LineString([coords[i - 1], coords[i]])
+                        seg_info.append((seg_line, s0, s1))
+
                 agent_time_seq_dict[aid] = (origin_times, origin_seqs)
-                agent_ts_profile_dict[aid] = (origin_line, origin_s_fixed, origin_time_num, is_dt)
+                agent_ts_profile_dict[aid] = (origin_line, origin_s_fixed, origin_time_num, is_dt,
+                                              seg_info, base_w_fwd, base_w_back)
 
             line_gdf = process_trajectory.groupby(agent_field)[[geometry_field]].agg({geometry_field: list}).reset_index(
                 drop=False)
@@ -857,12 +891,44 @@ class GpsPointsGdf(object):
                 origin_ts_profile = agent_ts_profile_dict.get(aid, None)
                 if origin_ts_profile is None:
                     continue
-                origin_line, origin_s_fixed, origin_time_num, is_dt = origin_ts_profile
+                origin_line, origin_s_fixed, origin_time_num, is_dt, seg_info, base_w_fwd, base_w_back = origin_ts_profile
                 s_max = float(origin_s_fixed[-1]) if len(origin_s_fixed) else 0.0
+                s_prev = None
+                prev_p = None
 
                 for coord in coords:
                     p = Point(coord)
-                    s_star = float(origin_line.project(p)) if origin_line is not None and not origin_line.is_empty else 0.0
+                    if s_prev is None or not seg_info or s_max <= 0.0:
+                        s_star = float(origin_line.project(p)) if origin_line is not None and not origin_line.is_empty else 0.0
+                    else:
+                        step_dist = prev_p.distance(p) if prev_p is not None else 0.0
+                        w_fwd = max(base_w_fwd, step_dist * 1.5)
+                        w_back = min(base_w_back, w_fwd * 0.2)
+                        s_low = max(0.0, s_prev - w_back)
+                        s_high = min(s_max, s_prev + w_fwd)
+
+                        best_s = None
+                        best_d = None
+                        for seg_line, s0, s1 in seg_info:
+                            if s1 < s_low or s0 > s_high:
+                                continue
+                            seg_low = max(s0, s_low)
+                            seg_high = min(s1, s_high)
+                            if seg_high < seg_low:
+                                continue
+                            s_proj = s0 + float(seg_line.project(p))
+                            s_proj = min(max(s_proj, seg_low), seg_high)
+                            cand_p = seg_line.interpolate(s_proj - s0)
+                            cand_d = cand_p.distance(p)
+                            if best_d is None or cand_d < best_d:
+                                best_d = cand_d
+                                best_s = s_proj
+
+                        if best_s is None:
+                            s_star = float(origin_line.project(p)) if origin_line is not None and not origin_line.is_empty else 0.0
+                        else:
+                            s_star = best_s
+
                     if s_star < 0.0:
                         s_star = 0.0
                     if s_max > 0.0 and s_star > s_max:
@@ -897,6 +963,8 @@ class GpsPointsGdf(object):
                         geometry_field: Point(coord),
                         ori_seq_field: src_seq,
                     })
+                    s_prev = s_star
+                    prev_p = p
 
         if not new_points_list and keep_trajectory.empty:
             self.__gps_points_gdf = gpd.GeoDataFrame(columns=self.__gps_points_gdf.columns, crs=origin_crs)
