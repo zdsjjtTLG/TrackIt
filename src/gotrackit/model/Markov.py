@@ -294,7 +294,7 @@ class HiddenMarkov(object):
                                                                   markov_field.USED_HEADING_GAP].values)
 
         vals = np.split(self.__done_prj_df['emp'].values, np.cumsum(list(self.__seq2seq_len_dict.values()))[:-1])
-        self.__done_prj_df.drop(columns=['emp'], axis=1, inplace=True)
+        self.__done_prj_df.drop(columns=['emp'], inplace=True)
         self.__emission_mat_dict = dict(zip(self.seq_list, vals))
 
         # self.__done_prj_df['emp'] = self.__done_prj_df['emp'].astype(object)
@@ -942,7 +942,7 @@ class HiddenMarkov(object):
             transition_df.loc[reduction_idx, :][gps_field.ADJ_SPEED],
             transition_df.loc[reduction_idx, :][net_field.SPEED_FIELD],
             min_para)
-        transition_df.drop(columns=[net_field.SPEED_FIELD, gps_field.ADJ_SPEED], inplace=True, axis=1)
+        transition_df.drop(columns=[net_field.SPEED_FIELD, gps_field.ADJ_SPEED], inplace=True)
 
     def add_path_cache(self, done_stp_cost_df: pd.DataFrame = None, source_node_list: list[int] or set[int] = None,
                        g: nx.DiGraph = None, method: str = 'dijkstra', single_link_ft_path_df: pd.DataFrame = None,
@@ -1593,7 +1593,7 @@ class HiddenMarkov(object):
 
         prj_p_layer.set_geometry(markov_field.PRJ_GEO, inplace=True, crs=prj_p_layer.crs)
 
-        prj_p_layer.drop(columns=['__geo', gps_field.GEOMETRY_FIELD], axis=1, inplace=True)
+        prj_p_layer.drop(columns=['__geo', gps_field.GEOMETRY_FIELD], inplace=True)
 
         # match_link
         match_link_gdf = self.gps_match_res_gdf[[net_field.LINK_ID_FIELD, net_field.FROM_NODE_FIELD,

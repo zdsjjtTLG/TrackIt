@@ -417,7 +417,7 @@ class Net(object):
         if sub_single_link_gdf.empty:
             print(rf'the GPS data cannot be associated with any road network data within the specified buffer range...')
             return None
-        sub_single_link_gdf.drop(columns=['index_right'], axis=1, inplace=True)
+        sub_single_link_gdf.drop(columns=['index_right'], inplace=True)
         sub_single_link_gdf.drop_duplicates(subset=[net_field.SINGLE_LINK_ID_FIELD], inplace=True)
         sub_node_list = list(set(sub_single_link_gdf[net_field.FROM_NODE_FIELD]) | \
                              set(sub_single_link_gdf[net_field.TO_NODE_FIELD]))
@@ -614,18 +614,18 @@ class Net(object):
             new_node_gdf['p_l'] = new_node_gdf['__divide_p__'].apply(lambda x: len(x))
             new_node_gdf.drop(index=new_node_gdf[new_node_gdf['p_l'] == 0].index, axis=0, inplace=True)
             new_node_gdf = pd.DataFrame(new_node_gdf)
-            new_node_gdf.drop(columns=['p_l'], axis=1, inplace=True)
+            new_node_gdf.drop(columns=['p_l'], inplace=True)
             new_node_gdf = new_node_gdf.explode(column=['__divide_p__', 'new_p'], ignore_index=True)
             new_node_gdf.rename(columns={'__divide_p__': geometry_field, 'new_p': node_id_field}, inplace=True)
             new_node_gdf = gpd.GeoDataFrame(new_node_gdf, geometry=geometry_field, crs=self.crs)
 
-            process_link_gdf.drop(columns=['__divide_p__', 'new_p'], axis=1, inplace=True)
+            process_link_gdf.drop(columns=['__divide_p__', 'new_p'], inplace=True)
             process_link_gdf = pd.DataFrame(process_link_gdf)
             new_link_gdf = process_link_gdf.explode(column=['__divide_l__', '__new_ft__', '__seq__'], ignore_index=True)
             del process_link_gdf
             new_link_gdf[[from_node_field, to_node_field]] = new_link_gdf.apply(lambda row: row['__new_ft__'], axis=1,
                                                                                 result_type='expand')
-            new_link_gdf.drop(columns=['__increment__', geometry_field, '__new_ft__', '__l__'], axis=1, inplace=True)
+            new_link_gdf.drop(columns=['__increment__', geometry_field, '__new_ft__', '__l__'], inplace=True)
             new_link_gdf.rename(columns={'__divide_l__': geometry_field}, inplace=True)
             max_link_id = self.__link.max_link_id
             new_link_gdf['_parent_link'] = new_link_gdf[link_id_field]
@@ -905,7 +905,7 @@ class Net(object):
         path_gdf['line_list'] = path_gdf['point_list'].apply(
             lambda x: [(x[i], x[i + 1]) for i in range(0, len(x) - 1)])
         path_gdf['topo_seq'] = path_gdf['line_list'].apply(lambda x: [i for i in range(len(x))])
-        path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], axis=1, inplace=True)
+        path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], inplace=True)
         path_gdf = pd.DataFrame(path_gdf)
         path_gdf = path_gdf.explode(column=['line_list', 'topo_seq'], ignore_index=True)
         path_gdf.rename(columns={'line_list': 'ft-loc'}, inplace=True)

@@ -44,13 +44,13 @@ def split_path_main(path_gdf: gpd.GeoDataFrame = None, restrict_region_gdf: gpd.
         sum_path_gdf.reset_index(inplace=True, drop=True)
         sum_path_gdf.drop_duplicates(subset=['ft_loc'], inplace=True, keep='first')
         sum_path_gdf.reset_index(inplace=True, drop=True)
-        sum_path_gdf.drop(columns=['label', 'id'], inplace=True, axis=1)
+        sum_path_gdf.drop(columns=['label', 'id'], inplace=True)
         sum_path_gdf = gpd.GeoDataFrame(sum_path_gdf, geometry=net_field.GEOMETRY_FIELD, crs=origin_crs)
     else:
         sum_path_gdf = split_path(path_gdf=path_gdf, restrict_region_gdf=restrict_region_gdf)
 
     if drop_ft_loc:
-        sum_path_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+        sum_path_gdf.drop(columns=['ft_loc'], inplace=True)
     else:
         pass
     
@@ -70,7 +70,7 @@ def split_path(path_gdf: gpd.GeoDataFrame = None, restrict_region_gdf: gpd.GeoDa
     path_gdf['point_list'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: list(x.coords))
     path_gdf['line_list'] = path_gdf['point_list'].apply(
         lambda x: [LineString((x[i], x[i + 1])) for i in range(0, len(x) - 1)])
-    path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], axis=1, inplace=True)
+    path_gdf.drop(columns=[net_field.GEOMETRY_FIELD, 'point_list'], inplace=True)
     path_gdf = path_gdf.explode('line_list', ignore_index=True)
     path_gdf.rename(columns={'line_list': net_field.GEOMETRY_FIELD}, inplace=True)
     path_gdf['ft_loc'] = path_gdf[net_field.GEOMETRY_FIELD].apply(lambda x: tuple(list(chain(*list(x.coords)))))

@@ -100,7 +100,7 @@ class Conn(object):
         for split_node, n_link_gdf in tqdm(self.not_conn_df.groupby(node_id_field), desc='modify conn',
                                            total=total_len, ncols=100):
             if 'index_right' in n_link_gdf.columns:
-                n_link_gdf.drop(columns='index_right', axis=1, inplace=True)
+                n_link_gdf.drop(columns='index_right', inplace=True)
             if split_node not in self.net.get_snode_data()[node_id_field]:
                 continue
             if len(n_link_gdf) == 1:
@@ -135,7 +135,7 @@ class Conn(object):
             corr_single_link_gdf = \
                 gpd.GeoDataFrame(corr_single_link_gdf, crs=self.net.planar_crs, geometry=geometry_field)
             if node_id_field in corr_single_link_gdf.columns:
-                corr_single_link_gdf.drop(columns=[node_id_field], inplace=True, axis=1)
+                corr_single_link_gdf.drop(columns=[node_id_field], inplace=True)
             if target_link in self.done_split_link.keys() and self.done_split_link[target_link] <= 1:
                 temp_node_gdf = gpd.GeoDataFrame({node_id_field: [split_node], geometry_field: [
                     self.net.get_node_geo(split_node)]}, geometry=geometry_field, crs=self.net.planar_crs)

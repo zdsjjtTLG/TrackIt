@@ -104,7 +104,7 @@ def limit_direction(merged_df=None, origin_graph_degree_dict=None, link_df=None)
 
         merged_df['group'] = [x for x in range(1, len(merged_df) + 1)]
         merged_df['group'] = merged_df['group'].astype(int)
-        merged_df.drop(columns=['dir'], inplace=True, axis=1)
+        merged_df.drop(columns=['dir'], inplace=True)
 
         # 重设索引
         merged_df.reset_index(inplace=True, drop=True)

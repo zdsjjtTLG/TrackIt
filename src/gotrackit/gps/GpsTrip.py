@@ -330,7 +330,7 @@ class GpsTrip(GpsArray):
         df['__cut__'] = df['__a__'].ne(0) & df['__del__'] & (df['accu_time'] > self.dwell_accu_time)
         df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
         df[sub_group_field] = df['__cut__'].ne(0).cumsum()
-        df.drop(columns=['__del__', '__a__', '__cut__', 'accu_time'], axis=1, inplace=True)
+        df.drop(columns=['__del__', '__a__', '__cut__', 'accu_time'], inplace=True)
 
     def clean_res(self) -> gpd.GeoDataFrame:
         export_res = self.gps_points_gdf.to_crs('EPSG:4326')

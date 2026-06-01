@@ -115,7 +115,7 @@ class SumoConvert(object):
                          zip(node_df[NODE_ID_KEY], node_df[NODE_X_KEY], node_df[NODE_Y_KEY])}
 
         node_df[geometry_field] = node_df.apply(lambda xy: Point((xy[NODE_X_KEY], xy[NODE_Y_KEY])), axis=1)
-        node_df.drop(columns=[NODE_X_KEY, NODE_Y_KEY], axis=1, inplace=True)
+        node_df.drop(columns=[NODE_X_KEY, NODE_Y_KEY], inplace=True)
         node_gdf = gpd.GeoDataFrame(node_df, geometry=geometry_field, crs=crs)
         del node_df
 
@@ -126,7 +126,7 @@ class SumoConvert(object):
 
         # 生产几何列
         edge_df[geometry_field] = edge_df[EDGE_SHAPE_KEY].apply(lambda shape: LineString(shape))
-        edge_df.drop(columns=[EDGE_SHAPE_KEY], axis=1, inplace=True)
+        edge_df.drop(columns=[EDGE_SHAPE_KEY], inplace=True)
 
         edge_gdf = gpd.GeoDataFrame(edge_df, geometry=geometry_field, crs=crs)
         del edge_df

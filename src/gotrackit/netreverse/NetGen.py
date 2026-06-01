@@ -777,7 +777,7 @@ class NetReverse(Reverse):
         if self.limit_col_name not in single_link_gdf.columns:
             single_link_gdf[self.limit_col_name] = 'XX路'
         single_link_gdf = split_path(path_gdf=single_link_gdf)
-        single_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+        single_link_gdf.drop(columns=['ft_loc'], inplace=True)
         del link_gdf
         self._generate_net_from_split_path(split_path_gdf=single_link_gdf)
 

@@ -254,7 +254,7 @@ def merge_links(link_gdf=None, node_gdf=None, merge_link_df=None) -> (gpd.GeoDat
     new_link_gdf = gpd.GeoDataFrame(new_link_df, geometry=geometry_field, crs=origin_crs)
     new_link_gdf = new_link_gdf.astype(link_gdf.dtypes)
     link_gdf = pd.concat([link_gdf, new_link_gdf])
-    link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
+    link_gdf.drop(columns=['sorted_ft'], inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
     link_gdf.drop_duplicates(subset=[from_node_id_field, to_node_id_field], keep='first', inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)

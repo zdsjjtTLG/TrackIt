@@ -162,7 +162,7 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     new_link_gdf = new_link_gdf.astype(link_gdf.dtypes)
     link_gdf = pd.concat([link_gdf, new_link_gdf])
     link_gdf.reset_index(inplace=True, drop=True)
-    link_gdf.drop(columns=['sorted_ft'], axis=1, inplace=True)
+    link_gdf.drop(columns=['sorted_ft'], inplace=True)
     drop_no_use_nodes(link_gdf=link_gdf, node_gdf=node_gdf)
     return link_gdf, node_gdf, merge_info_dict
 

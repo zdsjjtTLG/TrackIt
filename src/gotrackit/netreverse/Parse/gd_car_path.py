@@ -82,7 +82,7 @@ class ParseGdPath(object):
             all_split_path_gdf.reset_index(inplace=True, drop=True)
             all_split_path_gdf.drop_duplicates(subset=['ft_loc'], keep='first', inplace=True)
             all_split_path_gdf.reset_index(inplace=True, drop=True)
-            all_split_path_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+            all_split_path_gdf.drop(columns=['ft_loc'], inplace=True)
             return all_split_path_gdf
         else:
             return self.parse_path_main_alpha(pickle_file_name_list=self.pickle_file_name_list, drop_ft=True)
@@ -124,7 +124,7 @@ class ParseGdPath(object):
                                                    min_rod_length=self.min_rod_length)
                     if _path_gdf.empty:
                         continue
-                    _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
+                    _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], inplace=True)
                     path_gdf = pd.concat([path_gdf, _path_gdf])
                 path_gdf.set_geometry('geometry', inplace=True)
                 path_gdf.reset_index(inplace=True, drop=True)
@@ -144,7 +144,7 @@ class ParseGdPath(object):
             return gpd.GeoDataFrame()
         all_split_link_gdf = gpd.GeoDataFrame(all_split_link_gdf, geometry='geometry', crs='EPSG:4326')
         if drop_ft:
-            all_split_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+            all_split_link_gdf.drop(columns=['ft_loc'], inplace=True)
         return all_split_link_gdf
 
     def parse_path_main(self, out_type: str = 'dict', pickle_file_name_list: list[str] = None):
@@ -186,7 +186,7 @@ class ParseGdPath(object):
                                                    min_rod_length=self.min_rod_length)
                 if _new_path_gdf.empty:
                     continue
-                _new_path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
+                _new_path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], inplace=True)
                 path_gdf_dict[path_id] = _new_path_gdf
             return path_gdf_dict
         else:
@@ -206,7 +206,7 @@ class ParseGdPath(object):
                                                min_rod_length=self.min_rod_length)
                 if _path_gdf.empty:
                     continue
-                _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], axis=1, inplace=True)
+                _path_gdf.drop(columns=['scheme', 'seq', 'time_cost', 'toll'], inplace=True)
                 path_gdf = pd.concat([path_gdf, _path_gdf])
             path_gdf.set_geometry('geometry', inplace=True)
             path_gdf.reset_index(inplace=True, drop=True)

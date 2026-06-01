@@ -131,7 +131,7 @@ class GpsPointsGdf(object):
             user_field_set = set(user_field_list)
             to_del_fields = all_gps_field_set - {lng_field, lat_field, agent_field, time_field} - user_field_set
             if to_del_fields:
-                gps_points_df.drop(columns=list(to_del_fields), inplace=True, axis=1)
+                gps_points_df.drop(columns=list(to_del_fields), inplace=True)
             assert user_field_set.issubset(all_gps_field_set), 'user input field does not exist in GPS data table'
             dup_fields = user_field_set & sys_field_set
             if dup_fields:
@@ -140,7 +140,7 @@ class GpsPointsGdf(object):
                 gps_points_df[rename_fields] = gps_points_df[ori_fields]
                 can_del_fields = set(ori_fields) - init_used_set
                 if can_del_fields:
-                    gps_points_df.drop(columns=list(can_del_fields), axis=1, inplace=True)
+                    gps_points_df.drop(columns=list(can_del_fields), inplace=True)
                 user_field_list = list((user_field_set - dup_fields) | set(rename_fields))
         return user_field_list
 
@@ -165,7 +165,7 @@ class GpsPointsGdf(object):
         not_same_agent_idx = self.not_same_agent_idx()
         should_be_dense_gdf = self.__gps_points_gdf[
             (self.__gps_points_gdf[dis_gap_field] > dense_interval) & ~not_same_agent_idx].copy()
-        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
+        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field],
                                    inplace=True)
         if should_be_dense_gdf.empty:
             return self
@@ -184,7 +184,7 @@ class GpsPointsGdf(object):
         should_be_dense_gdf[dense_geo_field] = dense_geo
         should_be_dense_gdf[time_field] = dense_time
 
-        should_be_dense_gdf.drop(columns=[geometry_field], axis=1, inplace=True)
+        should_be_dense_gdf.drop(columns=[geometry_field], inplace=True)
         should_be_dense_gdf = pd.DataFrame(should_be_dense_gdf).explode(column=[time_field, dense_geo_field],
                                                                         ignore_index=True)
         should_be_dense_gdf.rename(columns={dense_geo_field: geometry_field}, inplace=True)
@@ -237,7 +237,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf['all_idx'] = [i for i in range(len(self.__gps_points_gdf))]
         self.__gps_points_gdf[n_seg_field] = 0
         should_be_dense_gdf = self.__gps_points_gdf[choose_idx].copy()
-        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field], axis=1,
+        self.__gps_points_gdf.drop(columns=[next_time_field, next_p_field, time_gap_field, dis_gap_field],
                                    inplace=True)
         if should_be_dense_gdf.empty:
             return self
@@ -518,7 +518,7 @@ class GpsPointsGdf(object):
         remain_gps_list = list(origin_seq - set(candidate_link[gps_field.POINT_SEQ_FIELD]))
 
         if not candidate_link.empty:
-            candidate_link.drop(columns=['index_right', 'gps_buffer'], axis=1, inplace=True)
+            candidate_link.drop(columns=['index_right', 'gps_buffer'], inplace=True)
             candidate_link.reset_index(inplace=True, drop=True)
         return candidate_link, remain_gps_list
 
@@ -618,7 +618,7 @@ class GpsPointsGdf(object):
         self.__gps_points_gdf = self.del_consecutive_zero(df=self.__gps_points_gdf, col='dwell_label', n=dwell_n)
         del self.__gps_points_gdf['dwell_label']
         try:
-            self.__gps_points_gdf.drop(columns=[sub_group_field], axis=1, inplace=True)
+            self.__gps_points_gdf.drop(columns=[sub_group_field], inplace=True)
         except KeyError:
             pass
         return self
@@ -645,13 +645,13 @@ class GpsPointsGdf(object):
                          )
         if del_all_dwell:
             df.drop(index=df[df['__del__']].index, inplace=True, axis=0)
-            df.drop(columns=['__del__'], axis=1, inplace=True)
+            df.drop(columns=['__del__'], inplace=True)
         else:
             df['__a__'] = df['__del__'].ne(1).cumsum()
             df['__cut__'] = df['__a__'] & df['__del__']
             df.drop_duplicates(subset=['__a__'], keep='last', inplace=True)
             df[sub_group_field] = df['__cut__'].ne(0).cumsum()
-            df.drop(columns=['__del__', '__a__', '__cut__'], axis=1, inplace=True)
+            df.drop(columns=['__del__', '__a__', '__cut__'], inplace=True)
         return df
 
     @property

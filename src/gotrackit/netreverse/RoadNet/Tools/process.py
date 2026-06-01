@@ -83,7 +83,7 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None, drop_circle: bool = Tru
     merge_link_gdf.set_geometry(geometry_field, crs=origin_crs, inplace=True)
     link_gdf = pd.concat([link_gdf, merge_link_gdf])
     link_gdf = gpd.GeoDataFrame(link_gdf, geometry=geometry_field, crs=origin_crs)
-    link_gdf.drop(columns=['ft'], axis=1, inplace=True)
+    link_gdf.drop(columns=['ft'], inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
     for col in [link_id_field, from_node_id_field, to_node_id_field, direction_field]:
         link_gdf[col] = link_gdf[col].astype(int)

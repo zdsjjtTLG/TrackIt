@@ -117,7 +117,7 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, plain_crs='EPSG:
         if _count >= save_times or _count == len(path_gdf_dict):
             export_link_gdf = link_gdf.copy()
             export_node_gdf = node_gdf.copy()
-            export_link_gdf.drop(columns=['true_ft', 'link_geo'], axis=1, inplace=True)
+            export_link_gdf.drop(columns=['true_ft', 'link_geo'], inplace=True)
             if export_link_gdf.crs != 'EPSG:4326':
                 export_link_gdf = export_link_gdf.to_crs('EPSG:4326')
                 export_node_gdf = export_node_gdf.to_crs('EPSG:4326')
@@ -160,7 +160,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
     # 1.依据每个折点进行拆分, 加上_link_id, _from_node, _to_node, 并且转换投影坐标, 并且生成新的buffer面域几何列'path_buffer_geo'
     split_path_gdf = split_path(path_gdf=path_gdf, restrict_region_gdf=None)
     split_path_gdf[_link_id_field] = [i for i in range(1, len(split_path_gdf) + 1)]
-    split_path_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+    split_path_gdf.drop(columns=['ft_loc'], inplace=True)
 
     export_split_link = split_path_gdf.copy()
 
@@ -177,7 +177,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
         # reshape_link_gdf就是新的路径文件
         print(r'新路径和原路网没有任何交集, 直接新增......')
         reshape_link_gdf = split_path_gdf
-        reshape_link_gdf.drop(columns=[_link_id_field, 'path_buffer_geo'], axis=1, inplace=True)
+        reshape_link_gdf.drop(columns=[_link_id_field, 'path_buffer_geo'], inplace=True)
         reshape_link_gdf.set_geometry(geometry_field, inplace=True, crs=plain_crs)
         cor_origin_link_list, double_ft_list = [], []
     else:
@@ -239,15 +239,15 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
 
             # 选择那些没有被 原有路网 完全覆盖的path
             split_path_gdf.set_geometry('geometry', inplace=True)
-            split_path_gdf.drop(columns=['path_buffer_geo'], axis=1, inplace=True)
+            split_path_gdf.drop(columns=['path_buffer_geo'], inplace=True)
             new_split_path_gdf = split_path_gdf[~split_path_gdf[_link_id_field].isin(all_be_covered_path_link_id)].copy()
 
             # 注意1: 被关联的那些原路网(只要和path有关联就选上)
             cor_origin_link_list = list(sjoin_gdf[sjoin_gdf[link_id_field] != -1][link_id_field].unique())
             origin_link_gdf = link_gdf[link_gdf[link_id_field].isin(cor_origin_link_list)].copy()
-            origin_link_gdf.drop(columns='link_geo', inplace=True, axis=1)
+            origin_link_gdf.drop(columns='link_geo', inplace=True)
             origin_split_link_gdf = split_path(path_gdf=origin_link_gdf)
-            origin_split_link_gdf.drop(columns=['ft_loc'], axis=1, inplace=True)
+            origin_split_link_gdf.drop(columns=['ft_loc'], inplace=True)
 
             # 行成reshape_link
             reshape_link_gdf = pd.concat([new_split_path_gdf, origin_split_link_gdf])
@@ -274,7 +274,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
     new_node_gdf.set_geometry('node_buffer', inplace=True)
     old_new_join_df = gpd.sjoin(new_node_gdf, node_gdf)
     new_node_gdf.set_geometry('geometry', inplace=True)
-    new_node_gdf.drop(columns=['node_buffer'], axis=1, inplace=True)
+    new_node_gdf.drop(columns=['node_buffer'], inplace=True)
     shadow_new_node_list = set(old_new_join_df['node_id_left'].unique())
 
     shadow_edge_list = list(chain(*[[[shadow_new_node, -i],
@@ -315,7 +315,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
     new_node_gdf.set_geometry('node_buffer', inplace=True)
     old_new_join_df = gpd.sjoin(new_node_gdf, node_gdf)
     new_node_gdf.set_geometry('geometry', inplace=True)
-    new_node_gdf.drop(columns=['node_buffer'], axis=1, inplace=True)
+    new_node_gdf.drop(columns=['node_buffer'], inplace=True)
 
     node_map_dict = {node_id_left: node_id_right
                      for node_id_left, node_id_right in zip(old_new_join_df['node_id_left'],

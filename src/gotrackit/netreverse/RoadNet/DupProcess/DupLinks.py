@@ -81,7 +81,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
         join_df.reset_index(inplace=True, drop=True)
 
     if join_df.empty:
-        link_gdf.drop(columns=['link_buffer'], inplace=True, axis=1)
+        link_gdf.drop(columns=['link_buffer'], inplace=True)
         link_gdf.set_geometry(geometry_field, crs=plain_crs, inplace=True)
         final_link_gdf = link_gdf
         final_node_gdf = node_gdf
@@ -131,7 +131,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
 
         # 从原来的link_gdf中删除重叠的link
         link_gdf.set_geometry(geometry_field, inplace=True, crs=plain_crs)
-        link_gdf.drop(columns=['link_buffer'], axis=1, inplace=True)
+        link_gdf.drop(columns=['link_buffer'], inplace=True)
         link_gdf.drop(index=link_gdf[link_gdf[link_id_field].isin(to_be_del_link_list)].index, axis=0, inplace=True)
         link_gdf.reset_index(inplace=True, drop=True)
 
@@ -224,7 +224,7 @@ def classify_dup(dup_link_gdf=None, node_gdf=None, node_degrees_dict=None, u_g=N
             new_link_gdf, node_map_dict, renew_node_gdf = merge_dup_links_beta(dup_link_gdf=dup_link_gdf)
 
     if 'link_buffer' in new_link_gdf.columns:
-        new_link_gdf.drop(columns=['link_buffer'], axis=1, inplace=True)
+        new_link_gdf.drop(columns=['link_buffer'], inplace=True)
 
     return new_link_gdf, node_map_dict, renew_node_gdf
 

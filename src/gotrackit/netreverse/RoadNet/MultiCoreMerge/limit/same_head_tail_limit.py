@@ -56,7 +56,7 @@ def same_ht_limit(merge_link_df: pd.DataFrame, origin_link_sorted_ft_list: list[
     target_index = merge_link_df['dup'] == 1
     merge_link_df.loc[target_index, 'head_tail_root_ring'] = merge_link_df.loc[target_index, :]['link_seq'].apply(
         lambda x: get_head_tail_root(x))
-    merge_link_df.drop(columns=['dup', 'seq_len'], axis=1, inplace=True)
+    merge_link_df.drop(columns=['dup', 'seq_len'], inplace=True)
 
     return merge_link_df
     

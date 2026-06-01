@@ -310,7 +310,7 @@ def modify_minimum(plain_prj: str = 'EPSG:32650', node_gdf: gpd.GeoDataFrame = N
         node_gdf['new_' + net_field.NODE_ID_FIELD] = node_gdf['new_' + net_field.NODE_ID_FIELD].fillna(
             node_gdf[net_field.NODE_ID_FIELD])
         node_gdf['new_' + net_field.NODE_ID_FIELD] = node_gdf['new_' + net_field.NODE_ID_FIELD].astype(int)
-        node_gdf.drop(columns=[net_field.NODE_ID_FIELD], axis=1, inplace=True)
+        node_gdf.drop(columns=[net_field.NODE_ID_FIELD], inplace=True)
         node_gdf.rename(columns={'new_' + net_field.NODE_ID_FIELD: net_field.NODE_ID_FIELD}, inplace=True)
         node_gdf.drop_duplicates(subset=[net_field.NODE_ID_FIELD], keep='first', inplace=True)
         node_gdf.set_index(net_field.NODE_ID_FIELD, inplace=True)
