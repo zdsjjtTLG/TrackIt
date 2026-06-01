@@ -14,6 +14,11 @@ main_get_net_jb.py
 
 用户手册word版.docx
 
+# 开发计划
+dev-plan
+
+# claude
+CLAUDE.md
 
 data/output/
 data/input/net/
