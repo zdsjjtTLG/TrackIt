@@ -19,6 +19,9 @@ dev-plan
 
 # claude
 CLAUDE.md
+AGENTS.md
+
+.vscode/
 
 data/output/
 data/input/net/
