@@ -49,7 +49,7 @@ def same_ht_limit(merge_link_df: pd.DataFrame, origin_link_sorted_ft_list: list[
     merge_link_df.loc[target_index, 'link_seq'] = merge_link_df.loc[target_index, :]['link_seq'].apply(lambda item: item[0][:-1])
     merge_link_df['seq_len'] = merge_link_df['link_seq'].apply(lambda link_seq: len(link_seq))
 
-    merge_link_df.drop(index=merge_link_df[merge_link_df['seq_len'] == 1].index, inplace=True, axis=0)
+    merge_link_df.drop(index=merge_link_df[merge_link_df['seq_len'] == 1].index, inplace=True)
     merge_link_df.reset_index(inplace=True, drop=True)
 
     # 更新head_tail_root_ring

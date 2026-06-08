@@ -112,7 +112,7 @@ class Node(object):
     def delete_nodes(self, node_list: list[int]) -> gpd.GeoDataFrame:
         del_node_gdf = self.__node_gdf.loc[node_list, :].copy()
         if node_list:
-            self.__node_gdf.drop(index=node_list, inplace=True, axis=0)
+            self.__node_gdf.drop(index=node_list, inplace=True)
         return del_node_gdf
 
     def node_id_set(self) -> set[int]:

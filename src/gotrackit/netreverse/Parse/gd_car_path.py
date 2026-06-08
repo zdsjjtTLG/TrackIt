@@ -363,22 +363,22 @@ def parse_single_path(json_data: dict = None, path_seq: int = 0,
                 # 从第一条路段开始就是无名道路, 且有连续值
                 if target_index[0][0] == 0 and road_name_list[0] == '无名道路':
                     head_del = True
-                    path_gdf.drop(index=target_index[0], inplace=True, axis=0)
+                    path_gdf.drop(index=target_index[0], inplace=True)
 
                 # 最后一条路段是无名道路, 且有连续值
                 if target_index[-1][-1] == len(road_name_list) - 1 and road_name_list[-1] == '无名道路':
                     tail_del = True
-                    path_gdf.drop(index=target_index[-1], inplace=True, axis=0)
+                    path_gdf.drop(index=target_index[-1], inplace=True)
 
             # 可能开头和尾部只有一个无名道路
             if not head_del and road_name_list[0] == '无名道路':
-                path_gdf.drop(index=0, inplace=True, axis=0)
+                path_gdf.drop(index=0, inplace=True)
 
             if path_gdf.empty:
                 pass
             else:
                 if not tail_del and road_name_list[-1] == '无名道路':
-                    path_gdf.drop(index=origin_path_len - 1, inplace=True, axis=0)
+                    path_gdf.drop(index=origin_path_len - 1, inplace=True)
 
             path_gdf.reset_index(inplace=True, drop=True)
         path_gdf['seq'] = [i for i in range(1, len(path_gdf) + 1)]

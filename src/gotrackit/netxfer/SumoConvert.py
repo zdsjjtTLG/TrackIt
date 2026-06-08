@@ -273,7 +273,7 @@ class SumoConvert(object):
                                                                                 x_offset=x_offset, y_offset=y_offset,
                                                                                 proj=prj4_str, no_crs_flag=no_crs_flag)
 
-        avg_edge_gdf.drop(index=avg_edge_gdf[avg_edge_gdf['function'] == 'internal'].index, axis=0, inplace=True)
+        avg_edge_gdf.drop(index=avg_edge_gdf[avg_edge_gdf['function'] == 'internal'].index, inplace=True)
 
         # crs convert
         if no_crs_flag:

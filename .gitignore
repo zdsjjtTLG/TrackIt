@@ -9,6 +9,7 @@ __pycache__/
 # C extensions
 *.so
 
+exa_match.py
 example_reverse.py
 main_get_net_jb.py
 
@@ -29,6 +30,8 @@ AGENTS.md
 data/output/
 data/input/net/
 data/input/region/
+data/input/test
+
 
 PrivateDoc/
 # Distribution / packaging

@@ -154,9 +154,9 @@ def merge_links_multi(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
         merge_info_dict.update(_merge_info_dict)
 
     node_gdf.set_index('node_id', inplace=True)
-    node_gdf.drop(index=list(set(sum_del_node_list)), axis=0, inplace=True)
+    node_gdf.drop(index=list(set(sum_del_node_list)), inplace=True)
     node_gdf.reset_index(inplace=True, drop=False)
-    link_gdf.drop(index=target_link_index, inplace=True, axis=0)
+    link_gdf.drop(index=target_link_index, inplace=True)
     new_link_gdf = gpd.GeoDataFrame(new_link_df, crs=link_gdf.crs, geometry='geometry')
     del new_link_df
     new_link_gdf = new_link_gdf.astype(link_gdf.dtypes)
@@ -492,5 +492,5 @@ def drop_no_use_nodes(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFr
     """
     used_node = set(link_gdf[net_field.FROM_NODE_FIELD]) | set(link_gdf[net_field.TO_NODE_FIELD])
     node_gdf.reset_index(inplace=True, drop=True)
-    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True, axis=0)
+    node_gdf.drop(index=node_gdf[~node_gdf[net_field.NODE_ID_FIELD].isin(used_node)].index, inplace=True)
     node_gdf.reset_index(inplace=True, drop=True)

@@ -72,7 +72,7 @@ def limit_direction(merged_df=None, origin_graph_degree_dict=None, link_df=None)
             pass
         else:
             # 先删除dir为1的
-            merged_df.drop(index=merged_df[merged_df['dir'] == 1].index, inplace=True, axis=0)
+            merged_df.drop(index=merged_df[merged_df['dir'] == 1].index, inplace=True)
 
             # 对dir为1的组进行检查
             for row in used_merged_df.itertuples():

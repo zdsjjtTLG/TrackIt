@@ -7,7 +7,10 @@
 
 import numpy as np
 import pandas as pd
-pd.set_option('future.no_silent_downcasting', True)
+try:
+    pd.set_option('future.no_silent_downcasting', True)  # pandas>=2.2 才有；旧版本静默降级本就是默认行为，无需设置
+except pd.errors.OptionError:
+    pass
 import geopandas as gpd
 from ..map.Net import Net
 from datetime import timedelta
@@ -644,7 +647,7 @@ class GpsPointsGdf(object):
                          & (~m)
                          )
         if del_all_dwell:
-            df.drop(index=df[df['__del__']].index, inplace=True, axis=0)
+            df.drop(index=df[df['__del__']].index, inplace=True)
             df.drop(columns=['__del__'], inplace=True)
         else:
             df['__a__'] = df['__del__'].ne(1).cumsum()

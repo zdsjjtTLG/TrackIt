@@ -98,7 +98,7 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, plain_crs='EPSG:
 
             to_be_del_node_list = list((set(to_be_del_link_gdf[from_node_id_field]) |
                                         set(to_be_del_link_gdf[to_node_id_field])) - set(to_be_remain_node_list))
-            node_gdf.drop(index=node_gdf[node_gdf[node_id_field].isin(to_be_del_node_list)].index, inplace=True, axis=0)
+            node_gdf.drop(index=node_gdf[node_gdf[node_id_field].isin(to_be_del_node_list)].index, inplace=True)
             node_gdf = pd.concat([node_gdf, new_node_gdf])
             node_gdf.reset_index(inplace=True, drop=True)
 
@@ -108,7 +108,7 @@ def increment(link_gdf=None, node_gdf=None, path_gdf_dict=None, plain_crs='EPSG:
             new_link_gdf.loc[new_link_gdf['true_ft'].isin(double_ft_list), direction_field] = 0
             new_link_gdf['link_geo'] = new_link_gdf['geometry']
 
-            link_gdf.drop(index=link_gdf[to_be_del_link_index].index, axis=0, inplace=True)
+            link_gdf.drop(index=link_gdf[to_be_del_link_index].index, inplace=True)
             link_gdf = pd.concat([link_gdf, new_link_gdf])
             link_gdf.reset_index(inplace=True, drop=True)
         else:
@@ -223,7 +223,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
             print(rf'双向路段更新: {double_ft_list}')
         # 删掉所有的被100%被原有道路覆盖的关联对
         all_be_covered_path_link_id = list(sjoin_gdf[covered_index][_link_id_field].unique())
-        sjoin_gdf.drop(index=sjoin_gdf[covered_index].index, inplace=True, axis=0)
+        sjoin_gdf.drop(index=sjoin_gdf[covered_index].index, inplace=True)
 
         # 被100%覆盖的path的_link_id和split_path_gdf的_link_id一样
         if set(all_be_covered_path_link_id) == set(split_path_gdf[_link_id_field]):
@@ -300,7 +300,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
                                              out_fldr=None,
                                              min_length=50.0,
                                              is_process_dup_link=False)
-    new_link_gdf.drop(index=new_link_gdf[new_link_gdf[link_id_field] < 0].index, inplace=True, axis=0)
+    new_link_gdf.drop(index=new_link_gdf[new_link_gdf[link_id_field] < 0].index, inplace=True)
     new_link_gdf.reset_index(inplace=True, drop=True)
     # new_node_gdf和node_gdf做sjoin, 新老路网节点映射
     max_node = node_gdf['node_id'].max()
@@ -321,7 +321,7 @@ def modify_net(link_gdf: gpd.GeoDataFrame = None, node_gdf: gpd.GeoDataFrame = N
                      for node_id_left, node_id_right in zip(old_new_join_df['node_id_left'],
                                                             old_new_join_df['node_id_right'])}
     # 删除在原有路网中已经存在的node
-    new_node_gdf.drop(index=new_node_gdf[new_node_gdf['node_id'].isin(list(node_map_dict.keys()))].index, axis=0,
+    new_node_gdf.drop(index=new_node_gdf[new_node_gdf['node_id'].isin(list(node_map_dict.keys()))].index,
                       inplace=True)
 
     # 原路网要保留的

@@ -106,7 +106,7 @@ class RequestOnTime(object):
         # 开始请求数据
         while continue_request:
             # 删除已经请求的和发生联通错误的......
-            self.od_df.drop(index=self.od_df[self.od_df[id_field].isin(already_request_list)].index, inplace=True, axis=0)
+            self.od_df.drop(index=self.od_df[self.od_df[id_field].isin(already_request_list)].index, inplace=True)
             self.od_df.reset_index(drop=True, inplace=True)
             logging.info(rf'尚且未请求的有{len(self.od_df)}条')
 

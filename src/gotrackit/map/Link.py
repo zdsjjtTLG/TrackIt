@@ -84,7 +84,7 @@ class Link(object):
             circle_idx = self.link_gdf[from_node_field] == self.link_gdf[to_node_field]
             if not self.link_gdf[circle_idx].empty:
                 print(rf'a loop was detected in the line layer data, and it was automatically deleted...')
-                self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True, axis=0)
+                self.link_gdf.drop(index=self.link_gdf[circle_idx].index, inplace=True)
 
     def init_link(self):
         """
@@ -230,7 +230,7 @@ class Link(object):
 
     def delete_links(self, link_id_list: list[int] = None) -> gpd.GeoDataFrame:
         del_link_gdf = self.link_gdf.loc[link_id_list, :].copy()
-        self.link_gdf.drop(index=link_id_list, inplace=True, axis=0)
+        self.link_gdf.drop(index=link_id_list, inplace=True)
         return del_link_gdf
 
     def append_links(self, link_id: list[int], from_node: list[int], to_node: list[int], dir_val: list[int],
@@ -262,7 +262,7 @@ class Link(object):
         pass
 
     def del_short_links(self, l_threshold: float = 0.5) -> None:
-        self.link_gdf.drop(index=self.link_gdf[self.link_gdf[length_field] <= l_threshold].index, inplace=True, axis=0)
+        self.link_gdf.drop(index=self.link_gdf[self.link_gdf[length_field] <= l_threshold].index, inplace=True)
 
     def drop_dup_ft_road(self):
         self.link_gdf.sort_values(by=[from_node_field, to_node_field, dir_field], ascending=[True, True, True],

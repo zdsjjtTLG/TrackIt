@@ -132,7 +132,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
         # 从原来的link_gdf中删除重叠的link
         link_gdf.set_geometry(geometry_field, inplace=True, crs=plain_crs)
         link_gdf.drop(columns=['link_buffer'], inplace=True)
-        link_gdf.drop(index=link_gdf[link_gdf[link_id_field].isin(to_be_del_link_list)].index, axis=0, inplace=True)
+        link_gdf.drop(index=link_gdf[link_gdf[link_id_field].isin(to_be_del_link_list)].index, inplace=True)
         link_gdf.reset_index(inplace=True, drop=True)
 
         # 将新的link添加到link_gdf
@@ -150,7 +150,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
             renew_node_gdf.reset_index(inplace=True, drop=True)
             renew_node_gdf.drop_duplicates(subset=[node_id_field], inplace=True, keep='first')
             renew_node_list = renew_node_gdf[node_id_field].to_list()
-            node_gdf.drop(index=node_gdf[node_gdf[node_id_field].isin(renew_node_list)].index, axis=0, inplace=True)
+            node_gdf.drop(index=node_gdf[node_gdf[node_id_field].isin(renew_node_list)].index, inplace=True)
             # final_node_gdf = node_gdf._append(renew_node_gdf)
             final_node_gdf = pd.concat([node_gdf, renew_node_gdf])
             final_node_gdf.reset_index(inplace=True, drop=True)
@@ -174,7 +174,7 @@ def process_dup_link(link_gdf: gpd.GeoDataFrame = None,
                     lambda item: LineString([final_node_gdf.at[item[from_node_id_field], geometry_field]] +
                                             list(item[geometry_field].coords)[1:-1] +
                                             [final_node_gdf.at[item[to_node_id_field], geometry_field]]), axis=1)
-            final_link_gdf.drop(index=final_link_gdf[alter_link_index].index, axis=0, inplace=True)
+            final_link_gdf.drop(index=final_link_gdf[alter_link_index].index, inplace=True)
             final_node_gdf.reset_index(drop=False, inplace=True)
             final_link_gdf = pd.concat([final_link_gdf, alter_link_gdf])
             final_link_gdf.reset_index(inplace=True, drop=True)
@@ -348,7 +348,7 @@ def del_dup_node(node_gdf=None, node_degrees_dict=None):
 
     join_df = gpd.sjoin(node_gdf, right_node_gdf)
     join_df.reset_index(inplace=True, drop=True)
-    join_df.drop(index=join_df[join_df['node_id_left'] == join_df['node_id_right']].index, axis=0, inplace=True)
+    join_df.drop(index=join_df[join_df['node_id_left'] == join_df['node_id_right']].index, inplace=True)
 
     # 没有距离很近的点
     if join_df.empty:
@@ -372,7 +372,7 @@ def del_dup_node(node_gdf=None, node_degrees_dict=None):
         not_consider_node_list = list(chain(*not_consider_node_list))
         # print('map:')
         # print(map_dict)
-        node_gdf.drop(index=node_gdf[node_gdf['node_id'].isin(not_consider_node_list)].index, inplace=True, axis=0)
+        node_gdf.drop(index=node_gdf[node_gdf['node_id'].isin(not_consider_node_list)].index, inplace=True)
         node_gdf.reset_index(inplace=True, drop=True)
         return node_gdf, map_dict
 

@@ -43,11 +43,11 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None, drop_circle: bool = Tru
 
     if drop_circle:
         idx1 = link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]
-        link_gdf.drop(index=link_gdf[idx1].index, inplace=True, axis=0)
+        link_gdf.drop(index=link_gdf[idx1].index, inplace=True)
     else:
         idx1 = (link_gdf[net_field.FROM_NODE_FIELD] == link_gdf[net_field.TO_NODE_FIELD]) & \
                (link_gdf[net_field.GEOMETRY_FIELD].length <= 1e-7)
-        link_gdf.drop(index=link_gdf[idx1].index, inplace=True, axis=0)
+        link_gdf.drop(index=link_gdf[idx1].index, inplace=True)
 
     # del dup link
     if use_geometry:
@@ -74,7 +74,7 @@ def merge_double_link(link_gdf: gpd.GeoDataFrame = None, drop_circle: bool = Tru
     dup_ft_list = link_gdf[link_gdf['ft'].duplicated()]['ft'].to_list()
     dup_link_index = link_gdf[link_gdf['ft'].isin(dup_ft_list)].index
     dup_link_gdf = link_gdf.loc[dup_link_index, :].copy()
-    link_gdf.drop(index=dup_link_index, axis=0, inplace=True)
+    link_gdf.drop(index=dup_link_index, inplace=True)
     link_gdf.reset_index(inplace=True, drop=True)
 
     merge_link_gdf = dup_link_gdf.drop_duplicates(subset=['ft'], keep='first').copy()
@@ -106,7 +106,7 @@ def convert_neg_to_pos(link_gdf: gpd.GeoDataFrame = None) -> gpd.GeoDataFrame:
         origin_crs = link_gdf.crs
 
         # 从原路网中删除dir为-1的记录
-        link_gdf.drop(index=link_gdf[link_gdf[direction_field] == -1].index, axis=0, inplace=True)
+        link_gdf.drop(index=link_gdf[link_gdf[direction_field] == -1].index, inplace=True)
 
         # 改变几何列的拓扑方向, 同时反转from_node和to_node字段
         if geometry_field in list(link_gdf.columns):

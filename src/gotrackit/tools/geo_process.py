@@ -240,7 +240,7 @@ def clean_link_geo(gdf: gpd.GeoDataFrame = None, plain_crs: str = 'EPSG:32650', 
     problem_idx = (~gdf[geometry_field].is_simple) | gdf[geometry_field].is_closed
     problem_gdf = gdf[problem_idx].copy()
     if not problem_gdf.empty:
-        gdf.drop(index=gdf[problem_idx].index, inplace=True,axis=0)
+        gdf.drop(index=gdf[problem_idx].index, inplace=True)
         split_gdf = split_path(path_gdf=problem_gdf).drop(columns=['ft_loc'])
         gdf = pd.concat([gdf, split_gdf]).reset_index(drop=True)
     gdf = gdf.to_crs(plain_crs)

@@ -612,7 +612,7 @@ class Net(object):
             new_node_gdf = process_link_gdf[['__divide_p__', 'new_p']].copy()
             # new_node_gdf['p_l'] = new_node_gdf.apply(lambda row: len(row['__divide_p__']), axis=1)
             new_node_gdf['p_l'] = new_node_gdf['__divide_p__'].apply(lambda x: len(x))
-            new_node_gdf.drop(index=new_node_gdf[new_node_gdf['p_l'] == 0].index, axis=0, inplace=True)
+            new_node_gdf.drop(index=new_node_gdf[new_node_gdf['p_l'] == 0].index, inplace=True)
             new_node_gdf = pd.DataFrame(new_node_gdf)
             new_node_gdf.drop(columns=['p_l'], inplace=True)
             new_node_gdf = new_node_gdf.explode(column=['__divide_p__', 'new_p'], ignore_index=True)
@@ -841,7 +841,7 @@ class Net(object):
         dup = cache_prj_gdf[(cache_prj_gdf[net_field.VEC_LEN] == 0) &
                             (cache_prj_gdf[net_field.SEG_COUNT] > 1)]
         if not dup.empty:
-            cache_prj_gdf.drop(index=dup.index, inplace=True, axis=0)
+            cache_prj_gdf.drop(index=dup.index, inplace=True)
             cache_prj_gdf.reset_index(inplace=True, drop=True)
             cache_prj_gdf[net_field.SEG_COUNT] = \
                 cache_prj_gdf.groupby([net_field.FROM_NODE_FIELD,
