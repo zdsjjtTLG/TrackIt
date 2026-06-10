@@ -21,6 +21,8 @@ main_get_net_jb.py
 # 开发计划
 dev-plan
 
+his-dist/
+
 # claude
 CLAUDE.md
 AGENTS.md
