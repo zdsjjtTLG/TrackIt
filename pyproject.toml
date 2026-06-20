@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gotrackit"
 version = "0.3.24"
-dependencies = ["geopandas>=0.14.1", "shapely", "networkx", "pandas", "numpy", "keplergl", "geopy", "tqdm", "pykalman"]
+dependencies = ["geopandas>=0.14.1", "shapely", "networkx", "pandas", "numpy", "keplergl>=0.4.0rc4", "geopy", "tqdm", "pykalman"]
 requires-python = ">=3.10"
 authors = [
   { name="Kai Tang", email="794568794@qq.com" },
