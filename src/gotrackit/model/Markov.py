@@ -407,8 +407,7 @@ class HiddenMarkov(object):
                 preliminary_candidate_link[net_field.SEG_ACCU_LENGTH].isna()].copy()
             preliminary_candidate_link.drop(columns=[net_field.SEG_ACCU_LENGTH, 'topo_seq',
                                                      net_field.X_DIFF, net_field.Y_DIFF, net_field.VEC_LEN,
-                                                     net_field.SEG_COUNT], axis=1,
-                                            inplace=True)
+                                                     net_field.SEG_COUNT], inplace=True)
             del a_info[net_field.SEG_ACCU_LENGTH], a_info[net_field.SEG_COUNT], a_info['topo_seq']
             if preliminary_candidate_link.empty:
                 a_info.rename(columns={'quick_stl': 'prj_dis'}, inplace=True)
@@ -979,9 +978,12 @@ class HiddenMarkov(object):
             except Exception as e:
                 print(repr(e))
         if stp:
-            stp_df = pd.DataFrame(stp).stack().reset_index(drop=False).rename(
+            # 多个源点拼成宽表时, pandas 会按"所有源点可达点并集"做列对齐, 给某源到不了
+            # 的目的点补 NaN。pandas<2.1 的 stack() 默认 dropna 丢掉这些 NaN, 3.0 不再丢,
+            # 必须显式 .dropna(), 否则会混入 path=NaN 的假记录(详见超cut_off单link兜底被顶掉的问题)。
+            stp_df = pd.DataFrame(stp).stack().dropna().reset_index(drop=False).rename(
                 columns={'level_0': d_node_field, 'level_1': o_node_field, 0: path_field})
-            cost_df = pd.DataFrame(cost).stack().reset_index(drop=False).rename(
+            cost_df = pd.DataFrame(cost).stack().dropna().reset_index(drop=False).rename(
                 columns={'level_0': d_node_field, 'level_1': o_node_field, 0: cost_field})
             cost_df[cost_field] = np.around(cost_df[cost_field], decimals=1)
             stp_cost_df = pd.merge(stp_df, cost_df, on=[o_node_field, d_node_field])

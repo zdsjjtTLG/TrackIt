@@ -790,13 +790,13 @@ class Net(object):
         stp_cost_res = pd.DataFrame()
         del done_stp_cache, done_cost_cache
         for stp_cache, cost_cache in zip(temp_stp_list, temp_cost_list):
-            done_stp_cache_df = pd.DataFrame(stp_cache).stack().reset_index(drop=False).rename(
+            # pandas 3.0 的 stack() 不再默认丢 NaN: 多源拼宽表时跨源对齐补的 NaN(某源到不了的目的点)
+            # 必须在 stack() 后立即 .dropna()。原先对 [o_node,d_node] 索引列做 dropna 无效(它们永远非NaN)。
+            done_stp_cache_df = pd.DataFrame(stp_cache).stack().dropna().reset_index(drop=False).rename(
                 columns={'level_0': d_node_field, 'level_1': o_node_field, 0: path_field})
-            done_stp_cache_df.dropna(subset=[o_node_field, d_node_field], how='any', inplace=True)
 
-            done_cost_cache_df = pd.DataFrame(cost_cache).stack().reset_index(drop=False).rename(
+            done_cost_cache_df = pd.DataFrame(cost_cache).stack().dropna().reset_index(drop=False).rename(
                 columns={'level_0': d_node_field, 'level_1': o_node_field, 0: cost_field})
-            done_cost_cache_df.dropna(subset=[o_node_field, d_node_field], how='any', inplace=True)
             done_cost_cache_df[cost_field] = np.around(done_cost_cache_df[cost_field], decimals=1)
 
             stp_cost_cache_df = pd.merge(done_cost_cache_df, done_stp_cache_df, on=[o_node_field, d_node_field])
