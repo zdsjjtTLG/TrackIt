@@ -9,8 +9,12 @@ import multiprocessing
 import geopandas as gpd
 try:
     from keplergl import KeplerGl
-except:
-    pass
+    _HAS_KEPLERGL = True
+except Exception as _kepler_import_err:
+    # keplergl 仅用于 HTML 动态可视化; 导入失败(未安装/版本不兼容/依赖缺失)不应影响
+    # 地图匹配本身与 geojson/csv 结果输出。真正需要 HTML 时再抛清晰错误。
+    _HAS_KEPLERGL = False
+    _KEPLERGL_IMPORT_ERR = _kepler_import_err
 from .tools.group import cut_group
 from .GlobalVal import KeplerConfig
 from .model.Markov import HiddenMarkov
@@ -245,6 +249,11 @@ class KeplerVis(object):
         Returns:
             Kepler Map
         """
+        if not _HAS_KEPLERGL:
+            raise RuntimeError(
+                f'keplergl 未成功导入({_KEPLERGL_IMPORT_ERR!r})，跳过 HTML 动态可视化；'
+                f'地图匹配与 geojson/csv 结果不受影响。如需 HTML 可视化请安装: '
+                f'pip install "keplergl>=0.4.0rc4"')
         try:
             user_map = KeplerGl(height=height, data=self.data_dict)  # data以图层名为键，对应的矢量数据为值
         except:
