@@ -371,50 +371,6 @@ def t_0419test_match():
         print(warn_info[may_error_agent])
 
 def leeds_yg_test():
-    # origin_link = gpd.read_file(r'./data/input/0506yg/origin_link.shp')
-    # origin_node = gpd.read_file(r'./data/input/0506yg/origin_node.shp')
-    #
-    # node_map = {ori: new for ori, new in zip(origin_node['TOID'], range(1, len(origin_node) + 1))}
-    # origin_link['dir'] = 1
-    # origin_link.loc[origin_link['directiona'] == 'both directions', 'dir'] = 0
-    # origin_link.loc[origin_link['directiona'] == 'in direction', 'dir'] = 1
-    # origin_link.loc[origin_link['directiona'] == 'in opposite direction', 'dir'] = -1
-    # origin_link.rename(columns={'endnode_hr': 'to_node',
-    #                             'startnode_': 'from_node'}, inplace=True)
-    #
-    #
-    # neg_index = origin_link['dir'] == -1
-    # neg_link = origin_link[neg_index].copy()
-    # neg_link[['from_node', 'to_node']] = neg_link[['to_node', 'from_node']]
-    # from shapely.geometry import LineString
-    # neg_link['geometry'] = neg_link['geometry'].apply(
-    #     lambda geo: LineString(list(geo.coords)[::-1]))
-    # neg_link['dir'] = 1
-    # origin_link.drop(index=origin_link[neg_index].index, axis=0, inplace=True)
-    # origin_link = pd.concat([origin_link, neg_link])
-    # origin_link.reset_index(inplace=True, drop=True)
-    #
-    # origin_node['node_id'] = origin_node['TOID'].map(node_map)
-    #
-    # print(len(origin_link))
-    # origin_link['from_node'] = origin_link['from_node'].map(node_map)
-    # origin_link['to_node'] = origin_link['to_node'].map(node_map)
-    # origin_link.dropna(subset=['from_node', 'to_node'], inplace=True, how='any')
-    # origin_link.reset_index(inplace=True, drop=True)
-    # print(len(origin_link))
-    # origin_link['link_id'] = [i for i in range(1, len(origin_link) + 1)]
-    # origin_link['from_node'] = origin_link['from_node'].astype(int)
-    # origin_link['to_node'] = origin_link['to_node'].astype(int)
-    # origin_link['geometry'] = origin_link['geometry'].remove_repeated_points(1.5)
-    # origin_link['l'] = origin_link['geometry'].length
-    # origin_link = origin_link.to_crs('EPSG:4326')
-    # origin_node = origin_node.to_crs('EPSG:4326')
-    # origin_link[['TOID', 'link_id', 'l', 'from_node', 'to_node', 'dir', 'length', 'geometry']].to_file(
-    #     './data/input/0506yg/link.shp', encoding='gbk')
-    #
-    # origin_node[['TOID', 'node_id', 'geometry']].to_file(
-    #     './data/input/0506yg/node.shp', encoding='gbk')
-    #
 
     gps_df = pd.read_csv(r'./data/input/0506yg/gps.csv')
     gps_df['agent_id'] = gps_df['agent_id'].astype(int)
@@ -437,15 +393,8 @@ def leeds_yg_test():
                    omitted_l=20.1, del_dwell=False, dwell_l_length=15.0, time_unit='s',
                    export_html=True, export_geo_res=True, top_k=20, is_lower_f=False, lower_n=2,
                    instant_output=True,
-                   out_fldr=r'./data/output/match_visualization/0506yg/', user_field_list=['speed'],
+                   out_fldr=r'./data/output/0506yg/', user_field_list=['speed'],
                    use_gps_source=True, gps_radius=10.0)
-    # mpm = MapMatch(net=my_net, gps_df=gps_df, gps_buffer=60.0, flag_name='yg1', beta=5.6,
-    #                use_sub_net=False, use_heading_inf=True, max_increment_times=2, increment_buffer=100,
-    #                is_rolling_average=False, window=2, dense_interval=80, dense_gps=False,
-    #                omitted_l=20.1, del_dwell=False, dwell_l_length=15.0,
-    #                export_html=True, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
-    #                out_fldr=r'./data/output/match_visualization/0506yg/',
-    #                use_gps_source=True, gps_radius=10.0, instant_output=True)
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
@@ -646,20 +595,7 @@ def t_gjy0828_match():
     print(time.time() - x)
 
 def quick_start_match_1():
-    # gps_df1 = pd.read_csv(r'./data/input/QuickStart-Match-1/0327sample.csv')
-    #
-    # gps_df3 = pd.DataFrame()
-    # for file in os.listdir(r'./data/output/sample_gps/'):
-    #     if 'gps' in file and '0527' in file and 'xishu' not in file:
-    #         gps_df3 = pd.concat([gps_df3, gpd.read_file(rf'./data/output/sample_gps/{file}')])
-    #
-    # gps_df1[['agent_id', 'time', 'lng', 'lat']].to_csv(r'./data/input/QuickStart-Match-1/example_gps.csv',
-    #                                                    encoding='utf_8_sig', index=False)
-    #
-    # gps_df3[['agent_id', 'time', 'lng', 'lat']].to_csv(r'./data/input/QuickStart-Match-1/example_sparse_gps.csv',
-    #                                                    encoding='utf_8_sig', index=False)
 
-    # general
     gps_df = pd.read_csv(r'./data/input/QuickStart-Match-1/example_gps.csv')
     #
     # 利用gps数据构建TrajectoryPoints, 并且对数据进行清洗
@@ -688,38 +624,7 @@ def quick_start_match_1():
     print(warn_info)
     print(error_info)
 
-def quick_start_match_2():
-
-    # general
-    gps_df = pd.read_csv(r'./data/input/QuickStart-Match-1/example_gps.csv')
-
-    # 利用gps数据构建TrajectoryPoints, 并且对数据进行清洗
-    # 是否需要进行该步操作视实际情况而定
-    tp = TrajectoryPoints(gps_points_df=gps_df, plain_crs='EPSG:32649')
-    tp.lower_frequency(lower_n=2).kf_smooth(o_deviation=0.3).rolling_average(rolling_window=3)  
-    gps_df = tp.trajectory_data(_type='df')
-    tp.export_html(out_fldr=r'./data/output/match_visualization/QuickStart-Match-1/', file_name='general_gps')
-
-    link = gpd.read_file(r'./data/input/QuickStart-Match-1/modifiedConn_link.shp')
-    node = gpd.read_file(r'./data/input/QuickStart-Match-1/modifiedConn_node.shp')
-    my_net = Net(link_gdf=link, node_gdf=node, not_conn_cost=1200)
-    my_net.init_net()  # net初始化
-
-    mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='general_sample', time_format=r'%Y-%m-%d %H:%M:%S',
-                   use_heading_inf=True, omitted_l=6.0, export_html=True, del_dwell=False, export_geo_res=True,
-                   out_fldr=r'./data/output/match_visualization/QuickStart-Match-1', dense_gps=True,
-                   gps_radius=20.0)
-    # 第一个返回结果是匹配结果表
-    # 第二个是发生警告的agent的相关信息({agent_id1: pd.DataFrame(), agent_id2: pd.DataFrame()...})
-    # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
-
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    match_res.to_csv(fr'./data/output/match_visualization/QuickStart-Match-1/general_match_res.csv',
-                     encoding='utf_8_sig', index=False)
-    print(warn_info)
-    print(error_info)
-
-def ldso_0710():
+def t_ldso0710_match():
     import gotrackit.netreverse.NetGen as ng
     link = gpd.read_file(r'./data/input/ldso0710/link_test.geojson')
     link = link[['geometry']].copy()
