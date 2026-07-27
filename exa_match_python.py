@@ -351,26 +351,22 @@ def t_agents150_match():
                  fmm_cache=False, fmm_cache_fldr=r'./data/input/agents150/', cache_cn=5, prj_cache=False,
                  recalc_cache=False, is_hierarchical=True)
     my_net.init_net()  # net初始化
-
-    a = time.time()
-    para_grid = ParaGrid(gps_sigma_list=[1.0, 2.0, 3.0],
-                         beta_list=[500, 1000], use_heading_inf_list=[False])
-    a = time.time()
+    
     mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='id1',
                    use_sub_net=False, use_heading_inf=True,
                    is_rolling_average=True, window=2, dense_interval=80, dense_gps=False,
                    omitted_l=20.1, del_dwell=True, dwell_l_length=15.0,
-                   export_html=True, export_geo_res=False, top_k=20,
-                   out_fldr=case_output_dir("agents150"), instant_output=True,
-                   use_gps_source=True, gps_radius=10.0, use_para_grid=False, para_grid=para_grid,
+                   export_html=False, export_geo_res=False, top_k=20,
+                   out_fldr=case_output_dir("agents150"), instant_output=False,
+                   use_gps_source=True, gps_radius=10.0, use_para_grid=False,
                    visualization_cache_times=2)
     # match_res, warn_info, error_info = mpm.execute()
+    a = time.time()
     match_res, warn_info, error_info = mpm.multi_core_execute(gps_df=gps_df, core_num=3)
     print(time.time() - a)
     print(match_res)
     print(warn_info)
     print(error_info)
-    print(para_grid.search_res)
 
 @function_time_cost
 def t_route2gps_match():
