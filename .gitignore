@@ -29,10 +29,7 @@ AGENTS.md
 
 .vscode/
 
-data/output/
-data/input/net/
-data/input/region/
-data/input/test
+data/
 
 
 PrivateDoc/
