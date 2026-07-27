@@ -541,7 +541,7 @@ def t_carla0605_match():
     print(error_info)
 
 def t_zdsy_match():
-    gps_df = gpd.read_file(r'./data/input/zdsy/gps.csv')
+    gps_df = gpd.read_file(r'./data/input/zdsy/gps_500_agents.csv')
 
     l = gpd.read_file(r'./data/input/zdsy/FinalLink_dir.shp')
     n = gpd.read_file(r'./data/input/zdsy/FinalNode.shp')
@@ -559,15 +559,14 @@ def t_zdsy_match():
 
     my_net.init_net()  # net初始化
 
-    a = time.time()
     mpm = MapMatch(net=my_net, gps_buffer=80.0, flag_name='zdsy_test',
                    omitted_l=6.0, del_dwell=False, dwell_l_length=15.0, dwell_n=2,
                    is_lower_f=False, top_k=8, dense_gps=False,
                    is_rolling_average=False,
-                   export_html=True, export_geo_res=True, use_gps_source=False,
+                   export_html=False, export_geo_res=False, use_gps_source=False,
                    out_fldr=case_output_dir("zdsy"),
-                   gps_radius=10.0, multi_core_save=True, instant_output=True)
-
+                   gps_radius=10.0, multi_core_save=True, instant_output=False)
+    a = time.time()
     match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
     print(time.time() - a)
     print(warn_info.keys())
