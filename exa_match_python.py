@@ -92,6 +92,55 @@ def kf_smooth_compat(
     return trajectory
 
 
+def timed_execute(
+    case_name: str,
+    matcher: MapMatch,
+    gps_df: pd.DataFrame | gpd.GeoDataFrame,
+    *,
+    multi_core: bool = False,
+    core_num: int = 1,
+) -> tuple[pd.DataFrame, dict, list]:
+    """统一计时匹配执行，并落盘 match_res.csv / metadata.json。"""
+    out_fldr = case_output_dir(case_name)
+    started = time.time()
+    if multi_core:
+        match_res, warn_info, error_info = matcher.multi_core_execute(
+            gps_df=gps_df, core_num=core_num
+        )
+    else:
+        match_res, warn_info, error_info = matcher.execute(gps_df=gps_df)
+    seconds = time.time() - started
+
+    if match_res is not None:
+        match_res.to_csv(
+            os.path.join(out_fldr, "match_res.csv"),
+            encoding="utf_8_sig",
+            index=False,
+        )
+
+    match_rows = int(len(match_res)) if match_res is not None else 0
+    warn_agents = int(len(warn_info)) if warn_info is not None else 0
+    error_agents = [str(agent_id) for agent_id in (error_info or [])]
+    metadata = {
+        "case": case_name,
+        "seconds": seconds,
+        "match_rows": match_rows,
+        "warn_agents": warn_agents,
+        "error_agents": error_agents,
+        "multi_core": multi_core,
+    }
+    if multi_core:
+        metadata["core_num"] = int(core_num)
+    with open(os.path.join(out_fldr, "metadata.json"), "w", encoding="utf-8") as file:
+        json.dump(metadata, file, ensure_ascii=False, indent=2)
+    print(
+        f"{case_name}: rows={match_rows}, warnings={warn_agents}, "
+        f"errors={len(error_agents)}, seconds={seconds:.3f}",
+        flush=True,
+    )
+    return match_res, warn_info, error_info
+
+
 def t_cq_match():
     gps_df = gpd.read_file(rf'./data/input/cq/gps.shp')
     gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
@@ -107,11 +156,11 @@ def t_cq_match():
     # match
     mpm = MapMatch(net=my_net,
                    is_rolling_average=False, flag_name='cq_test',
-                   export_html=True, export_geo_res=True,
+                   export_html=False, export_geo_res=False,
                    out_fldr=case_output_dir("cq"), dense_gps=False,
-                   use_sub_net=True, multi_core_save=True, instant_output=True, use_para_grid=True, para_grid=pgd,
+                   use_sub_net=True, multi_core_save=True, instant_output=False, use_para_grid=True, para_grid=pgd,
                    user_field_list=['link_id'], heading_vec_len=25.0)
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("cq", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -147,7 +196,7 @@ def t_0327sample_match():
                    use_sub_net=False, use_heading_inf=True, omitted_l=6.0,
                    del_dwell=False, dwell_l_length=50.0, dwell_n=0,
                    is_lower_f=True, lower_n=1, user_field_list=['agent_id', 'seq'],
-                   export_html=True, export_geo_res=True, use_gps_source=True,
+                   export_html=False, export_geo_res=False, use_gps_source=True,
                    export_all_agents=True, instant_output=False, visualization_cache_times=20,
                    is_rolling_average=False, window=3,
                    out_fldr=case_output_dir("0327sample"), dense_gps=False,
@@ -157,12 +206,10 @@ def t_0327sample_match():
     # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
     # mpm.execute()
 
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("0327sample", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
-    match_res.to_csv(os.path.join(case_output_dir("0327sample"), "match_res.csv"),
-                     encoding='utf_8_sig', index=False)
 
 @function_time_cost
 def t_0424sample_match():
@@ -184,21 +231,19 @@ def t_0424sample_match():
                  node_gdf=n, fmm_cache=False, fmm_cache_fldr=r'./data/input/0424sample/', recalc_cache=False, cache_cn=3,
                  cache_slice=6, cut_off=1000, not_conn_cost=1200.0, is_hierarchical=True)
     my_net.init_net()  # net初始化
-    a = time.time()
     mpm = MapMatch(net=my_net, gps_buffer=500, flag_name='xa_sample_0424', speed_threshold=120,
                    use_sub_net=True, use_heading_inf=True,
                    omitted_l=6.0, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
                    lower_n=2, is_lower_f=False, top_k=20,
                    is_rolling_average=False, window=3,
-                   export_html=True, export_geo_res=False, use_gps_source=False,
+                   export_html=False, export_geo_res=False, use_gps_source=False,
                    out_fldr=case_output_dir("0424sample"), dense_gps=True,
-                   gps_radius=20.0, multi_core_save=True, instant_output=True, user_field_list=['from_node'],
+                   gps_radius=20.0, multi_core_save=True, instant_output=False, user_field_list=['from_node'],
                    heading_vec_len=50)
 
     # match_res, warn_info, error_info = mpm.execute()
     # match_res, warn_info, error_info = mpm.multi_core_execute(gps_df=gps_df, core_num=2)
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    print(time.time() - a)
+    match_res, warn_info, error_info = timed_execute("0424sample", mpm, gps_df)
     print(error_info)
     print(warn_info)
 
@@ -221,14 +266,14 @@ def t_denseexample_match():
     pgd = ParaGrid(use_heading_inf_list=[False, True], beta_list=[0.1, ], gps_sigma_list=[0.1, 0.001])
     # match
     mpm = MapMatch(net=my_net, is_rolling_average=False, window=2, flag_name='denseexample',
-                   export_html=True, export_geo_res=True,
+                   export_html=False, export_geo_res=False,
                    gps_buffer=400,
                    out_fldr=case_output_dir("denseexample"),
                    dense_gps=True, use_st=False,
                    use_sub_net=True, dense_interval=50.0, use_gps_source=False, use_heading_inf=True,
                    gps_radius=15.0, use_para_grid=False, para_grid=pgd, heading_vec_len=15,
                    user_field_list=['sub_seq', 'agent_id', 'lng'])
-    match_res_df, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res_df, warn_info, error_info = timed_execute("denseexample", mpm, gps_df)
     # print(gps_df.columns)
     # print(match_res_df.columns)
     print(match_res_df)
@@ -236,8 +281,6 @@ def t_denseexample_match():
     # print(warn_info)
     # print(error_info)
     # print(pd.DataFrame(pgd.search_res))
-    match_res_df.to_csv(os.path.join(case_output_dir("denseexample"), "match_res.csv"),
-                        encoding='utf_8_sig', index=False)
     # print(gpd.__version__)
 
     dense_res = dense_res_based_on_net(net=my_net, match_res_df=match_res_df)
@@ -263,13 +306,13 @@ def t_0326taxi_match():
     gps_df['prj_lng'] = [i + 1 for i in range(len(gps_df))]
     mpm = MapMatch(net=my_net,
                    is_rolling_average=False, window=2, flag_name='0326_taxi',
-                   export_html=True, export_geo_res=True, gps_sigma=10,
+                   export_html=False, export_geo_res=False, gps_sigma=10,
                    gps_buffer=500, out_fldr=case_output_dir("0326taxi"),
                    dense_gps=False, dense_interval=200, use_heading_inf=False,
                    top_k=40, dwell_n=0,
-                   use_sub_net=False, use_gps_source=False, gps_radius=20, instant_output=True, use_para_grid=False,
+                   use_sub_net=False, use_gps_source=False, gps_radius=20, instant_output=False, use_para_grid=False,
                    para_grid=pgd, heading_vec_len=80, user_field_list=['rkkkl', 'prj_lng'])
-    res, may_error_info, error_info = mpm.execute(gps_df=gps_df)
+    res, may_error_info, error_info = timed_execute("0326taxi", mpm, gps_df)
 
 def t_check0325_match():
     # 某快速路匹配示例
@@ -283,9 +326,9 @@ def t_check0325_match():
     print(gps_df)
     mpm = MapMatch(net=my_net,
                    is_rolling_average=False, window=2,
-                   flag_name='check0325', export_html=True, export_geo_res=True,
-                   out_fldr=case_output_dir("check0325"), instant_output=True)
-    res, may_error_info, error_info = mpm.execute(gps_df=gps_df)
+                   flag_name='check0325', export_html=False, export_geo_res=False,
+                   out_fldr=case_output_dir("check0325"), instant_output=False)
+    res, may_error_info, error_info = timed_execute("check0325", mpm, gps_df)
     print(res)
     print(may_error_info)
     print(error_info)
@@ -339,15 +382,13 @@ def t_bug0516_match():
                    use_sub_net=True, use_heading_inf=False,
                    is_rolling_average=False, window=2, dense_interval=400.0, dense_gps=True,
                    omitted_l=20.1, del_dwell=False, dwell_l_length=15.0,
-                   export_html=True, export_geo_res=True, top_k=20, is_lower_f=False, lower_n=2,
+                   export_html=False, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
                    out_fldr=case_output_dir("bug0516"),
-                   use_gps_source=False, gps_radius=20.0, instant_output=True)
+                   use_gps_source=False, gps_radius=20.0, instant_output=False)
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    match_res.to_csv(os.path.join(case_output_dir("bug0516"), "match_res.csv"),
-                     encoding='utf_8_sig', index=False)
+    match_res, warn_info, error_info = timed_execute("bug0516", mpm, gps_df)
     print(warn_info)
 
     generate_check_file(my_net, warn_info_dict=warn_info, out_fldr=case_output_dir("bug0516"))
@@ -370,9 +411,9 @@ def t_agents150_match():
                    use_gps_source=True, gps_radius=10.0, use_para_grid=False,
                    visualization_cache_times=2)
     # match_res, warn_info, error_info = mpm.execute()
-    a = time.time()
-    match_res, warn_info, error_info = mpm.multi_core_execute(gps_df=gps_df, core_num=3)
-    print(time.time() - a)
+    match_res, warn_info, error_info = timed_execute(
+        "agents150", mpm, gps_df, multi_core=True, core_num=3
+    )
     print(match_res)
     print(warn_info)
     print(error_info)
@@ -396,16 +437,14 @@ def t_route2gps_match():
                    is_rolling_average=False, is_lower_f=False, lower_n=2, dense_gps=False,
                    time_format='"%Y-%m-%d %H:%M:%S"', dense_interval=30.0,
                    omitted_l=2.0, del_dwell=True, dwell_l_length=20.0, dwell_n=0,
-                   export_html=True, export_geo_res=False, top_k=5, instant_output=False,
+                   export_html=False, export_geo_res=False, top_k=5, instant_output=False,
                    out_fldr=case_output_dir("route2gps"),
                    use_gps_source=False, gps_radius=10.0, export_all_agents=True, multi_core_save=False,
                    user_field_list=['heading1', 'my_field'])
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
-    match_res, warn_info, _ = mpm.execute(gps_df=gps_df,)
-    match_res.to_csv(os.path.join(case_output_dir("route2gps"), "match_res.csv"),
-                     encoding='utf_8_sig', index=False)
+    match_res, warn_info, _ = timed_execute("route2gps", mpm, gps_df)
     print(match_res)
     print(match_res.columns)
     print(_)
@@ -430,16 +469,14 @@ def t_0419test_match():
                    is_rolling_average=False, window=3, is_lower_f=True, lower_n=2, dense_gps=False,
                    omitted_l=2.0, del_dwell=True,
                    gps_sigma=30,
-                   export_html=True, export_geo_res=True, top_k=10,
+                   export_html=False, export_geo_res=False, top_k=10,
                    out_fldr=case_output_dir("0419test"),
                    use_gps_source=False,
                    gps_radius=10.0)
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps,)
-    match_res.to_csv(os.path.join(case_output_dir("0419test"), "match_res.csv"),
-                     encoding='utf_8_sig', index=False)
+    match_res, warn_info, error_info = timed_execute("0419test", mpm, gps)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -469,14 +506,14 @@ def t_0506yg_match():
                    use_sub_net=True, use_heading_inf=False,
                    is_rolling_average=False, window=2, dense_interval=80, dense_gps=False,
                    omitted_l=20.1, del_dwell=False, dwell_l_length=15.0, time_unit='s',
-                   export_html=True, export_geo_res=True, top_k=20, is_lower_f=False, lower_n=2,
-                   instant_output=True,
+                   export_html=False, export_geo_res=False, top_k=20, is_lower_f=False, lower_n=2,
+                   instant_output=False,
                    out_fldr=case_output_dir("0506yg"), user_field_list=['speed'],
                    use_gps_source=True, gps_radius=10.0)
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df,)
+    match_res, warn_info, error_info = timed_execute("0506yg", mpm, gps_df)
     # match_res.to_csv(r'./data/output/match_visualization/0506yg/match_res.csv', encoding='utf_8_sig')
     print(warn_info)
     print(match_res)
@@ -501,14 +538,14 @@ def t_0507xishu_match():
                    use_sub_net=True, use_heading_inf=True, dense_gps=False,
                    dense_interval=400, beta=20,
                    omitted_l=5.1, del_dwell=True, dwell_l_length=25.0, dwell_n=1,
-                   export_html=True, export_geo_res=True, top_k=25,
+                   export_html=False, export_geo_res=False, top_k=25,
                    out_fldr=case_output_dir("0507xishu"),
-                   use_gps_source=False, gps_radius=10.0, instant_output=True,
+                   use_gps_source=False, gps_radius=10.0, instant_output=False,
                    user_field_list=['lng', 'seq'])
 
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的路段节点编号
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("0507xishu", mpm, gps_df)
     print(match_res)
     print(pd.DataFrame(p.search_res))
 
@@ -533,18 +570,16 @@ def t_carla0605_match():
 
     my_net.init_net()  # net初始化
 
-    a = time.time()
     mpm = MapMatch(net=my_net, gps_buffer=80.0, flag_name='carla_0605', speed_threshold=150,
                    use_sub_net=False, use_heading_inf=True,
                    omitted_l=6.0, del_dwell=False, dwell_l_length=15.0, dwell_n=2,
                    is_lower_f=False, top_k=20,
                    is_rolling_average=False,
-                   export_html=False, export_geo_res=True, use_gps_source=False,
+                   export_html=False, export_geo_res=False, use_gps_source=False,
                    out_fldr=case_output_dir("carla0605"), dense_gps=False, dense_interval=10.0,
-                   gps_radius=10.0, multi_core_save=True, instant_output=True, heading_vec_len=3, user_field_list=['aq', 'lng'])
+                   gps_radius=10.0, multi_core_save=True, instant_output=False, heading_vec_len=3, user_field_list=['aq', 'lng'])
 
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    print(time.time() - a)
+    match_res, warn_info, error_info = timed_execute("carla0605", mpm, gps_df)
     print(warn_info.keys())
     print(match_res)
     print(error_info)
@@ -575,9 +610,7 @@ def t_zdsy_match():
                    export_html=False, export_geo_res=False, use_gps_source=False,
                    out_fldr=case_output_dir("zdsy"),
                    gps_radius=10.0, multi_core_save=True, instant_output=False)
-    a = time.time()
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    print(time.time() - a)
+    match_res, warn_info, error_info = timed_execute("zdsy", mpm, gps_df)
     print(warn_info.keys())
     print(match_res)
     print(error_info)
@@ -608,10 +641,10 @@ def t_ldsobug_match():
                    lower_n=2, is_lower_f=False,
                    is_rolling_average=False, window=3,
                    dense_gps=False,
-                   export_html=True, export_geo_res=True, use_gps_source=False,  # export_html 设置为true 警告信息才会打印全部字段
+                   export_html=False, export_geo_res=False, use_gps_source=False,  # export_html 设置为true 警告信息才会打印全部字段
                    out_fldr=case_output_dir("ldso0703"),  # 结果输出存放文件夹
                    gps_radius=1.0)
-    res, warn, _ = mpm.execute(gps_df=gps_df,)
+    res, warn, _ = timed_execute("ldso0703", mpm, gps_df)
 
     generate_check_file(my_net, warn_info_dict=warn, out_fldr=case_output_dir("ldso0703"))
     print(res)
@@ -633,7 +666,7 @@ def t_gjy0828_match():
                  recalc_cache=False, prj_cache=False, cut_off=800)
     my_net.init_net()
     mpm = MapMatch(net=my_net, flag_name='0808_gjy',
-                   export_html=True, export_geo_res=False,
+                   export_html=False, export_geo_res=False,
                    gps_buffer=75, out_fldr=output_fldr, dense_gps=False, is_lower_f=False,
                    dense_interval=30, use_st=False,
                    top_k=10, dwell_n=0, del_dwell=False, use_heading_inf=True,
@@ -642,9 +675,7 @@ def t_gjy0828_match():
     # eq_df = pd.DataFrame({'eq_id': [i for i in range(len(gps_df))]})
     # eq_df['from_node'] = 1872
     # eq_df['to_node'] = 1855
-    x = time.time()
-    mpm.execute(gps_df=gps_df)
-    print(time.time() - x)
+    timed_execute("gjy0828", mpm, gps_df)
 
 def quick_start_match_1():
 
@@ -657,7 +688,7 @@ def quick_start_match_1():
     kf_smooth_compat(tp, o_deviation=0.3)
     tp.rolling_average(rolling_window=3)  # 由于样例数据定位频率高且有一定的误差，因此先做间隔采样然后执行滤波平滑
     gps_df = tp.trajectory_data(_type='df')
-    tp.export_html(out_fldr=case_output_dir("QuickStart-Match-1"), file_name='general_gps')
+    # tp.export_html(out_fldr=case_output_dir("QuickStart-Match-1"), file_name='general_gps')
 
     link = gpd.read_file(r'./data/input/QuickStart-Match-1/modifiedConn_link.shp')
     node = gpd.read_file(r'./data/input/QuickStart-Match-1/modifiedConn_node.shp')
@@ -666,16 +697,14 @@ def quick_start_match_1():
     my_net.init_net()  # net初始化
 
     mpm = MapMatch(net=my_net, gps_buffer=120, flag_name='general_sample', time_format=r'%Y-%m-%d %H:%M:%S',
-                   use_heading_inf=True, omitted_l=6.0, export_html=True, del_dwell=False, export_geo_res=True,
+                   use_heading_inf=True, omitted_l=6.0, export_html=False, del_dwell=False, export_geo_res=False,
                    out_fldr=case_output_dir("QuickStart-Match-1"), dense_gps=True,
                    gps_radius=20.0)
     # 第一个返回结果是匹配结果表
     # 第二个是发生警告的agent的相关信息({agent_id1: pd.DataFrame(), agent_id2: pd.DataFrame()...})
     # 第三个是匹配出错的agent的id列表(GPS点经过预处理(或者原始数据)后点数量不足2个)
 
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    match_res.to_csv(os.path.join(case_output_dir("QuickStart-Match-1"), "general_match_res.csv"),
-                     encoding='utf_8_sig', index=False)
+    match_res, warn_info, error_info = timed_execute("QuickStart-Match-1", mpm, gps_df)
     print(warn_info)
     print(error_info)
 
@@ -707,14 +736,14 @@ def t_ldso0710_match():
     #                use_sub_net=False, use_gps_source=False, gps_radius=6,
     #                instant_output=True)
     mpm = MapMatch(net=my_net, flag_name='ldso0710',
-                   export_html=True, export_geo_res=True,
+                   export_html=False, export_geo_res=False,
                    gps_buffer=100, out_fldr=case_output_dir("ldso0710"),
                    top_k=10, dwell_n=0, del_dwell=False,
                    use_heading_inf=True, heading_para_array=np.array([1, 1, 1, 0.1, 0.1, 0.01, 0.01, 0.001, 0.001]),
                    omitted_l=1.0,
                    use_sub_net=False, use_gps_source=False, gps_radius=6,
-                   instant_output=True)
-    mpm.execute(gps_df=gps_df)
+                   instant_output=False)
+    timed_execute("ldso0710", mpm, gps_df)
 
 
 def t_bug_0402_match():
@@ -759,20 +788,15 @@ def t_bug_0402_match():
         dense_gps=False,
         dense_interval=80.0,
         top_k=20,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         out_fldr=case_output_dir('bug_0402'),
         use_para_grid=False,
         user_field_list=['aaaa'],
         gps_radius=10.0,
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    match_res.to_csv(
-        os.path.join(case_output_dir('bug_0402'), 'match_res.csv'),
-        encoding='utf_8_sig',
-        index=False,
-    )
+    match_res, warn_info, error_info = timed_execute("bug_0402", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -814,18 +838,13 @@ def t_0729hz_match():
         top_k=10,
         gps_sigma=1.0,
         dense_gps=False,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         out_fldr=case_output_dir('0729hz'),
         gps_radius=10.0,
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
-    match_res.to_csv(
-        os.path.join(case_output_dir('0729hz'), 'match_res.csv'),
-        encoding='utf_8_sig',
-        index=False,
-    )
+    match_res, warn_info, error_info = timed_execute("0729hz", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -858,15 +877,15 @@ def t_250415bug_match():
         del_dwell=False,
         dwell_l_length=50.0,
         dwell_n=0,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         use_gps_source=False,
         out_fldr=case_output_dir('250415bug'),
         dense_gps=False,
         gps_radius=5.0,
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("250415bug", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -914,7 +933,7 @@ def t_bug0213_match():
     tp.lower_frequency(lower_n=7)
     tp.del_dwell_points(dwell_n=15, dwell_l_length=20)
     process_df = tp.trajectory_data(_type='df')
-    tp.export_html(out_fldr=case_output_dir('bug0213'), file_name='sample', radius=3.0)
+    # tp.export_html(out_fldr=case_output_dir('bug0213'), file_name='sample', radius=3.0)
 
     link = gpd.read_file(os.path.join(input_fldr, 'FinalLink.shp'))
     node = gpd.read_file(os.path.join(input_fldr, 'FinalNode.shp'))
@@ -940,15 +959,15 @@ def t_bug0213_match():
         use_heading_inf=False,
         omitted_l=6.0,
         del_dwell=False,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         use_gps_source=True,
         gps_radius=15.0,
         export_all_agents=False,
         out_fldr=case_output_dir('bug0213'),
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=process_df)
+    match_res, warn_info, error_info = timed_execute("bug0213", mpm, process_df)
     print(match_res)
     print(warn_info)
     print(error_info)
@@ -1022,13 +1041,13 @@ def t_250114_match():
         time_format='%Y-%m-%d %H:%M:%S.%f',
         dense_gps=False,
         top_k=70,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         use_gps_source=False,
         out_fldr=case_output_dir('250114'),
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=traj_df)
+    match_res, warn_info, error_info = timed_execute("250114", mpm, traj_df)
     print(warn_info)
     print(match_res)
     print(error_info)
@@ -1063,14 +1082,14 @@ def t_1126_match():
     mpm = MapMatch(
         net=my_net,
         flag_name='1126',
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         gps_sigma=10,
         gps_buffer=100,
         time_unit='ms',
         out_fldr=case_output_dir('1126'),
         dense_gps=False,
-        instant_output=True,
+        instant_output=False,
         use_sub_net=True,
         use_gps_source=False,
         use_heading_inf=True,
@@ -1078,7 +1097,7 @@ def t_1126_match():
         use_para_grid=False,
         heading_vec_len=15,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("1126", mpm, gps_df)
     print(match_res)
     print(warn_info)
     print(error_info)
@@ -1115,13 +1134,13 @@ def t_reverse1121_match():
         is_rolling_average=False,
         window=2,
         flag_name='1121test',
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         gps_buffer=400,
         time_unit='ms',
         out_fldr=case_output_dir('reverse1121'),
         dense_gps=False,
-        instant_output=True,
+        instant_output=False,
         use_sub_net=True,
         dense_interval=50.0,
         use_gps_source=False,
@@ -1130,7 +1149,7 @@ def t_reverse1121_match():
         use_para_grid=False,
         heading_vec_len=15,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("reverse1121", mpm, gps_df)
     print(match_res)
     print(warn_info)
     print(error_info)
@@ -1147,8 +1166,8 @@ def t_test1104_match():
     mpm = MapMatch(
         net=my_net,
         flag_name='1104',
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         gps_buffer=250,
         out_fldr=output_fldr,
         top_k=10,
@@ -1160,9 +1179,9 @@ def t_test1104_match():
         use_sub_net=True,
         use_gps_source=False,
         gps_radius=6,
-        instant_output=True,
+        instant_output=False,
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("test1104", mpm, gps_df)
     print(match_res)
     print(warn_info)
     print(error_info)
@@ -1209,20 +1228,20 @@ def t_0614bug_match():
         omitted_l=20.1,
         del_dwell=False,
         dwell_l_length=15.0,
-        export_html=True,
-        export_geo_res=True,
+        export_html=False,
+        export_geo_res=False,
         top_k=30,
         is_lower_f=False,
         lower_n=2,
         out_fldr=case_output_dir('0614bug'),
         use_gps_source=False,
         gps_radius=20.0,
-        instant_output=True,
+        instant_output=False,
         para_grid=p,
         use_para_grid=False,
         user_field_list=['plateNo'],
     )
-    match_res, warn_info, error_info = mpm.execute(gps_df=gps_df)
+    match_res, warn_info, error_info = timed_execute("0614bug", mpm, gps_df)
     print(warn_info.keys())
     print(warn_info)
     generate_check_file(
@@ -1286,11 +1305,22 @@ def run_all() -> dict[str, dict[str, object]]:
                 "status": "passed",
                 "seconds": time.time() - start,
             }
+            meta_path = os.path.join(case_output_dir(case_name), "metadata.json")
+            if os.path.exists(meta_path):
+                with open(meta_path, encoding="utf-8") as meta_file:
+                    meta = json.load(meta_file)
+                if "seconds" in meta:
+                    summary[case_name]["execute_seconds"] = meta["seconds"]
         print(
             f"===== END {case_name}: {summary[case_name]['status']} "
             f"({summary[case_name]['seconds']:.3f}s) =====",
             flush=True,
         )
+        if "execute_seconds" in summary[case_name]:
+            print(
+                f"===== execute_seconds={summary[case_name]['execute_seconds']:.3f}s =====",
+                flush=True,
+            )
 
     summary_path = os.path.join(OUTPUT_ROOT, "run_summary.json")
     with open(summary_path, "w", encoding="utf-8") as file:
