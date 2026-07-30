@@ -334,19 +334,42 @@ def t_check0325_match():
     print(error_info)
 
 def t_bug0329_match():
-    from shapely.geometry import Point
-    link = gpd.read_file(r'./data/input/bug0329/LinkAfterModify.shp')
-    node = gpd.read_file(r'./data/input/bug0329/NodeAfterModify.shp')
-    link = link.to_crs('EPSG:4326')
-    node = node.to_crs('EPSG:4326')
-
-    print(link)
-    print(node)
     gps_df = gpd.read_file(r'./data/input/bug0329/trajectory_helmert.shp')
-    print(gps_df.crs)
     gps_df = gps_df.to_crs('EPSG:4326')
-    gps_df[['lng', 'lat']] = gps_df.apply(lambda row: (row['geometry'].x, row['geometry'].y), axis=1,
-                                          result_type='expand')
+    gps_df[['lng', 'lat']] = gps_df.apply(
+        lambda row: (row['geometry'].x, row['geometry'].y),
+        axis=1,
+        result_type='expand',
+    )
+    if 'agent_id' not in gps_df.columns:
+        gps_df['agent_id'] = 1
+    if 'time' not in gps_df.columns:
+        gps_df['time'] = np.arange(len(gps_df))
+    gps_df.drop(columns=['geometry'], inplace=True)
+
+    my_net = Net(
+        link_path=r'./data/input/bug0329/LinkAfterModify.shp',
+        node_path=r'./data/input/bug0329/NodeAfterModify.shp',
+        plane_crs='EPSG:32650',
+        fmm_cache=False,
+        prj_cache=False,
+    )
+    my_net.init_net()
+    mpm = MapMatch(
+        net=my_net,
+        flag_name='bug0329',
+        gps_buffer=50,
+        use_sub_net=False,
+        dense_gps=False,
+        export_html=False,
+        export_geo_res=False,
+        out_fldr=case_output_dir('bug0329'),
+        instant_output=False,
+    )
+    match_res, warn_info, error_info = timed_execute('bug0329', mpm, gps_df)
+    print(warn_info)
+    print(match_res)
+    print(error_info)
 
 def t_bug0516_match():
     # 1.读取GPS数据
@@ -1263,7 +1286,7 @@ MATCH_FUNCTIONS = {
     "bug0516": t_bug0516_match,
     "agents150": t_agents150_match,
     "route2gps": t_route2gps_match,
-    "bug_0402": t_bug_0402_match,
+    "0402bug": t_0402bug_match,
     "0419test": t_0419test_match,
     "0506yg": t_0506yg_match,
     "0507xishu": t_0507xishu_match,
