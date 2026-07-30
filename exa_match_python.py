@@ -36,7 +36,7 @@ CASE_NAMES = (
     "bug0516",
     "agents150",
     "route2gps",
-    "bug_0402",
+    "0402bug",
     "0419test",
     "0506yg",
     "0507xishu",
@@ -459,8 +459,8 @@ def t_0419test_match():
     # gps = gps.loc[[0, 1], :].copy()
 
     # 0419test 只保留了 GPS；其深圳路网与 0402BUG/agents150/0326taxi 使用的是同一份数据。
-    my_net = Net(link_path=r'./data/input/0402BUG/new_link.shp',
-                 node_path=r'./data/input/0402BUG/modifiedConn_node.shp', not_conn_cost=1500,
+    my_net = Net(link_path=r'./data/input/0419test/new_link.shp',
+                 node_path=r'./data/input/0419test/modifiedConn_node.shp', not_conn_cost=1500,
                  fmm_cache=False, prj_cache=False)
 
     my_net.init_net()  # net初始化
@@ -746,8 +746,8 @@ def t_ldso0710_match():
     timed_execute("ldso0710", mpm, gps_df)
 
 
-def t_bug_0402_match():
-    input_fldr = r'./data/input/0402BUG'
+def t_0402bug_match():
+    input_fldr = r'./data/input/0402bug'
     gps_df = gpd.read_file(os.path.join(input_fldr, 'gps_CORRECT.geojson'))
     gps_df[['lng', 'lat']] = gps_df.apply(
         lambda row: (row['geometry'].x, row['geometry'].y),
@@ -790,13 +790,13 @@ def t_bug_0402_match():
         top_k=20,
         export_html=False,
         export_geo_res=False,
-        out_fldr=case_output_dir('bug_0402'),
+        out_fldr=case_output_dir('0402bug'),
         use_para_grid=False,
         user_field_list=['aaaa'],
         gps_radius=10.0,
         instant_output=False,
     )
-    match_res, warn_info, error_info = timed_execute("bug_0402", mpm, gps_df)
+    match_res, warn_info, error_info = timed_execute("0402bug", mpm, gps_df)
     print(warn_info)
     print(match_res)
     print(error_info)
