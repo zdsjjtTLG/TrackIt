@@ -188,3 +188,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /data/input/net/test/
+
+# Local leftovers when switching from rust-core / docs tooling (do not commit)
+.worktrees/
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+debug_bundle/
+tools/match_debug/_smoke_bundle/
+.tmp/
